@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     `password` VARCHAR(255) NOT NULL,
     `name` VARCHAR(100) NOT NULL,
     `role` ENUM('admin', 'waiter', 'kot', 'counter') NOT NULL,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
