@@ -392,7 +392,7 @@ function App() {
             <div className="sands-modal-content" style={{ background: '#ffffff', border: '1px solid rgba(0, 0, 0, 0.08)', padding: '35px 25px', borderRadius: '24px', textAlign: 'center', maxWidth: '340px', width: '90%', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', position: 'relative', color: '#1f2937' }}>
               <button onClick={() => setShowSandsModal(false)} style={{ position: 'absolute', top: 15, right: 15, background: 'none', border: 'none', color: '#6b7280', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>&times;</button>
               <div style={{ marginBottom: 20 }}>
-                <img src="/logos/SaNDSLab-LogoNewUpdated.png" alt="SaNDS Lab Logo" style={{ maxWidth: 170, height: 'auto', display: 'block', margin: '0 auto' }} />
+                <img src="/logos/SaNDSLab-LogoNewUpdated.png" alt="SaNDS Lab Logo" style={{ maxWidth: 220, height: 'auto', display: 'block', margin: '0 auto' }} />
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1f2937', marginBottom: 5, letterSpacing: '-0.5px' }}>SaNDS Lab</h3>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom Software Developers</p>

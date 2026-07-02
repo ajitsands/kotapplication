@@ -741,7 +741,7 @@
         <div style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08); padding: 35px 25px; border-radius: 24px; text-align: center; max-width: 340px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.2); position: relative; color: #1f2937;">
             <button onclick="closeSandsModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #6b7280; font-size: 24px; cursor: pointer;">&times;</button>
             <div style="margin-bottom: 20px;">
-                <img src="/logos/SaNDSLab-LogoNewUpdated.png" alt="SaNDS Lab Logo" style="max-width: 170px; height: auto; display: block; margin: 0 auto;">
+                <img src="/logos/SaNDSLab-LogoNewUpdated.png" alt="SaNDS Lab Logo" style="max-width: 220px; height: auto; display: block; margin: 0 auto;">
             </div>
             <h3 style="font-size: 20px; font-weight: 800; color: #1f2937; margin-bottom: 5px;">SaNDS Lab</h3>
             <p style="font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;">Custom Software Developers</p>
