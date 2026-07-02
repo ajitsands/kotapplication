@@ -859,6 +859,7 @@
         <div class="header-nav">
             <a href="kot" class="nav-link">KOT Monitor</a>
             <a href="counter" class="nav-link">Billing Counter</a>
+            <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; padding: 6px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px;">📱 Waiter QR</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -1946,6 +1947,33 @@
 
         function closeQrCode() {
             document.getElementById('qr-modal').style.display = 'none';
+        }
+
+        function showWaiterLoginQr() {
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const path = window.location.pathname.replace('/admin', '');
+            const loginUrl = protocol + '//' + host + path + '/login';
+            
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(loginUrl);
+            
+            Swal.fire({
+                title: '📱 Waiter Login Link',
+                html: `
+                    <div style="margin: 15px 0;">
+                        <img src="${qrImageUrl}" alt="Login QR Code" style="width: 220px; height: 220px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid white;">
+                        <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Scan this QR code with a waiter's phone camera to quickly access the system login page.</p>
+                        <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
+                            ${loginUrl}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            });
         }
 
         // Global SweetAlert2 delete confirmation listener
