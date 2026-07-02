@@ -6,7 +6,10 @@ error_reporting(E_ALL);
 
 // Detect environment (Server vs Local)
 $isServer = false;
-if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'kot.sandslab.com') !== false) {
+// Check if running on cPanel server folder or domain
+if (strpos(dirname(__FILE__), '/home/sandsl23/') !== false) {
+    $isServer = true;
+} elseif (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'sandslab.com') !== false) {
     $isServer = true;
 } elseif (php_sapi_name() === 'cli' && (strpos(dirname(__FILE__), 'kotapplication') === false || strpos(dirname(__FILE__), 'sandslab') !== false)) {
     $isServer = true;
@@ -26,8 +29,15 @@ if ($isServer) {
     define('DB_NAME', 'kot_billing');
 }
 
-// Start session if not started
+// Configure local session directory to bypass broken cPanel session save paths
 if (session_status() === PHP_SESSION_NONE) {
+    $sessionDir = dirname(__FILE__) . '/sessions';
+    if (!file_exists($sessionDir)) {
+        mkdir($sessionDir, 0777, true);
+        // Secure sessions folder with .htaccess
+        file_put_contents($sessionDir . '/.htaccess', "Deny from all\n");
+    }
+    session_save_path($sessionDir);
     session_start();
 }
 
