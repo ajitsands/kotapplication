@@ -128,6 +128,24 @@
             color: var(--text-color);
         }
 
+        .btn-logout {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ff6b6b;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        }
+
         .container {
             max-width: 1400px;
             margin: 30px auto;
