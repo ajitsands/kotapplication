@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS `products` (
     FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Dining Tables Table
+CREATE TABLE IF NOT EXISTS `dining_tables` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `table_number` INT NOT NULL UNIQUE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 -- Orders Table
 CREATE TABLE IF NOT EXISTS `orders` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -109,3 +116,8 @@ INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
 -- Default Setting
 INSERT INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`) VALUES
 (1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'VAT', 10.00, 2.50, 2.50, 80, NULL);
+
+-- Default Dining Tables (1 to 20)
+INSERT INTO `dining_tables` (`table_number`) VALUES
+(1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
