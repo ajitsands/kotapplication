@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS `bills` (
 ) ENGINE=InnoDB;
 
 -- Default Data Insertions
-INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
+INSERT IGNORE INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
 (1, 'admin', '$2y$10$eKJ6GL3MMiONVOGB.YY92.EUbDW1xJn72.K7OYbxwN6oczfwpgk2e', 'System Administrator', 'admin'),
 (2, 'waiter1', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter John', 'waiter'),
 (3, 'waiter2', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter Sarah', 'waiter'),
@@ -115,10 +115,10 @@ INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
 (5, 'counter1', '$2y$10$rC2bzZxCggfJT0FUHUAKnOdFdHJ3eVNMSdWfj8lm9muu9abOZPtK.', 'Cashier Sam', 'counter');
 
 -- Default Setting
-INSERT INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`) VALUES
+INSERT IGNORE INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`) VALUES
 (1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'VAT', 10.00, 2.50, 2.50, 80, NULL);
 
 -- Default Dining Tables (1 to 20)
-INSERT INTO `dining_tables` (`table_number`) VALUES
+INSERT IGNORE INTO `dining_tables` (`table_number`) VALUES
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);

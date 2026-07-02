@@ -31,6 +31,16 @@ try {
 
     echo "<h2 style='font-family:sans-serif;'>Connected to database <code>$dbName</code> successfully.</h2>";
 
+    // Auto-migrate: Check if 'is_active' column is missing in 'users' table
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
+    if ($tableCheck) {
+        $columnCheck = $pdo->query("SHOW COLUMNS FROM `users` LIKE 'is_active'")->fetch();
+        if (!$columnCheck) {
+            $pdo->exec("ALTER TABLE `users` ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1 AFTER `role`");
+            echo "<p style='color:green; font-family:sans-serif; font-weight:600;'>✓ Migrated: Added missing 'is_active' column to existing 'users' table.</p>";
+        }
+    }
+
     // Read schema.sql
     if (!file_exists('schema.sql')) {
         throw new Exception("schema.sql file not found at the root of the project.");
