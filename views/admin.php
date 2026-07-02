@@ -11,6 +11,7 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda-themeless.min.css">
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -1954,6 +1955,11 @@
                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        const btn = form.querySelector('button[type="submit"]');
+                        if (btn && typeof Ladda !== 'undefined') {
+                            const l = Ladda.create(btn);
+                            l.start();
+                        }
                         form.submit(); // Submit form
                     }
                 });
@@ -2518,6 +2524,40 @@
         function closeSandsModal() {
             document.getElementById('sands-modal').style.display = 'none';
         }
+
+        // Auto-initialize Ladda on all submit buttons
+        document.querySelectorAll('form button[type="submit"]').forEach(function(btn) {
+            if (!btn.classList.contains('ladda-button')) {
+                btn.classList.add('ladda-button');
+            }
+            if (!btn.getAttribute('data-style')) {
+                btn.setAttribute('data-style', 'expand-right');
+            }
+            if (!btn.querySelector('.ladda-label')) {
+                var label = document.createElement('span');
+                label.className = 'ladda-label';
+                label.innerHTML = btn.innerHTML;
+                btn.innerHTML = '';
+                btn.appendChild(label);
+            }
+        });
+
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                // If it is a confirm-delete form, only start Ladda after user confirms
+                if (form.classList.contains('confirm-delete') || form.classList.contains('confirm-action')) {
+                    // Let the SweetAlert2 handler deal with it
+                    return;
+                }
+                var btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    var l = Ladda.create(btn);
+                    l.start();
+                }
+            });
+        });
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/spin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda.min.js"></script>
 </body>
 </html>

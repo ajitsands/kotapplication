@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | <?= htmlspecialchars($settings['restaurant_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda-themeless.min.css">
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -267,6 +268,35 @@
         function closeSandsModal() {
             document.getElementById('sands-modal').style.display = 'none';
         }
+
+        // Auto-initialize Ladda on all submit buttons
+        document.querySelectorAll('form button[type="submit"]').forEach(function(btn) {
+            if (!btn.classList.contains('ladda-button')) {
+                btn.classList.add('ladda-button');
+            }
+            if (!btn.getAttribute('data-style')) {
+                btn.setAttribute('data-style', 'expand-right');
+            }
+            if (!btn.querySelector('.ladda-label')) {
+                var label = document.createElement('span');
+                label.className = 'ladda-label';
+                label.innerHTML = btn.innerHTML;
+                btn.innerHTML = '';
+                btn.appendChild(label);
+            }
+        });
+
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                var btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    var l = Ladda.create(btn);
+                    l.start();
+                }
+            });
+        });
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/spin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda.min.js"></script>
 </body>
 </html>
