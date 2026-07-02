@@ -830,6 +830,32 @@
         </div>
     </div>
 
+    <!-- Product Details Popup Modal -->
+    <div class="modal" id="product-details-modal" style="display:none;">
+        <div class="modal-content" style="max-width: 500px; text-align: left; margin: 0 auto;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="font-size: 18px; font-weight: 800;">Product Details</h3>
+                <button onclick="closeProductDetailsModal()" class="btn-close-modal">×</button>
+            </div>
+            
+            <div class="modal-body" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 15px; align-items: center; text-align: center; margin-top: 10px;">
+                <img id="detail-modal-img" src="" alt="Product Image" style="width: 100%; max-height: 220px; border-radius: 16px; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,0.3); display: none;">
+                <div id="detail-modal-img-placeholder" style="width: 90px; height: 90px; border-radius: 16px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; font-size: 36px; color: rgba(255,255,255,0.1); border: 2px dashed var(--card-border); font-weight: 800; display: none;"></div>
+                
+                <div style="width: 100%; text-align: left; margin-top: 10px;">
+                    <h2 id="detail-modal-name" style="font-size: 22px; font-weight: 800; color: var(--text-color); margin-bottom: 4px;"></h2>
+                    <span id="detail-modal-price" style="font-size: 16px; font-weight: 800; color: var(--accent-green); display: block; margin-bottom: 12px;"></span>
+                    <p id="detail-modal-desc" style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 5px;"></p>
+                </div>
+            </div>
+            
+            <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 12px; align-items: center;">
+                <button class="btn-checkout" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); padding: 12px; font-size: 14px; font-weight: 700;" onclick="closeProductDetailsModal()">Close</button>
+                <div id="detail-modal-control-container" style="flex: 1.5; display: flex; align-items: center; justify-content: center;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Success Screen Overlay -->
     <div class="success-screen" id="success-screen">
         <div class="success-icon">✓</div>
@@ -850,6 +876,48 @@
         let cart = {};
         let activeOrder = null;
         let pollInterval = null;
+        let currentModalProductId = null;
+
+        // Details Modal Functions
+        function openProductDetailsModal(event, prodId) {
+            // Prevent opening modal if clicking Add button or quantity controls
+            if (event.target.closest('#control-' + prodId) || event.target.closest('.btn-add') || event.target.closest('.cart-control')) {
+                return;
+            }
+            
+            const prod = products.find(p => p.id === prodId);
+            if (!prod) return;
+
+            currentModalProductId = prodId;
+
+            // Populate fields
+            document.getElementById('detail-modal-name').innerText = prod.name;
+            document.getElementById('detail-modal-price').innerText = parseFloat(prod.price).toFixed(3) + ' ' + currencyCode;
+            document.getElementById('detail-modal-desc').innerText = prod.description || 'No description available for this item.';
+
+            const imgEl = document.getElementById('detail-modal-img');
+            const placeholderEl = document.getElementById('detail-modal-img-placeholder');
+
+            if (prod.image_url) {
+                imgEl.src = '/' + prod.image_url.replace(/^\/+/, '');
+                imgEl.style.display = 'block';
+                placeholderEl.style.display = 'none';
+            } else {
+                imgEl.style.display = 'none';
+                placeholderEl.innerText = prod.name.substring(0, 1).toUpperCase();
+                placeholderEl.style.display = 'flex';
+            }
+
+            // Sync footer controls
+            updateCartUI();
+
+            document.getElementById('product-details-modal').style.display = 'flex';
+        }
+
+        function closeProductDetailsModal() {
+            document.getElementById('product-details-modal').style.display = 'none';
+            currentModalProductId = null;
+        }
 
         // Fetch products via AJAX JSON
         function loadProducts() {
@@ -917,6 +985,27 @@
                     div.innerHTML = `<button class="btn-add" onclick="addToCartById(${id})">Add</button>`;
                 }
             });
+
+            // Update details modal controls if open
+            if (typeof currentModalProductId !== 'undefined' && currentModalProductId !== null) {
+                const modalCtrl = document.getElementById('detail-modal-control-container');
+                if (modalCtrl) {
+                    const id = currentModalProductId;
+                    if (cart[id]) {
+                        modalCtrl.innerHTML = `
+                            <div class="cart-control" style="width: 100%; justify-content: space-between; padding: 6px 12px; border-radius: 12px; height: 46px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);">
+                                <button class="btn-qty" style="width: 32px; height: 32px; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center;" onclick="changeQty(${id}, -1)">-</button>
+                                <span class="qty-num" style="font-size: 15px; font-weight: 700; color: var(--text-color);">${cart[id].quantity}</span>
+                                <button class="btn-qty" style="width: 32px; height: 32px; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center;" onclick="changeQty(${id}, 1)">+</button>
+                            </div>
+                        `;
+                    } else {
+                        modalCtrl.innerHTML = `
+                            <button class="btn-primary" style="width: 100%; background: var(--primary-grad); padding: 12px; font-weight: 700; height: 46px; border-radius: 12px; font-family: inherit; font-size: 14px; color: white;" onclick="addToCartById(${id})">Add to Order</button>
+                        `;
+                    }
+                }
+            }
 
             // Re-render add buttons for all products NOT in cart
             // Since we need product details, let's keep a record, or just regenerate them using inline onclick binding
@@ -1039,7 +1128,7 @@
                         : `<div class="product-img" style="background: rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; color:rgba(255,255,255,0.08);">${escapeHtml(prod.name.substring(0, 1))}</div>`;
 
                     html += `
-                        <div class="product-card" data-name="${escapeHtml(prod.name.toLowerCase())}" data-desc="${escapeHtml((prod.description || '').toLowerCase())}">
+                        <div class="product-card" style="cursor: pointer;" onclick="openProductDetailsModal(event, ${prod.id})" data-name="${escapeHtml(prod.name.toLowerCase())}" data-desc="${escapeHtml((prod.description || '').toLowerCase())}">
                             ${imgHtml}
                             <div class="product-details">
                                 <h4 class="product-name">${escapeHtml(prod.name)}</h4>
