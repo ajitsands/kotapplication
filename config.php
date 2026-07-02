@@ -16,7 +16,7 @@ if ($isServer) {
     define('DB_HOST', 'localhost');
     define('DB_PORT', '3306');
     define('DB_USER', 'sandsl23_kot_user');
-    define('DB_PASS', 'XXX123');
+    define('DB_PASS', 'S@nds1@b');
     define('DB_NAME', 'sandsl23_kot_db');
 } else {
     define('DB_HOST', '127.0.0.1');
@@ -32,7 +32,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Global settings helper
-function getSettings() {
+function getSettings()
+{
     static $settings = null;
     if ($settings === null) {
         try {
