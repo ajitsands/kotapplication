@@ -796,9 +796,7 @@
                             </tr>
                         </thead>
                         <tbody id="customers-table-body">
-                            <tr>
-                                <td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">Loading customer directory...</td>
-                            </tr>
+                            <!-- Populated dynamically via AJAX -->
                         </tbody>
                     </table>
                 </div>
@@ -1466,11 +1464,7 @@
                         });
                         tbody.innerHTML = html;
                     } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No registered customers found.</td>
-                            </tr>
-                        `;
+                        tbody.innerHTML = '';
                     }
 
                     // Initialize DataTable
