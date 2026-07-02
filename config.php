@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 // Detect environment (Server vs Local)
 $isServer = false;
-if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'sandslab.com') !== false) {
+if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'kot.sandslab.com') !== false) {
     $isServer = true;
 } elseif (php_sapi_name() === 'cli' && (strpos(dirname(__FILE__), 'kotapplication') === false || strpos(dirname(__FILE__), 'sandslab') !== false)) {
     $isServer = true;
