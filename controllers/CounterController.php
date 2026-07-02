@@ -61,6 +61,9 @@ class CounterController extends Controller {
     public function payBill($params) {
         $billId = (int)($params['id'] ?? 0);
         $data = $this->getJsonInput();
+        if (empty($data)) {
+            $data = $_POST;
+        }
         $method = $data['payment_method'] ?? 'cash';
         $discountPercent = (float)($data['discount_percent'] ?? 0.00);
         $customerName = trim($data['customer_name'] ?? '');

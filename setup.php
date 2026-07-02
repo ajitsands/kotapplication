@@ -41,6 +41,61 @@ try {
         }
     }
 
+    // Auto-migrate: Check and add missing columns/foreign keys to existing 'bills' table
+    $billsTableCheck = $pdo->query("SHOW TABLES LIKE 'bills'")->fetch();
+    if ($billsTableCheck) {
+        // Check discount_percent
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `bills` LIKE 'discount_percent'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `bills` ADD COLUMN `discount_percent` DECIMAL(5,2) DEFAULT 0.00 AFTER `status`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'discount_percent' to 'bills' table.</p>";
+        }
+
+        // Check discount_amount
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `bills` LIKE 'discount_amount'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `bills` ADD COLUMN `discount_amount` DECIMAL(10,3) DEFAULT 0.000 AFTER `discount_percent`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'discount_amount' to 'bills' table.</p>";
+        }
+
+        // Check cashier_id
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `bills` LIKE 'cashier_id'")->fetch();
+        if (!$colCheck) {
+            // First add column
+            $pdo->exec("ALTER TABLE `bills` ADD COLUMN `cashier_id` INT DEFAULT NULL AFTER `discount_amount`");
+            // Add foreign key constraint
+            try {
+                $pdo->exec("ALTER TABLE `bills` ADD CONSTRAINT `fk_bills_cashier` FOREIGN KEY (`cashier_id`) REFERENCES `users` (`id`) ON DELETE SET NULL");
+            } catch (Exception $ex) {
+                // Ignore constraint if it already exists or fails
+            }
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'cashier_id' column and constraint to 'bills' table.</p>";
+        }
+
+        // Check customer_id
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `bills` LIKE 'customer_id'")->fetch();
+        if (!$colCheck) {
+            // Make sure customers table exists first by parsing/executing its creation early if needed
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `customers` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `mobile` VARCHAR(20) NOT NULL UNIQUE,
+                `name` VARCHAR(100) NOT NULL,
+                `gender` VARCHAR(20) DEFAULT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB");
+            
+            // Add column
+            $pdo->exec("ALTER TABLE `bills` ADD COLUMN `customer_id` INT DEFAULT NULL AFTER `cashier_id`");
+            // Add foreign key constraint
+            try {
+                $pdo->exec("ALTER TABLE `bills` ADD CONSTRAINT `bills_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL");
+            } catch (Exception $ex) {
+                // Ignore constraint if it already exists or fails
+            }
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'customer_id' column and constraint to 'bills' table.</p>";
+        }
+    }
+
     // Read schema.sql
     if (!file_exists('schema.sql')) {
         throw new Exception("schema.sql file not found at the root of the project.");

@@ -91,6 +91,37 @@ CREATE TABLE IF NOT EXISTS `kot_items` (
     FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Customers Table
+CREATE TABLE IF NOT EXISTS `customers` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `mobile` VARCHAR(20) NOT NULL UNIQUE,
+    `name` VARCHAR(100) NOT NULL,
+    `gender` VARCHAR(20) DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Counter Sessions Table
+CREATE TABLE IF NOT EXISTS `counter_sessions` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `cashier_id` INT NOT NULL,
+    `opened_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `close_requested_at` TIMESTAMP NULL DEFAULT NULL,
+    `closed_at` TIMESTAMP NULL DEFAULT NULL,
+    `cash_total` DECIMAL(10,3) DEFAULT 0.000,
+    `card_total` DECIMAL(10,3) DEFAULT 0.000,
+    `qr_total` DECIMAL(10,3) DEFAULT 0.000,
+    `system_total` DECIMAL(10,3) DEFAULT 0.000,
+    `collected_cash` DECIMAL(10,3) DEFAULT 0.000,
+    `collected_card` DECIMAL(10,3) DEFAULT 0.000,
+    `collected_qr` DECIMAL(10,3) DEFAULT 0.000,
+    `collected_total` DECIMAL(10,3) DEFAULT 0.000,
+    `cashier_notes` TEXT DEFAULT NULL,
+    `status` ENUM('open', 'close_requested', 'closed') DEFAULT 'open',
+    `approved_by` INT DEFAULT NULL,
+    FOREIGN KEY (`cashier_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- Bills Table
 CREATE TABLE IF NOT EXISTS `bills` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -102,8 +133,12 @@ CREATE TABLE IF NOT EXISTS `bills` (
     `grand_total` DECIMAL(10,3) NOT NULL,
     `payment_method` ENUM('cash', 'card', 'qr_pay') DEFAULT NULL,
     `status` ENUM('pending', 'paid') DEFAULT 'pending',
+    `cashier_id` INT DEFAULT NULL,
+    `customer_id` INT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`cashier_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- Default Data Insertions
