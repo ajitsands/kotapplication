@@ -106,7 +106,7 @@ try {
             $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
             $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
             $prefix = ($scriptDir === '/') ? '' : $scriptDir;
-            $cleanUri = '/' . ltrim(preg_replace('/^' . preg_quote($prefix, '/') . '/', '', $requestUri), '/');
+            $cleanUri = '/' . rtrim(ltrim(preg_replace('/^' . preg_quote($prefix, '/') . '/', '', $requestUri), '/'), '/');
             
             // Allow login, logout, and login submission
             $allowedRoutes = ['/login', '/logout', '/api/login'];

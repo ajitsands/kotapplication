@@ -33,9 +33,21 @@ class HomeController extends Controller {
 
     public function loginView() {
         if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
-            $validRoles = ['admin', 'waiter', 'kot', 'counter'];
-            if (in_array($_SESSION['user_role'], $validRoles)) {
-                $this->redirect('/');
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            $expiryDate = $settings['software_expiry_date'] ?? null;
+            $isExpired = $expiryDate && date('Y-m-d') > $expiryDate;
+            $isSuperAdmin = isset($_SESSION['username']) && $_SESSION['username'] === 'superadmin';
+
+            if (!$isExpired || $isSuperAdmin) {
+                $validRoles = ['admin', 'waiter', 'kot', 'counter'];
+                if (in_array($_SESSION['user_role'], $validRoles)) {
+                    $this->redirect('/');
+                }
+            } else {
+                // Clear session so user can log in as superadmin
+                session_destroy();
+                $_SESSION = [];
             }
         }
         $settingsModel = new Setting();
@@ -58,6 +70,18 @@ class HomeController extends Controller {
                 'settings' => $settings
             ]);
         } elseif ($user) {
+            // Check if software has expired and this is not the superadmin user
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            $expiryDate = $settings['software_expiry_date'] ?? null;
+            if ($expiryDate && date('Y-m-d') > $expiryDate && $user['username'] !== 'superadmin') {
+                $this->render('login', [
+                    'error' => 'License expired. Please contact your vendor.',
+                    'settings' => $settings
+                ]);
+                return;
+            }
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_role'] = $user['role'];
