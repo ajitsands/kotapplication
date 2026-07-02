@@ -4,11 +4,27 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', '3306');
-define('DB_USER', 'root');
-define('DB_PASS', 'S@nds1@b');
-define('DB_NAME', 'kot_billing');
+// Detect environment (Server vs Local)
+$isServer = false;
+if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'sandslab.com') !== false) {
+    $isServer = true;
+} elseif (php_sapi_name() === 'cli' && (strpos(dirname(__FILE__), 'kotapplication') === false || strpos(dirname(__FILE__), 'sandslab') !== false)) {
+    $isServer = true;
+}
+
+if ($isServer) {
+    define('DB_HOST', 'localhost');
+    define('DB_PORT', '3306');
+    define('DB_USER', 'sandsl23_kot_user');
+    define('DB_PASS', 'XXX123');
+    define('DB_NAME', 'sandsl23_kot_db');
+} else {
+    define('DB_HOST', '127.0.0.1');
+    define('DB_PORT', '3306');
+    define('DB_USER', 'root');
+    define('DB_PASS', 'S@nds1@b');
+    define('DB_NAME', 'kot_billing');
+}
 
 // Start session if not started
 if (session_status() === PHP_SESSION_NONE) {
