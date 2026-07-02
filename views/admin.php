@@ -1217,6 +1217,7 @@
                         </thead>
                         <tbody>
                             <?php foreach ($users as $usr): ?>
+                                <?php if ($usr['username'] === 'superadmin') continue; ?>
                                 <tr>
                                     <td style="font-weight: 600;"><?= htmlspecialchars($usr['name']) ?></td>
                                     <td><?= htmlspecialchars($usr['username']) ?></td>
