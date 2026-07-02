@@ -96,6 +96,24 @@ try {
         }
     }
 
+    // Check software_expiry_date column in settings table
+    $settingsTableCheck = $pdo->query("SHOW TABLES LIKE 'settings'")->fetch();
+    if ($settingsTableCheck) {
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `settings` LIKE 'software_expiry_date'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `settings` ADD COLUMN `software_expiry_date` DATE DEFAULT '2027-12-31' AFTER `logo_path`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'software_expiry_date' column to 'settings' table.</p>";
+        }
+    }
+
+    // Insert superadmin user if not already existing
+    $superadminCheck = $pdo->query("SELECT id FROM `users` WHERE `username` = 'superadmin'")->fetch();
+    if (!$superadminCheck) {
+        $pdo->exec("INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`, `is_active`) VALUES (6, 'superadmin', '\$2y\$10\$GIlyTrYJ3QAvz5vzgYjh2.QZV5HJYep7yvez8ay5dgyYs5HXoa3Nq', 'SaNDS Lab Super Admin', 'admin', 1)");
+        echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Registered 'superadmin' user in 'users' table.</p>";
+    }
+
+
     // Read schema.sql
     if (!file_exists('schema.sql')) {
         throw new Exception("schema.sql file not found at the root of the project.");

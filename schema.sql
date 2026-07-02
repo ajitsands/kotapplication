@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
     `sgst_percent` DECIMAL(5,2) NOT NULL DEFAULT 2.50,
     `printer_size` INT NOT NULL DEFAULT 80, -- 58 or 80
     `logo_path` VARCHAR(255) DEFAULT NULL,
+    `software_expiry_date` DATE DEFAULT '2027-12-31',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -147,11 +148,12 @@ INSERT IGNORE INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
 (2, 'waiter1', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter John', 'waiter'),
 (3, 'waiter2', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter Sarah', 'waiter'),
 (4, 'chef1', '$2y$10$taBABla6.ATOxuS7pY10uu8z4T3d7GNa/bVKiW8ZuoSaXKVWqj0zi', 'Head Chef Mario', 'kot'),
-(5, 'counter1', '$2y$10$rC2bzZxCggfJT0FUHUAKnOdFdHJ3eVNMSdWfj8lm9muu9abOZPtK.', 'Cashier Sam', 'counter');
+(5, 'counter1', '$2y$10$rC2bzZxCggfJT0FUHUAKnOdFdHJ3eVNMSdWfj8lm9muu9abOZPtK.', 'Cashier Sam', 'counter'),
+(6, 'superadmin', '$2y$10$GIlyTrYJ3QAvz5vzgYjh2.QZV5HJYep7yvez8ay5dgyYs5HXoa3Nq', 'SaNDS Lab Super Admin', 'admin');
 
 -- Default Setting
-INSERT IGNORE INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`) VALUES
-(1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'VAT', 10.00, 2.50, 2.50, 80, NULL);
+INSERT IGNORE INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`, `software_expiry_date`) VALUES
+(1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'VAT', 10.00, 2.50, 2.50, 80, NULL, '2027-12-31');
 
 -- Default Dining Tables (1 to 20)
 INSERT IGNORE INTO `dining_tables` (`table_number`) VALUES

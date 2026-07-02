@@ -1108,6 +1108,16 @@
                         </div>
                     </div>
 
+                    <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
+                        <div style="border-top: 1px solid var(--card-border); margin-top: 25px; padding-top: 25px;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--accent-orange); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">🔑 Software License Management (Superadmin Only)</h4>
+                            <div class="form-group" style="max-width: 50%;">
+                                <label class="form-label">Software Expiry Date</label>
+                                <input class="form-input" type="date" name="software_expiry_date" value="<?= htmlspecialchars($settings['software_expiry_date'] ?? '2027-12-31') ?>" required style="padding: 10px 14px; border-radius: 12px; font-size: 14px; font-family: inherit;">
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <div style="margin-top: 30px;">
                         <button type="submit" class="btn-primary" style="padding: 14px 30px;">Save settings</button>
                     </div>
@@ -1229,7 +1239,7 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ((int)$usr['id'] !== 1): ?>
+                                        <?php if ((int)$usr['id'] !== 1 && (int)$usr['id'] !== 6): ?>
                                             <form action="admin/users/status/<?= $usr['id'] ?>" method="POST" style="display:inline; margin-right: 5px;">
                                                 <input type="hidden" name="is_active" value="<?= (int)$usr['is_active'] === 1 ? 0 : 1 ?>">
                                                 <button type="submit" class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: <?= (int)$usr['is_active'] === 1 ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)' ?>; border: 1px solid <?= (int)$usr['is_active'] === 1 ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)' ?>; color: <?= (int)$usr['is_active'] === 1 ? 'var(--accent-orange)' : 'var(--accent-green)' ?>; box-shadow: none;">

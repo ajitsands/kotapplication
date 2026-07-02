@@ -34,8 +34,8 @@ class User extends Model {
     }
 
     public function toggleStatus($id, $isActive) {
-        // Prevent deactivating the main admin with ID 1
-        if ((int)$id === 1) {
+        // Prevent deactivating the main admin with ID 1 or superadmin with ID 6
+        if ((int)$id === 1 || (int)$id === 6) {
             return false;
         }
         $stmt = $this->db->prepare("UPDATE users SET is_active = ? WHERE id = ?");
@@ -43,8 +43,8 @@ class User extends Model {
     }
 
     public function delete($id) {
-        // Prevent deleting the main admin with ID 1
-        if ((int)$id === 1) {
+        // Prevent deleting the main admin with ID 1 or superadmin with ID 6
+        if ((int)$id === 1 || (int)$id === 6) {
             return false;
         }
         $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");

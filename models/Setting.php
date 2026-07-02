@@ -15,7 +15,8 @@ class Setting extends Model {
                 'cgst_percent' => 2.50,
                 'sgst_percent' => 2.50,
                 'printer_size' => 80,
-                'logo_path' => null
+                'logo_path' => null,
+                'software_expiry_date' => '2027-12-31'
             ];
         }
         return $settings;
@@ -46,6 +47,12 @@ class Setting extends Model {
         if ($logoPath !== null) {
             $sql .= ", logo_path = ?";
             $params[] = $logoPath;
+        }
+
+        // Only allow superadmin to update the software expiry date
+        if (isset($data['software_expiry_date']) && isset($_SESSION['username']) && $_SESSION['username'] === 'superadmin') {
+            $sql .= ", software_expiry_date = ?";
+            $params[] = $data['software_expiry_date'];
         }
 
         $sql .= " WHERE id = 1";

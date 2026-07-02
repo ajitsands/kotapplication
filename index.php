@@ -90,5 +90,41 @@ $router->add('POST', '/api/notifications/dispatch/:id', 'ApiController@dispatchK
 // Catch-all Customer Web Menu for scanned QR code (e.g. /customer/5)
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
 
+// Check for license expiry
+try {
+    require_once 'models/Setting.php';
+    $settingModel = new Setting();
+    $settings = $settingModel->getSettings();
+    $expiryDate = $settings['software_expiry_date'] ?? null;
+    
+    if ($expiryDate) {
+        $today = date('Y-m-d');
+        if ($today > $expiryDate) {
+            $isSuperAdmin = isset($_SESSION['username']) && $_SESSION['username'] === 'superadmin';
+            
+            // Get clean URI path
+            $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+            $prefix = ($scriptDir === '/') ? '' : $scriptDir;
+            $cleanUri = '/' . ltrim(preg_replace('/^' . preg_quote($prefix, '/') . '/', '', $requestUri), '/');
+            
+            // Allow login, logout, and login submission
+            $allowedRoutes = ['/login', '/logout', '/api/login'];
+            if (!$isSuperAdmin && !in_array($cleanUri, $allowedRoutes)) {
+                if (strpos($cleanUri, '/api/') === 0) {
+                    header('Content-Type: application/json');
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Software license has expired. Please contact your vendor at 97335078079.']);
+                    exit;
+                }
+                require_once 'views/license_expired.php';
+                exit;
+            }
+        }
+    }
+} catch (Exception $e) {
+    // Database or column doesn't exist yet (e.g. during initial install)
+}
+
 // Dispatch current request
 $router->handle($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
