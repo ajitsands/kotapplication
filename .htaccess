@@ -1,0 +1,17 @@
+# Apache URL Rewrite Rules for KOT & Billing MVC System
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Set rewrite base (handles running in subdirectories)
+    RewriteBase /
+
+    # Disable directory browsing
+    Options -Indexes
+
+    # Direct access to physical files or folders (uploads, assets) bypasses rewrite
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Redirect all virtual routing endpoints to index.php
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>

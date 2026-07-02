@@ -1,0 +1,26 @@
+# Node dependencies
+node_modules/
+dist/
+.npm/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# App Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Sensitive config file placeholder
+# (User can keep config.php locally but we should check if they want to track it)
+# By default we will track it so they have a working environment, but ignore temporary logs.
+*.log
