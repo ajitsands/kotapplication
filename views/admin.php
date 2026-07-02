@@ -1449,10 +1449,11 @@
 
             </div>
             
-            <!-- Footer -->
-            <div class="admin-footer" style="padding: 14px 20px; text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 20px;">
-                Powered By <a href="javascript:void(0)" onclick="openSandsModal()" style="color: #818cf8; text-decoration: none; font-weight: 600;">SaNDS Lab</a>. All rights reserved to <?= htmlspecialchars($settings['restaurant_name']) ?>
-            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="admin-footer" style="padding: 18px 20px; text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 30px; width: 100%;">
+            Powered By <a href="javascript:void(0)" onclick="openSandsModal()" style="color: #818cf8; text-decoration: none; font-weight: 600;">SaNDS Lab</a>. All rights reserved to <?= htmlspecialchars($settings['restaurant_name']) ?>
         </div>
     </div>
 
