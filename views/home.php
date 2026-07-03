@@ -1696,19 +1696,19 @@
         <div class="container">
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-num"><?= $stats['total_products'] ?></div>
+                    <div class="stat-num">Unlimited</div>
                     <div class="stat-label">Dishes on Menu</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num"><?= $stats['total_categories'] ?></div>
+                    <div class="stat-num">Unlimited</div>
                     <div class="stat-label">Product Categories</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num"><?= $stats['total_tables'] ?></div>
+                    <div class="stat-num">Unlimited</div>
                     <div class="stat-label">Active Tables Supported</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num"><?= $stats['total_orders'] ?>+</div>
+                    <div class="stat-num">Unlimited</div>
                     <div class="stat-label">Total Orders Tracked</div>
                 </div>
             </div>
