@@ -7,8 +7,46 @@ require_once __DIR__ . '/../models/Order.php';
 
 class HomeController extends Controller {
     public function index() {
-        if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {
-            $this->redirect('/login');
+        $showcase = isset($_GET['showcase']) && $_GET['showcase'] == '1';
+
+        if ($showcase || !isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+
+            $db = Database::getInstance()->getConnection();
+            $stats = [
+                'total_products' => 0,
+                'total_categories' => 0,
+                'total_tables' => 0,
+                'total_orders' => 0
+            ];
+
+            try {
+                $stats['total_products'] = (int)$db->query("SELECT COUNT(*) FROM products")->fetchColumn();
+                $stats['total_categories'] = (int)$db->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+                $stats['total_tables'] = (int)$db->query("SELECT COUNT(*) FROM dining_tables")->fetchColumn();
+                $stats['total_orders'] = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
+                
+                // Fallbacks if database is empty
+                if ($stats['total_products'] === 0) $stats['total_products'] = 24;
+                if ($stats['total_categories'] === 0) $stats['total_categories'] = 6;
+                if ($stats['total_tables'] === 0) $stats['total_tables'] = 10;
+                if ($stats['total_orders'] === 0) $stats['total_orders'] = 120;
+            } catch (Exception $e) {
+                $stats = [
+                    'total_products' => 24,
+                    'total_categories' => 6,
+                    'total_tables' => 10,
+                    'total_orders' => 120
+                ];
+            }
+
+            $this->render('home', [
+                'settings' => $settings,
+                'stats' => $stats,
+                'isLoggedIn' => isset($_SESSION['user_id'])
+            ]);
+            return;
         }
 
         $role = $_SESSION['user_role'];
