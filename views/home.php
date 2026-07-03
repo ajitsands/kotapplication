@@ -1696,19 +1696,31 @@
         <div class="container">
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-num">Unlimited</div>
+                    <div class="stat-num" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--primary-light);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.95;"><path d="M3 15h18"/><path d="M3 15a9 9 0 0 1 18 0"/><path d="M12 2v4"/><path d="M8 6h8"/></svg>
+                        <span style="font-size: 36px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;">∞</span>
+                    </div>
                     <div class="stat-label">Dishes on Menu</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num">Unlimited</div>
+                    <div class="stat-num" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--primary-light);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.95;"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                        <span style="font-size: 36px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;">∞</span>
+                    </div>
                     <div class="stat-label">Product Categories</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num">Unlimited</div>
+                    <div class="stat-num" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--primary-light);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.95;"><path d="M4 12h16"/><path d="M4 12v8"/><path d="M20 12v8"/><path d="M8 8h8"/><path d="M8 8V4"/><path d="M16 8V4"/></svg>
+                        <span style="font-size: 36px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;">∞</span>
+                    </div>
                     <div class="stat-label">Active Tables Supported</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-num">Unlimited</div>
+                    <div class="stat-num" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--primary-light);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.95;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>
+                        <span style="font-size: 36px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;">∞</span>
+                    </div>
                     <div class="stat-label">Total Orders Tracked</div>
                 </div>
             </div>
