@@ -238,4 +238,35 @@ class Kot extends Model {
             return false;
         }
     }
+
+    public function getCompletedKots($limit = 20) {
+        $sql = "SELECT k.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+                FROM kots k 
+                JOIN orders o ON k.order_id = o.id 
+                LEFT JOIN users u ON k.waiter_id = u.id 
+                WHERE k.status = 'dispatched'
+                ORDER BY k.created_at DESC";
+        
+        if (is_numeric($limit)) {
+            $limitVal = (int)$limit;
+            $sql .= " LIMIT " . $limitVal;
+        } else {
+            // ALL: set high limit to prevent database memory exhaustion while returning substantial history
+            $sql .= " LIMIT 1000";
+        }
+
+        $stmt = $this->db->query($sql);
+        $kots = $stmt->fetchAll();
+
+        foreach ($kots as &$kot) {
+            $stmtItems = $this->db->prepare("SELECT ki.*, p.name as product_name 
+                                             FROM kot_items ki 
+                                             JOIN products p ON ki.product_id = p.id 
+                                             WHERE ki.kot_id = ?");
+            $stmtItems->execute([$kot['id']]);
+            $kot['items'] = $stmtItems->fetchAll();
+        }
+
+        return $kots;
+    }
 }

@@ -49,6 +49,7 @@ $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
 // KOT Operations Routes
 $router->add('GET', '/kot', 'KotController@index');
 $router->add('GET', '/kot/items', 'KotController@itemsList');
+$router->add('GET', '/kot/completed', 'KotController@completedList');
 $router->add('POST', '/kot/items/ready/:id', 'KotController@markItemReady');
 $router->add('POST', '/kot/ready/:id', 'KotController@markKotReady');
 $router->add('GET', '/kot/print/:id', 'KotController@printKot');

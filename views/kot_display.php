@@ -487,6 +487,62 @@
             border-radius: 10px !important;
             font-family: 'Outfit', sans-serif !important;
         }
+
+        .limit-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .limit-btn:hover {
+            color: var(--text-color);
+        }
+
+        .limit-btn.active {
+            background: var(--primary-grad);
+            color: white;
+        }
+
+        body.light-theme .limit-btn.active {
+            color: white;
+        }
+
+        .completed-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .completed-card:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary-light);
+            transform: translateX(2px);
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr !important;
+            }
+            .completed-sidebar {
+                position: relative !important;
+                top: 0 !important;
+                max-height: 400px !important;
+                margin-bottom: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -520,18 +576,49 @@
         </div>
     </header>
 
-    <div class="container">
-        <h1 class="screen-title">
-            Active Kitchen Tickets
-            <div class="live-indicator">
-                <span class="live-dot"></span> LIVE MONITOR
+    <div class="container" style="max-width: 100%; display: grid; grid-template-columns: 320px 1fr; gap: 30px; margin: 30px 20px;">
+        <!-- Left Sidebar: Completed KOTs -->
+        <div class="completed-sidebar" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(8px); display: flex; flex-direction: column; max-height: calc(100vh - 150px); position: sticky; top: 100px;">
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; justify-content: space-between;">
+                    <span>Completed KOTs</span>
+                    <span style="font-size: 11px; background: rgba(6,182,212,0.15); color: var(--ready-color); padding: 2px 8px; border-radius: 6px;">History</span>
+                </h3>
+                
+                <!-- Limit Selector -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; background: rgba(0,0,0,0.15); padding: 4px; border-radius: 10px; border: 1px solid var(--card-border);">
+                    <span style="font-size: 11px; color: var(--text-muted); padding-left: 6px;">Limit:</span>
+                    <div style="display: flex; gap: 2px;">
+                        <button onclick="setCompletedLimit(20)" class="limit-btn active" id="limit-20">20</button>
+                        <button onclick="setCompletedLimit(30)" class="limit-btn" id="limit-30">30</button>
+                        <button onclick="setCompletedLimit(50)" class="limit-btn" id="limit-50">50</button>
+                        <button onclick="setCompletedLimit(100)" class="limit-btn" id="limit-100">100</button>
+                        <button onclick="setCompletedLimit('all')" class="limit-btn" id="limit-all" title="All Completed">ALL</button>
+                    </div>
+                </div>
             </div>
-        </h1>
 
-        <div class="kot-grid" id="kot-display-container">
-            <!-- Loaded by AJAX -->
-            <div class="empty-state">
-                <h3>Loading active kitchen orders...</h3>
+            <!-- Scrollable Completed List -->
+            <div id="completed-kots-list" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+                <!-- Loaded by AJAX -->
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">Loading history...</div>
+            </div>
+        </div>
+
+        <!-- Right Side: Active Tickets -->
+        <div>
+            <h1 class="screen-title" style="margin-top: 0;">
+                Active Kitchen Tickets
+                <div class="live-indicator">
+                    <span class="live-dot"></span> LIVE MONITOR
+                </div>
+            </h1>
+
+            <div class="kot-grid" id="kot-display-container">
+                <!-- Loaded by AJAX -->
+                <div class="empty-state">
+                    <h3>Loading active kitchen orders...</h3>
+                </div>
             </div>
         </div>
     </div>
@@ -744,9 +831,92 @@
                 .replace(/'/g, "&#039;");
         }
 
+        let completedLimit = 20;
+        let completedKotsData = [];
+
+        function setCompletedLimit(limit) {
+            completedLimit = limit;
+            document.querySelectorAll('.limit-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('limit-' + limit).classList.add('active');
+            fetchCompletedKots();
+        }
+
+        function fetchCompletedKots() {
+            const path = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = path.replace(/\/(admin|counter|kot)$/, '');
+            fetch(rootPath + '/kot/completed?limit=' + completedLimit)
+                .then(response => response.json())
+                .then(data => {
+                    completedKotsData = data.kots;
+                    renderCompletedKots(data.kots);
+                })
+                .catch(err => console.error('Error fetching completed KOTs:', err));
+        }
+
+        function renderCompletedKots(kots) {
+            const list = document.getElementById('completed-kots-list');
+            if (!kots || kots.length === 0) {
+                list.innerHTML = `<div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 13px;">No completed KOTs found</div>`;
+                return;
+            }
+
+            let html = '';
+            kots.forEach(kot => {
+                const createdTime = new Date(kot.created_at).getTime();
+                const now = new Date().getTime();
+                const timeDiffMins = Math.floor((now - createdTime) / 60000);
+                
+                let timeLabel = '';
+                if (timeDiffMins < 60) {
+                    timeLabel = timeDiffMins + 'm ago';
+                } else {
+                    const date = new Date(kot.created_at);
+                    timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+
+                html += `
+                    <div class="completed-card" onclick="showCompletedDetails(${kot.id})">
+                        <div style="min-width:0; flex-grow:1;">
+                            <div style="font-size: 12px; font-weight: 700; font-family: monospace; color: var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${kot.kot_number}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${timeLabel} • By: ${kot.waiter_name || 'Self-Order'}</div>
+                        </div>
+                        <span style="font-size: 16px; font-weight: 800; background: var(--primary-grad); color: white; padding: 4px 10px; border-radius: 8px; flex-shrink:0;">T${kot.table_number}</span>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        function showCompletedDetails(kotId) {
+            const kot = completedKotsData.find(k => k.id == kotId);
+            if (!kot) return;
+
+            let itemsHtml = '<div style="text-align:left; max-height:300px; overflow-y:auto; padding: 5px;">';
+            itemsHtml += '<table style="width:100%; border-collapse:collapse; font-size:14px; color:inherit;">';
+            itemsHtml += '<tr style="border-bottom:1px solid var(--card-border); font-weight:700;"><td style="padding:6px 0;">Item</td><td style="padding:6px 0; text-align:right;">Qty</td></tr>';
+            
+            kot.items.forEach(item => {
+                itemsHtml += `<tr style="border-bottom:1px dashed rgba(255,255,255,0.05);"><td style="padding:8px 0; font-weight:600;">${escapeHtml(item.product_name)}${item.notes ? `<br><span style="font-size:11px; color:var(--accent-red);">Note: ${escapeHtml(item.notes)}</span>` : ''}</td><td style="padding:8px 0; text-align:right; font-weight:700; color:var(--accent-orange);">${item.quantity}</td></tr>`;
+            });
+            
+            itemsHtml += '</table></div>';
+
+            Swal.fire({
+                title: `Table T${kot.table_number} - Issued Items`,
+                html: itemsHtml,
+                confirmButtonText: 'Close',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            });
+        }
+
         // Poll every 4 seconds
         fetchKots();
-        setInterval(fetchKots, 4000);
+        fetchCompletedKots();
+        setInterval(() => {
+            fetchKots();
+            fetchCompletedKots();
+        }, 4000);
     </script>
 
     <!-- Footer -->

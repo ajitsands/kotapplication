@@ -23,6 +23,14 @@ class KotController extends Controller {
         $this->json(['kots' => $activeKots]);
     }
 
+    // Ajax endpoint to fetch completed/dispatched KOTs list
+    public function completedList() {
+        $limit = $_GET['limit'] ?? 20;
+        $kotModel = new Kot();
+        $completedKots = $kotModel->getCompletedKots($limit);
+        $this->json(['kots' => $completedKots]);
+    }
+
     public function markItemReady($params) {
         $itemId = (int)($params['id'] ?? 0);
         $kotModel = new Kot();
