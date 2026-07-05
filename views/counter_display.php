@@ -668,6 +668,7 @@
                 <button onclick="openCloseCounterModal()" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--accent-red); padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; margin-right: 10px; transition: all 0.3s;">🔒 Close Counter</button>
             <?php endif; ?>
             <a href="counter" class="nav-link active">Billing Counter</a>
+            <a href="javascript:void(0)" onclick="showEngagedTablesModal()" class="nav-link">🍽️ Table Status</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
@@ -759,22 +760,8 @@
                 <a href="logout" class="btn-logout" style="display: inline-block; padding: 12px 30px; font-size: 15px; border-radius: 12px;">Logout</a>
             </div>
         <?php else: ?>
-            <div class="counter-layout">
-                <!-- Left Sidebar: Engaged Tables -->
-                <div class="panel-card" style="position: sticky; top: 100px; padding: 20px; display: flex; flex-direction: column; gap: 15px; max-height: calc(100vh - 150px); overflow-y: auto;">
-                    <h3 style="font-weight: 800; font-size: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 5px;">
-                        <span>🍽️ Engaged Tables</span>
-                        <span id="engaged-count-badge" class="table-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">0</span>
-                    </h3>
-                    <div id="engaged-tables-list" style="display: flex; flex-direction: column; gap: 10px;">
-                        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">No engaged tables.</div>
-                    </div>
-                </div>
-
-                <!-- Right Content Area: Summary Dashboards & List Panels -->
-                <div style="min-width: 0;">
-                    <!-- Collection Summary Dashboard -->
-                    <div class="panel-card" style="margin-bottom: 25px;">
+            <!-- Collection Summary Dashboard -->
+            <div class="panel-card" style="margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); padding-bottom: 15px;">
                     <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px;">
                         📊 Collection Summary 
@@ -890,8 +877,6 @@
                     </table>
                 </div>
             </div>
-                </div> <!-- End right content area -->
-            </div> <!-- End counter-layout grid -->
         <?php endif; ?>
     </div>
 
@@ -1017,6 +1002,21 @@
                 <button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 40px; display: inline-block;">Close</button>
             </div>
         </div>
+    <!-- Engaged Tables Modal -->
+    <div id="engaged-tables-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px; text-align: left;">
+            <h3 style="text-align: center; margin-bottom: 5px;">🍽️ Table Status</h3>
+            <p style="color: var(--text-muted); font-size:13px; text-align: center; margin-bottom: 20px;">Click on any active table to inspect its current orders and details.</p>
+            
+            <div id="modal-engaged-tables-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto; padding: 4px;">
+                <!-- Occupied tables listed dynamically -->
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">No engaged tables.</div>
+            </div>
+
+            <div style="text-align: center; margin-top: 25px;">
+                <button onclick="closeEngagedTablesModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 40px; display: inline-block;">Close</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1034,93 +1034,15 @@
                 .then(data => {
                     pendingBills = data.bills;
                     renderBills(data.bills);
+                    if (document.getElementById('engaged-tables-modal').style.display === 'flex') {
+                        refreshEngagedTablesModalContent();
+                    }
                 })
                 .catch(err => console.error('Error fetching bills:', err));
         }
 
         function renderBills(bills) {
             const container = document.getElementById('bills-table-container');
-
-            // Group bills by table_number
-            const groups = {};
-            if (bills && bills.length > 0) {
-                bills.forEach(bill => {
-                    const tbl = bill.table_number;
-                    if (!groups[tbl]) {
-                        groups[tbl] = [];
-                    }
-                    groups[tbl].push(bill);
-                });
-            }
-
-            // Render Engaged Tables Sidebar
-            const engagedCountBadge = document.getElementById('engaged-count-badge');
-            const engagedListContainer = document.getElementById('engaged-tables-list');
-
-            if (engagedCountBadge && engagedListContainer) {
-                const tables = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
-                engagedCountBadge.innerText = tables.length;
-
-                if (tables.length === 0) {
-                    engagedListContainer.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
-                            No engaged tables.
-                        </div>
-                    `;
-                } else {
-                    let engagedHtml = '';
-                    tables.forEach(tableNum => {
-                        const tableBills = groups[tableNum];
-                        
-                        if (tableBills.length === 1) {
-                            const bill = tableBills[0];
-                            const grand = parseFloat(bill.grand_total).toFixed(3);
-                            engagedHtml += `
-                                <div onclick="openBillItemsModal(${bill.id})" class="engaged-table-card">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
-                                        <span style="font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">Active</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                                        <span>👤 ${bill.waiter_name || 'Self-Order'}</span>
-                                        <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            let sumGrand = 0;
-                            tableBills.forEach(b => sumGrand += parseFloat(b.grand_total));
-                            
-                            let billsListHtml = '';
-                            tableBills.forEach(b => {
-                                const grand = parseFloat(b.grand_total).toFixed(3);
-                                billsListHtml += `
-                                    <div onclick="event.stopPropagation(); openBillItemsModal(${b.id})" class="engaged-table-subbill">
-                                        <span>🧾 #${b.id} (${b.waiter_name || 'Self-Order'})</span>
-                                        <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
-                                    </div>
-                                `;
-                            });
-
-                            engagedHtml += `
-                                <div class="engaged-table-card" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.15); cursor: default;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
-                                        <span style="font-size: 10px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">${tableBills.length} Bills</span>
-                                    </div>
-                                    <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 4px; margin-top: 2px;">
-                                        <span>Total Engaged:</span>
-                                        <strong style="color: var(--accent-green);">${sumGrand.toFixed(3)} ${currencyCode}</strong>
-                                    </div>
-                                    ${billsListHtml}
-                                </div>
-                            `;
-                        }
-                    });
-                    engagedListContainer.innerHTML = engagedHtml;
-                }
-            }
-
             if (!bills || bills.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1133,6 +1055,16 @@
                 `;
                 return;
             }
+
+            // Group bills by table_number
+            const groups = {};
+            bills.forEach(bill => {
+                const tbl = bill.table_number;
+                if (!groups[tbl]) {
+                    groups[tbl] = [];
+                }
+                groups[tbl].push(bill);
+            });
 
             // Sort table numbers numerically
             const sortedTables = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
@@ -1905,6 +1837,96 @@
                 background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
+        }
+
+        function refreshEngagedTablesModalContent() {
+            const listContainer = document.getElementById('modal-engaged-tables-list');
+            if (!listContainer) return;
+
+            // Group bills by table_number
+            const groups = {};
+            pendingBills.forEach(bill => {
+                const tbl = bill.table_number;
+                if (!groups[tbl]) {
+                    groups[tbl] = [];
+                }
+                groups[tbl].push(bill);
+            });
+
+            const tables = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
+
+            if (tables.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 14px;">
+                        No engaged tables.
+                    </div>
+                `;
+            } else {
+                let engagedHtml = '';
+                tables.forEach(tableNum => {
+                    const tableBills = groups[tableNum];
+                    
+                    if (tableBills.length === 1) {
+                        const bill = tableBills[0];
+                        const grand = parseFloat(bill.grand_total).toFixed(3);
+                        engagedHtml += `
+                            <div onclick="selectEngagedTable(${bill.id})" class="engaged-table-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
+                                    <span style="font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">Active</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                                    <span>👤 ${bill.waiter_name || 'Self-Order'}</span>
+                                    <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        let sumGrand = 0;
+                        tableBills.forEach(b => sumGrand += parseFloat(b.grand_total));
+                        
+                        let billsListHtml = '';
+                        tableBills.forEach(b => {
+                            const grand = parseFloat(b.grand_total).toFixed(3);
+                            billsListHtml += `
+                                <div onclick="event.stopPropagation(); selectEngagedTable(${b.id})" class="engaged-table-subbill">
+                                    <span>🧾 #${b.id} (${b.waiter_name || 'Self-Order'})</span>
+                                    <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
+                                </div>
+                            `;
+                        });
+
+                        engagedHtml += `
+                            <div class="engaged-table-card" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.15); cursor: default;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
+                                    <span style="font-size: 10px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">${tableBills.length} Bills</span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 4px; margin-top: 2px;">
+                                    <span>Total Engaged:</span>
+                                    <strong style="color: var(--accent-green);">${sumGrand.toFixed(3)} ${currencyCode}</strong>
+                                </div>
+                                ${billsListHtml}
+                            </div>
+                        `;
+                    }
+                });
+                listContainer.innerHTML = engagedHtml;
+            }
+        }
+
+        function showEngagedTablesModal() {
+            refreshEngagedTablesModalContent();
+            document.getElementById('engaged-tables-modal').style.display = 'flex';
+        }
+
+        function closeEngagedTablesModal() {
+            document.getElementById('engaged-tables-modal').style.display = 'none';
+        }
+
+        function selectEngagedTable(billId) {
+            closeEngagedTablesModal();
+            openBillItemsModal(billId);
         }
     </script>
 </body>
