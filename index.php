@@ -45,6 +45,7 @@ $router->add('POST', '/admin/users/reset-password/:id', 'AdminController@resetUs
 $router->add('POST', '/user/change-password', 'HomeController@changePassword');
 $router->add('GET', '/admin/tax-report/json', 'AdminController@taxReportJson');
 $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
+$router->add('GET', '/admin/waiter-performance/json', 'AdminController@waiterPerformanceJson');
 
 // KOT Operations Routes
 $router->add('GET', '/kot', 'KotController@index');

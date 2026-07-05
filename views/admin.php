@@ -782,6 +782,7 @@
             else if (id === 'customers' && typeof fetchAdminCustomers === 'function') fetchAdminCustomers();
             else if (id === 'tax_reports' && typeof loadTaxReport === 'function') loadTaxReport();
             else if (id === 'analytics' && typeof loadAnalyticsReport === 'function') loadAnalyticsReport();
+            else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
         }
 
         // Close dropdown on outside click
@@ -801,7 +802,8 @@
             closures:    { icon: '🔄', label: 'Counter Shifts' },
             customers:   { icon: '🎁', label: 'Customers (Loyalty)' },
             tax_reports: { icon: '🧾', label: 'VAT/Tax Reports' },
-            analytics:   { icon: '📊', label: 'Sales & Product Analytics' }
+            analytics:   { icon: '📊', label: 'Sales & Product Analytics' },
+            waiter_report: { icon: '🤵', label: 'Waiter Performance' }
         };
 
         // Restore active tab from localStorage
@@ -851,6 +853,9 @@
                     </button>
                     <button class="nav-dropdown-item" id="item-analytics" onclick="selectSection('analytics','📊','Sales &amp; Product Analytics')">
                         <span class="item-icon">📊</span> Sales &amp; Product Analytics
+                    </button>
+                    <button class="nav-dropdown-item" id="item-waiter_report" onclick="selectSection('waiter_report','🤵','Waiter Performance')">
+                        <span class="item-icon">🤵</span> Waiter Performance
                     </button>
                 </div>
             </div>
@@ -1461,6 +1466,55 @@
 
             </div>
             
+        </div>
+
+        <!-- Waiter Performance Tab -->
+        <div id="waiter_report" class="tab-content">
+            <div class="panel-card">
+                <h2 class="panel-title">🤵 Waiter Performance Report</h2>
+                
+                <!-- Filter Section -->
+                <div class="dt-header" style="margin-bottom: 20px; flex-wrap: wrap; gap: 15px; justify-content: space-between;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">Start Date</label>
+                            <input type="date" id="waiter-start-date" class="form-input" style="padding: 8px 12px; font-size: 13px; width: 140px; margin-bottom: 0;" value="<?= date('Y-m-d', strtotime('-30 days')) ?>">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">End Date</label>
+                            <input type="date" id="waiter-end-date" class="form-input" style="padding: 8px 12px; font-size: 13px; width: 140px; margin-bottom: 0;" value="<?= date('Y-m-d') ?>">
+                        </div>
+                        <button onclick="loadWaiterPerformanceReport()" class="btn-primary" style="padding: 9px 20px; font-size: 13px; margin-top: 15px; box-shadow: none;">
+                            Filter Report
+                        </button>
+                    </div>
+                    <button onclick="exportWaiterPerformanceToExcel()" class="btn-checkout" style="padding: 9px 20px; font-size: 13px; margin-top: 15px; background: var(--accent-green); border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        📥 Export to Excel (CSV)
+                    </button>
+                </div>
+
+                <!-- Report Table -->
+                <div style="overflow-x: auto; margin-top: 15px;">
+                    <table id="waiter-performance-table" style="width:100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Waiter ID</th>
+                                <th style="text-align: left;">Waiter Name</th>
+                                <th style="text-align: left;">Username</th>
+                                <th style="text-align: center;">Status</th>
+                                <th style="text-align: right;">Orders Taken</th>
+                                <th style="text-align: right;">Paid Orders</th>
+                                <th style="text-align: right;">Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="waiter-performance-table-body">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">Please select a date range and click filter to generate report.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
         
         <!-- Footer -->
@@ -2414,6 +2468,109 @@
             const start = document.getElementById('analytics-start-date').value || 'report';
             const end = document.getElementById('analytics-end-date').value || 'report';
             const filename = `Product_Sales_Analytics_${start}_to_${end}.csv`;
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = "hidden";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        let waiterPerformanceTable = null;
+        let waiterPerformanceDataGlobal = null;
+
+        function loadWaiterPerformanceReport() {
+            const startDate = document.getElementById('waiter-start-date').value;
+            const endDate = document.getElementById('waiter-end-date').value;
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+
+            fetch(basePath + '/waiter-performance/json?start_date=' + startDate + '&end_date=' + endDate)
+                .then(res => res.json())
+                .then(data => {
+                    waiterPerformanceDataGlobal = (data.success && data.report) ? data.report : [];
+
+                    if (waiterPerformanceTable) {
+                        waiterPerformanceTable.destroy();
+                    }
+
+                    const tbody = document.getElementById('waiter-performance-table-body');
+                    tbody.innerHTML = '';
+
+                    if (data.success && data.report && data.report.length > 0) {
+                        data.report.forEach(row => {
+                            const statusLabel = parseInt(row.is_active) === 1 
+                                ? '<span style="background:rgba(16,185,129,0.15); color:var(--accent-green); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">Active</span>' 
+                                : '<span style="background:rgba(239,68,68,0.15); color:var(--accent-red); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">Deactivated</span>';
+                            
+                            tbody.innerHTML += `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td style="padding: 12px; font-weight:600;">#${row.waiter_id}</td>
+                                    <td style="padding: 12px; font-weight:600;">${row.waiter_name}</td>
+                                    <td style="padding: 12px; color:var(--text-muted);">${row.username}</td>
+                                    <td style="padding: 12px; text-align:center;">${statusLabel}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700;">${row.total_orders}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-orange);">${row.paid_orders}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${parseFloat(row.total_revenue).toFixed(3)} ${cur}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">No records found.</td>
+                            </tr>
+                        `;
+                    }
+
+                    // Initialize DataTable
+                    waiterPerformanceTable = $('#waiter-performance-table').DataTable({
+                        dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                        pageLength: 10,
+                        lengthChange: true,
+                        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                        order: [[6, 'desc']],
+                        language: {
+                            search: "🔍 Search:",
+                            lengthMenu: "Show _MENU_ entries"
+                        }
+                    });
+                })
+                .catch(err => console.error('Error fetching waiter performance report:', err));
+        }
+
+        function exportWaiterPerformanceToExcel() {
+            if (!waiterPerformanceDataGlobal || waiterPerformanceDataGlobal.length === 0) {
+                Swal.fire({
+                    title: 'No Data',
+                    text: 'There is no data to export for the selected period.',
+                    icon: 'info',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            let csvContent = "";
+            csvContent += '"Waiter ID","Waiter Name","Username","Status","Orders Taken","Paid Orders","Total Revenue"\n';
+
+            waiterPerformanceDataGlobal.forEach(row => {
+                const statusText = parseInt(row.is_active) === 1 ? "Active" : "Deactivated";
+                const wName = row.waiter_name.replace(/"/g, '""');
+                const uName = row.username.replace(/"/g, '""');
+                csvContent += `"${row.waiter_id}","${wName}","${uName}","${statusText}","${row.total_orders}","${row.paid_orders}","${parseFloat(row.total_revenue).toFixed(3)}"\n`;
+            });
+
+            const start = document.getElementById('waiter-start-date').value || 'report';
+            const end = document.getElementById('waiter-end-date').value || 'report';
+            const filename = `Waiter_Performance_Report_${start}_to_${end}.csv`;
 
             const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
             const link = document.createElement("a");

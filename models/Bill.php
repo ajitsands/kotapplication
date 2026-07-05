@@ -337,4 +337,24 @@ class Bill extends Model {
         $stmt->execute([$startDate, $endDate]);
         return $stmt->fetchAll();
     }
+
+    public function getWaiterPerformance($startDate, $endDate) {
+        $sql = "SELECT 
+                    u.id as waiter_id,
+                    u.name as waiter_name,
+                    u.username,
+                    u.is_active,
+                    COUNT(DISTINCT o.id) as total_orders,
+                    COUNT(DISTINCT b.id) as paid_orders,
+                    COALESCE(SUM(b.grand_total), 0) as total_revenue
+                FROM users u
+                LEFT JOIN orders o ON o.waiter_id = u.id AND DATE(o.created_at) BETWEEN ? AND ?
+                LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'paid'
+                WHERE u.role = 'waiter' OR o.waiter_id IS NOT NULL
+                GROUP BY u.id
+                ORDER BY total_revenue DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
+        return $stmt->fetchAll();
+    }
 }

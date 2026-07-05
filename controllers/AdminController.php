@@ -242,4 +242,15 @@ class AdminController extends Controller {
 
         $this->json(['success' => true, 'report' => $report]);
     }
+
+    public function waiterPerformanceJson() {
+        $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+        $endDate = $_GET['end_date'] ?? date('Y-m-d');
+
+        require_once __DIR__ . '/../models/Bill.php';
+        $billModel = new Bill();
+        $report = $billModel->getWaiterPerformance($startDate, $endDate);
+
+        $this->json(['success' => true, 'report' => $report]);
+    }
 }
