@@ -32,7 +32,7 @@ $router->add('GET', '/logout', 'HomeController@logout');
 $router->add('GET', '/admin', 'AdminController@index');
 $router->add('GET', '/admin/products/list', 'AdminController@productsListJson');
 $router->add('POST', '/admin/settings', 'AdminController@saveSettings');
-$router->add('POST', '/admin/categories', 'AdminController@addCategory');
+$router->add('POST', '/admin/categories', 'AdminController@saveCategory');
 $router->add('POST', '/admin/categories/delete/:id', 'AdminController@deleteCategory');
 $router->add('POST', '/admin/products', 'AdminController@saveProduct');
 $router->add('POST', '/admin/products/delete/:id', 'AdminController@deleteProduct');

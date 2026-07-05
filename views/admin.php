@@ -878,11 +878,12 @@
             <div class="grid-2">
                 <!-- Categories Card -->
                 <div class="panel-card">
-                    <h2 class="panel-title">Add Category</h2>
-                    <form action="admin/categories" method="POST" enctype="multipart/form-data">
+                    <h2 class="panel-title" id="cat-form-title">Add Category</h2>
+                    <form id="category-form" action="admin/categories" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="id" id="cat-id">
                         <div class="form-group">
                             <label class="form-label">Category Name</label>
-                            <input class="form-input" type="text" name="name" placeholder="e.g. Starter" required>
+                            <input class="form-input" type="text" name="name" id="cat-name-input" placeholder="e.g. Starter" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Category Banner</label>
@@ -893,7 +894,10 @@
                                 <span style="font-size: 12px; color: var(--accent-green); font-weight: 600;">✓ Banner Cropped</span>
                             </div>
                         </div>
-                        <button type="submit" class="btn-primary">Add Category</button>
+                        <div style="display:flex; gap:10px;">
+                            <button type="submit" class="btn-primary" id="cat-submit-btn">Add Category</button>
+                            <button type="button" class="btn-delete" style="display:none; background: rgba(255,255,255,0.05); color: var(--text-color);" id="btn-cancel-cat-edit" onclick="resetCategoryForm()">Cancel Edit</button>
+                        </div>
                     </form>
 
                     <h2 class="panel-title" style="margin-top: 30px;">Categories List</h2>
@@ -919,9 +923,22 @@
                                         <?= htmlspecialchars($cat['name']) ?> 📁
                                     </td>
                                     <td>
-                                        <form action="admin/categories/delete/<?= $cat['id'] ?>" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete category? All associated products will be deleted.">
-                                            <button type="submit" class="btn-delete">Delete</button>
-                                        </form>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <button type="button" class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" onclick='editCategory(<?= json_encode($cat) ?>)' title="Edit Category">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                </svg>
+                                            </button>
+                                            <form action="admin/categories/delete/<?= $cat['id'] ?>" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete category? All associated products will be deleted.">
+                                                <button type="submit" class="btn-delete" style="padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;" title="Delete Category">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1016,13 +1033,23 @@
                                     <td><?= htmlspecialchars($prod['category_name']) ?></td>
                                     <td style="font-family: monospace; font-weight: 600;"><?= number_format($prod['price'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
                                     <td>
-                                        <button class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none;" 
-                                                onclick='editProduct(<?= json_encode($prod) ?>)'>
-                                            Edit
-                                        </button>
-                                        <form action="admin/products/delete/<?= $prod['id'] ?>" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
-                                            <button type="submit" class="btn-delete" style="padding: 6px 10px;">Del</button>
-                                        </form>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <button class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" 
+                                                    onclick='editProduct(<?= json_encode($prod) ?>)' title="Edit Product">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                </svg>
+                                            </button>
+                                            <form action="admin/products/delete/<?= $prod['id'] ?>" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
+                                                <button type="submit" class="btn-delete" style="padding: 6px 10px; display: inline-flex; align-items: center; justify-content: center;" title="Delete Product">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1976,6 +2003,37 @@
             document.getElementById('btn-cancel-edit').style.display = 'none';
             document.getElementById('cropped-image-data').value = '';
             document.getElementById('cropped-preview-container').style.display = 'none';
+        }
+
+        function editCategory(cat) {
+            document.getElementById('cat-id').value = cat.id;
+            document.getElementById('cat-form-title').innerText = 'Edit Category: ' + cat.name;
+            document.getElementById('cat-name-input').value = cat.name;
+            document.getElementById('btn-cancel-cat-edit').style.display = 'inline-block';
+            document.getElementById('cat-submit-btn').innerText = 'Save Category';
+
+            // Show current preview if image exists
+            const previewContainer = document.getElementById('cat-cropped-preview-container');
+            const previewImg = document.getElementById('cat-cropped-preview-img');
+            if (cat.image_url) {
+                previewImg.src = cat.image_url;
+                previewContainer.style.display = 'flex';
+            } else {
+                previewContainer.style.display = 'none';
+            }
+            
+            // Scroll to form
+            document.getElementById('category-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetCategoryForm() {
+            document.getElementById('cat-id').value = '';
+            document.getElementById('category-form').reset();
+            document.getElementById('cat-form-title').innerText = 'Add Category';
+            document.getElementById('btn-cancel-cat-edit').style.display = 'none';
+            document.getElementById('cat-cropped-image-data').value = '';
+            document.getElementById('cat-cropped-preview-container').style.display = 'none';
+            document.getElementById('cat-submit-btn').innerText = 'Add Category';
         }
 
         function showQrCode(tableNum) {

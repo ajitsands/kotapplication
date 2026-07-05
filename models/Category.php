@@ -19,4 +19,22 @@ class Category extends Model {
         $stmt = $this->db->prepare("DELETE FROM categories WHERE id = ?");
         return $stmt->execute([$id]);
     }
+
+    public function update($id, $name, $imageUrl = null) {
+        try {
+            $sql = "UPDATE categories SET name = ?";
+            $params = [$name];
+            if ($imageUrl !== null) {
+                $sql .= ", image_url = ?";
+                $params[] = $imageUrl;
+            }
+            $sql .= " WHERE id = ?";
+            $params[] = $id;
+
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute($params);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
 }

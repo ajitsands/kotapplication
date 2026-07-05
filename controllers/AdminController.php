@@ -54,7 +54,8 @@ class AdminController extends Controller {
         $this->redirect('/admin');
     }
 
-    public function addCategory() {
+    public function saveCategory() {
+        $id = $_POST['id'] ?? null;
         $name = $_POST['name'] ?? '';
         $imageUrl = null;
 
@@ -83,7 +84,11 @@ class AdminController extends Controller {
         }
 
         $categoryModel = new Category();
-        $categoryModel->add($name, $imageUrl);
+        if (!empty($id)) {
+            $categoryModel->update((int)$id, $name, $imageUrl);
+        } else {
+            $categoryModel->add($name, $imageUrl);
+        }
         $this->redirect('/admin');
     }
 
