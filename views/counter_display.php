@@ -1002,6 +1002,7 @@
                 <button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 40px; display: inline-block;">Close</button>
             </div>
         </div>
+    </div>
     <!-- Engaged Tables Modal -->
     <div id="engaged-tables-modal" class="modal">
         <div class="modal-content" style="max-width: 500px; text-align: left;">
