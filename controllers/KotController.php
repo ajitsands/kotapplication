@@ -26,8 +26,9 @@ class KotController extends Controller {
     // Ajax endpoint to fetch completed/dispatched KOTs list
     public function completedList() {
         $limit = $_GET['limit'] ?? 20;
+        $date = $_GET['date'] ?? date('Y-m-d');
         $kotModel = new Kot();
-        $completedKots = $kotModel->getCompletedKots($limit);
+        $completedKots = $kotModel->getCompletedKots($limit, $date);
         $this->json(['kots' => $completedKots]);
     }
 

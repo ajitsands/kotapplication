@@ -6,6 +6,9 @@
     <title>Kitchen Display (KOT) | <?= htmlspecialchars($settings['restaurant_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <style>
         :root {
             --bg-color: #080b11;
@@ -532,6 +535,127 @@
             transform: translateX(2px);
         }
 
+        /* DataTables Custom Theme Overrides for Completed KOTs */
+        .dataTables_wrapper {
+            color: var(--text-color) !important;
+            margin-top: 10px;
+        }
+        
+        .dataTables_wrapper .dataTables_filter input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            padding: 8px 12px;
+            border-radius: 10px;
+            color: var(--text-color);
+            outline: none;
+            width: 100% !important;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        body.light-theme .dataTables_wrapper .dataTables_filter input {
+            background: rgba(0, 0, 0, 0.03) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            color: #1f2937 !important;
+        }
+
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: var(--ready-color);
+        }
+
+        .dataTables_wrapper .dataTables_paginate {
+            color: var(--text-muted) !important;
+            font-size: 12px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: var(--text-muted) !important;
+            border: 1px solid var(--card-border) !important;
+            background: rgba(255, 255, 255, 0.02) !important;
+            border-radius: 8px !important;
+            padding: 4px 10px !important;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            color: white !important;
+            background: var(--primary-grad) !important;
+            border-color: transparent !important;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            color: white !important;
+            background: var(--primary-grad) !important;
+            border-color: transparent !important;
+            font-weight: 700;
+        }
+
+        table.dataTable {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            margin-top: 10px !important;
+        }
+
+        #completed-kots-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 2px solid var(--card-border) !important;
+            padding: 8px 6px !important;
+        }
+
+        #completed-kots-table td {
+            border-bottom: 1px solid var(--card-border) !important;
+            padding: 10px 6px !important;
+            vertical-align: middle;
+        }
+
+        #completed-kots-table {
+            border-bottom: none !important;
+        }
+
+        .completed-row-item {
+            transition: all 0.2s ease;
+        }
+
+        .completed-row-item:hover {
+            background: rgba(255, 255, 255, 0.04) !important;
+            transform: translateX(2px);
+        }
+
+        body.light-theme .completed-row-item:hover {
+            background: rgba(0, 0, 0, 0.03) !important;
+        }
+
+        body.light-theme #completed-date-filter {
+            background: rgba(0, 0, 0, 0.03) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            color: #1f2937 !important;
+        }
+
+        .dt-header {
+            margin-bottom: 8px;
+        }
+        
+        .dt-header .dataTables_filter {
+            float: none !important;
+            text-align: left !important;
+            margin: 0 !important;
+        }
+
+        .dt-footer {
+            margin-top: 8px;
+        }
+
         @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr !important;
@@ -576,15 +700,21 @@
         </div>
     </header>
 
-    <div class="container" style="max-width: 100%; display: grid; grid-template-columns: 320px 1fr; gap: 30px; margin: 30px 20px;">
+    <div class="container" style="max-width: 100%; display: grid; grid-template-columns: 360px 1fr; gap: 30px; margin: 30px 20px;">
         <!-- Left Sidebar: Completed KOTs -->
         <div class="completed-sidebar" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(8px); display: flex; flex-direction: column; max-height: calc(100vh - 150px); position: sticky; top: 100px;">
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 15px;">
                 <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; justify-content: space-between;">
                     <span>Completed KOTs</span>
                     <span style="font-size: 11px; background: rgba(6,182,212,0.15); color: var(--ready-color); padding: 2px 8px; border-radius: 6px;">History</span>
                 </h3>
                 
+                <!-- Date Filter -->
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Filter Date:</label>
+                    <input type="date" id="completed-date-filter" onchange="fetchCompletedKots()" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); color: var(--text-color); padding: 8px 12px; border-radius: 10px; font-family: inherit; font-size: 13px; outline: none;" value="<?= date('Y-m-d') ?>">
+                </div>
+
                 <!-- Limit Selector -->
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; background: rgba(0,0,0,0.15); padding: 4px; border-radius: 10px; border: 1px solid var(--card-border);">
                     <span style="font-size: 11px; color: var(--text-muted); padding-left: 6px;">Limit:</span>
@@ -598,10 +728,20 @@
                 </div>
             </div>
 
-            <!-- Scrollable Completed List -->
-            <div id="completed-kots-list" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
-                <!-- Loaded by AJAX -->
-                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">Loading history...</div>
+            <!-- Completed DataTable -->
+            <div style="overflow-y: auto; flex-grow: 1; padding-right: 4px; margin-top: 5px;">
+                <table id="completed-kots-table" class="display" style="width: 100%; text-align: left;">
+                    <thead>
+                        <tr>
+                            <th>KOT & Waiter</th>
+                            <th style="width: 60px; text-align: center;">Table</th>
+                            <th style="width: 80px; text-align: right;">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Loaded by DataTables AJAX -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -833,18 +973,62 @@
 
         let completedLimit = 20;
         let completedKotsData = [];
+        let completedTable;
+
+        $(document).ready(function() {
+            // Initialize completed KOTs DataTable
+            completedTable = $('#completed-kots-table').DataTable({
+                paging: true,
+                searching: true,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                ordering: false,
+                dom: '<"dt-header"f>t<"dt-footer"p>',
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search KOTs..."
+                },
+                createdRow: function(row, data, dataIndex) {
+                    const kotId = data[3];
+                    $(row).attr('onclick', `showCompletedDetails(${kotId})`);
+                    $(row).css('cursor', 'pointer');
+                    $(row).addClass('completed-row-item');
+                }
+            });
+
+            // Initial fetch
+            fetchKots();
+            fetchCompletedKots();
+
+            // Background polling
+            setInterval(() => {
+                fetchKots();
+                fetchCompletedKots();
+            }, 4000);
+        });
 
         function setCompletedLimit(limit) {
             completedLimit = limit;
             document.querySelectorAll('.limit-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('limit-' + limit).classList.add('active');
+            const btnEl = document.getElementById('limit-' + limit);
+            if (btnEl) btnEl.classList.add('active');
             fetchCompletedKots();
         }
 
         function fetchCompletedKots() {
+            if (!completedTable) return;
+            
+            // Skip updating if user is actively searching
+            if ($('#completed-kots-table_filter input').is(':focus')) {
+                return;
+            }
+
+            const dateVal = document.getElementById('completed-date-filter').value;
             const path = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
             const rootPath = path.replace(/\/(admin|counter|kot)$/, '');
-            fetch(rootPath + '/kot/completed?limit=' + completedLimit)
+
+            fetch(rootPath + '/kot/completed?limit=' + completedLimit + '&date=' + dateVal)
                 .then(response => response.json())
                 .then(data => {
                     completedKotsData = data.kots;
@@ -854,13 +1038,16 @@
         }
 
         function renderCompletedKots(kots) {
-            const list = document.getElementById('completed-kots-list');
+            if (!completedTable) return;
+
+            completedTable.clear();
+
             if (!kots || kots.length === 0) {
-                list.innerHTML = `<div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 13px;">No completed KOTs found</div>`;
+                completedTable.draw();
                 return;
             }
 
-            let html = '';
+            let rows = [];
             kots.forEach(kot => {
                 const createdTime = new Date(kot.created_at).getTime();
                 const now = new Date().getTime();
@@ -874,17 +1061,30 @@
                     timeLabel = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 }
 
-                html += `
-                    <div class="completed-card" onclick="showCompletedDetails(${kot.id})">
-                        <div style="min-width:0; flex-grow:1;">
-                            <div style="font-size: 12px; font-weight: 700; font-family: monospace; color: var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${kot.kot_number}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${timeLabel} • By: ${kot.waiter_name || 'Self-Order'}</div>
-                        </div>
-                        <span style="font-size: 16px; font-weight: 800; background: var(--primary-grad); color: white; padding: 4px 10px; border-radius: 8px; flex-shrink:0;">T${kot.table_number}</span>
+                // Render KOT column
+                const colKot = `
+                    <div style="min-width:0;">
+                        <div style="font-size: 11px; font-weight: 700; font-family: monospace; color: var(--text-color);">${kot.kot_number}</div>
+                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">By: ${kot.waiter_name || 'Self-Order'}</div>
                     </div>
                 `;
+
+                // Render Table column
+                const colTable = `
+                    <div style="text-align: center;">
+                        <span style="font-size: 12px; font-weight: 800; background: var(--primary-grad); color: white; padding: 2px 6px; border-radius: 6px; display: inline-block;">T${kot.table_number}</span>
+                    </div>
+                `;
+
+                // Render Time column
+                const colTime = `
+                    <div style="font-size: 11px; color: var(--text-muted); text-align: right;">${timeLabel}</div>
+                `;
+
+                rows.push([colKot, colTable, colTime, kot.id]);
             });
-            list.innerHTML = html;
+
+            completedTable.rows.add(rows).draw(false);
         }
 
         function showCompletedDetails(kotId) {
@@ -909,14 +1109,6 @@
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
         }
-
-        // Poll every 4 seconds
-        fetchKots();
-        fetchCompletedKots();
-        setInterval(() => {
-            fetchKots();
-            fetchCompletedKots();
-        }, 4000);
     </script>
 
     <!-- Footer -->

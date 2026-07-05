@@ -239,13 +239,24 @@ class Kot extends Model {
         }
     }
 
-    public function getCompletedKots($limit = 20) {
+    public function getCompletedKots($limit = 20, $date = null) {
+        if ($date === null) {
+            $date = date('Y-m-d');
+        }
+
         $sql = "SELECT k.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                 FROM kots k 
                 JOIN orders o ON k.order_id = o.id 
                 LEFT JOIN users u ON k.waiter_id = u.id 
-                WHERE k.status = 'dispatched'
-                ORDER BY k.created_at DESC";
+                WHERE k.status = 'dispatched'";
+        
+        $params = [];
+        if ($date) {
+            $sql .= " AND DATE(k.created_at) = :date";
+            $params['date'] = $date;
+        }
+        
+        $sql .= " ORDER BY k.created_at DESC";
         
         if (is_numeric($limit)) {
             $limitVal = (int)$limit;
@@ -255,7 +266,8 @@ class Kot extends Model {
             $sql .= " LIMIT 1000";
         }
 
-        $stmt = $this->db->query($sql);
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         $kots = $stmt->fetchAll();
 
         foreach ($kots as &$kot) {
