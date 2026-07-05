@@ -998,7 +998,7 @@
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 25px;">
+            <div id="view-modal-actions-container" style="text-align: center; margin-top: 25px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
                 <button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 40px; display: inline-block;">Close</button>
             </div>
         </div>
@@ -1198,6 +1198,21 @@
                     document.getElementById('view-modal-tax').innerText = parseFloat(order.tax_amount || 0).toFixed(3) + ' ' + currencyCode;
                     
                     document.getElementById('view-modal-grand-total').innerText = parseFloat(order.grand_total || 0).toFixed(3) + ' ' + currencyCode;
+
+                    // Action buttons in details modal
+                    let actionsHtml = `<button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 30px; display: inline-block;">Close</button>`;
+                    if (order.status === 'active') {
+                        actionsHtml = `
+                            <button onclick="closeTableAndGenerateBill(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-orange); border: 1px solid var(--accent-orange);">🔒 Close Table & Generate Bill</button>
+                            ${actionsHtml}
+                        `;
+                    } else if (order.status === 'closed' && order.bill_id) {
+                        actionsHtml = `
+                            <button onclick="closeBillItemsModal(); openPaymentModal(${order.bill_id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-green); border: 1px solid var(--accent-green);">💳 Proceed to Payment</button>
+                            ${actionsHtml}
+                        `;
+                    }
+                    document.getElementById('view-modal-actions-container').innerHTML = actionsHtml;
                     
                     document.getElementById('bill-items-modal').style.display = 'flex';
                 })
@@ -1954,6 +1969,68 @@
         function selectEngagedTable(orderId) {
             closeEngagedTablesModal();
             openOrderItemsModal(orderId);
+        }
+
+        function closeTableAndGenerateBill(orderId) {
+            Swal.fire({
+                title: 'Close Table?',
+                text: "Are you sure you want to close this table and generate the bill? Active ordering session will end.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f97316',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, Close Table',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/order/close/' + orderId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success',
+                                text: 'Table closed and bill generated successfully.',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false,
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                            
+                            // Re-fetch all data
+                            fetchBills();
+                            fetchEngagedTables();
+                            
+                            // Close the details modal
+                            closeBillItemsModal();
+                        } else {
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'Failed to close table.',
+                                icon: 'error',
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error closing table:', err);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'An error occurred.',
+                            icon: 'error',
+                            background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                            color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                        });
+                    });
+                }
+            });
         }
     </script>
 </body>

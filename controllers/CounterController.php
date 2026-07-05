@@ -310,4 +310,12 @@ class CounterController extends Controller {
             $this->json(['error' => 'Order not found'], 404);
         }
     }
+
+    // AJAX: Cashier closes an active order session and generates a pending bill
+    public function closeActiveOrder($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $orderModel = new Order();
+        $success = $orderModel->closeOrder($orderId);
+        $this->json(['success' => $success]);
+    }
 }
