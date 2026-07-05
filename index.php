@@ -56,6 +56,8 @@ $router->add('POST', '/kot/ready/:id', 'KotController@markKotReady');
 $router->add('GET', '/kot/print/:id', 'KotController@printKot');
 $router->add('POST', '/kot/items/delete/:id', 'KotController@deleteItem');
 $router->add('POST', '/kot/delete/:id', 'KotController@deleteKot');
+$router->add('GET', '/kot/products/list', 'KotController@productsListJson');
+$router->add('POST', '/kot/products/toggle/:id', 'KotController@toggleProductAvailability');
 
 // Counter & Billing Routes
 $router->add('GET', '/counter', 'CounterController@index');

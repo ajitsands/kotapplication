@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../models/Kot.php';
 require_once __DIR__ . '/../models/Setting.php';
+require_once __DIR__ . '/../models/Product.php';
+require_once __DIR__ . '/../models/Category.php';
 
 class KotController extends Controller {
     public function __construct() {
@@ -77,6 +79,27 @@ class KotController extends Controller {
         $kotId = (int)($params['id'] ?? 0);
         $kotModel = new Kot();
         $success = $kotModel->deleteKot($kotId);
+        $this->json(['success' => $success]);
+    }
+
+    public function productsListJson() {
+        $productModel = new Product();
+        $products = $productModel->getAll();
+        
+        $categoryModel = new Category();
+        $categories = $categoryModel->getAll();
+
+        $this->json(['products' => $products, 'categories' => $categories]);
+    }
+
+    public function toggleProductAvailability($params) {
+        $productId = (int)($params['id'] ?? 0);
+        $data = $this->getJsonInput();
+        $isAvailable = isset($data['is_available']) ? (int)$data['is_available'] : 0;
+
+        $productModel = new Product();
+        $success = $productModel->updateAvailability($productId, $isAvailable);
+
         $this->json(['success' => $success]);
     }
 }

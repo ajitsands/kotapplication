@@ -72,4 +72,9 @@ class Product extends Model {
         $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
         return $stmt->execute([$id]);
     }
+
+    public function updateAvailability($id, $isAvailable) {
+        $stmt = $this->db->prepare("UPDATE products SET is_available = ? WHERE id = ?");
+        return $stmt->execute([(int)$isAvailable, $id]);
+    }
 }

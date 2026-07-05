@@ -656,6 +656,106 @@
             margin-top: 8px;
         }
 
+        /* View Tab Switcher Buttons */
+        .view-tab-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .view-tab-btn:hover {
+            color: var(--text-color);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .view-tab-btn.active {
+            background: var(--primary-grad);
+            color: white;
+            border-color: transparent;
+        }
+
+        body.light-theme .view-tab-btn {
+            background: rgba(0, 0, 0, 0.02);
+            border-color: rgba(0, 0, 0, 0.08);
+            color: #4b5563;
+        }
+
+        body.light-theme .view-tab-btn:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: #111827;
+        }
+
+        body.light-theme .view-tab-btn.active {
+            color: white;
+            background: var(--primary-grad);
+        }
+
+        /* Toggle Slider Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: .3s;
+            border-radius: 24px;
+            border: 1px solid var(--card-border);
+        }
+
+        body.light-theme .slider {
+            background-color: rgba(0, 0, 0, 0.06);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #fff;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-green);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--accent-green);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
         @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr !important;
@@ -691,9 +791,17 @@
             <span class="header-title"><?= htmlspecialchars($settings['restaurant_name']) ?> | Kitchen Display</span>
         </div>
         <div class="header-nav">
-            <a href="admin" class="nav-link">Admin Dashboard</a>
-            <a href="kot" class="nav-link active">KOT Monitor</a>
-            <a href="counter" class="nav-link">Billing Counter</a>
+            <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
+                <a href="admin" class="nav-link">Admin Dashboard</a>
+            <?php endif; ?>
+
+            <a href="javascript:void(0)" onclick="switchKotView('tickets')" class="nav-link active" id="header-tab-tickets">KOT Monitor</a>
+            <a href="javascript:void(0)" onclick="switchKotView('catalog')" class="nav-link" id="header-tab-catalog">Menu Catalog</a>
+
+            <?php if (isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'counter'])): ?>
+                <a href="counter" class="nav-link">Billing Counter</a>
+            <?php endif; ?>
+
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -745,19 +853,57 @@
             </div>
         </div>
 
-        <!-- Right Side: Active Tickets -->
-        <div>
-            <h1 class="screen-title" style="margin-top: 0;">
-                Active Kitchen Tickets
-                <div class="live-indicator">
-                    <span class="live-dot"></span> LIVE MONITOR
-                </div>
-            </h1>
+        <!-- Right Side: Active Tickets & Menu Catalog -->
+        <div style="min-width: 0;">
+            <!-- Active Tickets Content Pane -->
+            <div id="kot-tickets-view">
+                <h1 class="screen-title" style="margin-top: 0;">
+                    Active Kitchen Tickets
+                    <div class="live-indicator">
+                        <span class="live-dot"></span> LIVE MONITOR
+                    </div>
+                </h1>
 
-            <div class="kot-grid" id="kot-display-container">
-                <!-- Loaded by AJAX -->
-                <div class="empty-state">
-                    <h3>Loading active kitchen orders...</h3>
+                <div class="kot-grid" id="kot-display-container">
+                    <!-- Loaded by AJAX -->
+                    <div class="empty-state">
+                        <h3>Loading active kitchen orders...</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Catalog Content Pane -->
+            <div id="kot-catalog-view" style="display: none;">
+                <h1 class="screen-title" style="margin-top: 0;">
+                    Menu Catalog
+                    <div class="live-indicator" style="background: rgba(16,185,129,0.15); color: var(--accent-green); box-shadow: none;">
+                        <span class="live-dot" style="background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green);"></span> KITCHEN MENU CONTROL
+                    </div>
+                </h1>
+
+                <div class="panel-card" style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(8px); margin-bottom: 20px;">
+                    <!-- Category Filters -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;" id="kot-catalog-categories">
+                        <!-- Loaded dynamically -->
+                    </div>
+
+                    <!-- Products Table -->
+                    <div style="overflow-x: auto;">
+                        <table id="kot-catalog-products-table" class="display" style="width: 100%; text-align: left;">
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th style="width: 120px; text-align: center;">Availability</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kot-catalog-products-tbody">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1108,6 +1254,156 @@
                 background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
+        }
+
+        let kotCatalogTable = null;
+        let kotCatalogProducts = [];
+        let kotCatalogCategories = [];
+        let activeCatalogCategory = 'all';
+
+        function switchKotView(view) {
+            if (view === 'tickets') {
+                document.getElementById('kot-tickets-view').style.display = 'block';
+                document.getElementById('kot-catalog-view').style.display = 'none';
+                document.getElementById('header-tab-tickets').classList.add('active');
+                document.getElementById('header-tab-catalog').classList.remove('active');
+            } else {
+                document.getElementById('kot-tickets-view').style.display = 'none';
+                document.getElementById('kot-catalog-view').style.display = 'block';
+                document.getElementById('header-tab-tickets').classList.remove('active');
+                document.getElementById('header-tab-catalog').classList.add('active');
+                loadKotCatalog();
+            }
+        }
+
+        function loadKotCatalog() {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot)$/, '');
+
+            fetch(rootPath + '/kot/products/list')
+                .then(res => res.json())
+                .then(data => {
+                    kotCatalogProducts = data.products || [];
+                    kotCatalogCategories = data.categories || [];
+                    renderKotCatalog(kotCatalogProducts, kotCatalogCategories);
+                })
+                .catch(err => console.error('Error fetching kitchen menu catalog:', err));
+        }
+
+        function renderKotCatalog(products, categories) {
+            // Render category filter buttons
+            const catContainer = document.getElementById('kot-catalog-categories');
+            if (catContainer) {
+                let catHtml = `<button onclick="filterCatalogByCategory('all')" class="view-tab-btn ${activeCatalogCategory === 'all' ? 'active' : ''}" style="padding: 6px 14px; font-size:12px;">All</button>`;
+                categories.forEach(cat => {
+                    catHtml += `<button onclick="filterCatalogByCategory(${cat.id})" class="view-tab-btn ${activeCatalogCategory == cat.id ? 'active' : ''}" style="padding: 6px 14px; font-size:12px;">${escapeHtml(cat.name)}</button>`;
+                });
+                catContainer.innerHTML = catHtml;
+            }
+
+            // Destroy existing DataTable if initialized
+            if (kotCatalogTable) {
+                kotCatalogTable.destroy();
+            }
+
+            const tbody = document.getElementById('kot-catalog-products-tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                // Filter products by active category
+                const filteredProducts = activeCatalogCategory === 'all' 
+                    ? products 
+                    : products.filter(p => p.category_id == activeCatalogCategory);
+
+                filteredProducts.forEach(prod => {
+                    const imgCol = prod.image_url 
+                        ? `<img src="${prod.image_url}" class="img-preview-mini" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">` 
+                        : `<div style="width:40px; height:40px; border-radius:8px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-muted);">None</div>`;
+                    
+                    const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+                    const checkedAttr = parseInt(prod.is_available) === 1 ? 'checked' : '';
+
+                    const availabilityCol = `
+                        <div style="text-align: center;">
+                            <label class="switch">
+                                <input type="checkbox" onchange="toggleKotProductAvailability(${prod.id}, this.checked)" ${checkedAttr}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    `;
+
+                    tbody.innerHTML += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <td style="padding: 10px 8px; vertical-align:middle;">${imgCol}</td>
+                            <td style="padding: 10px 8px; vertical-align:middle; font-weight:600;">${escapeHtml(prod.name)}</td>
+                            <td style="padding: 10px 8px; vertical-align:middle; color:var(--text-muted);">${escapeHtml(prod.category_name)}</td>
+                            <td style="padding: 10px 8px; vertical-align:middle; font-family:monospace; font-weight:600;">${parseFloat(prod.price).toFixed(3)} ${cur}</td>
+                            <td style="padding: 10px 8px; vertical-align:middle;">${availabilityCol}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Initialize DataTable for catalog
+            kotCatalogTable = $('#kot-catalog-products-table').DataTable({
+                dom: '<"dt-header"f>rt<"dt-footer"ip>',
+                pageLength: 10,
+                lengthChange: false,
+                ordering: true,
+                order: [[1, 'asc']],
+                language: {
+                    search: "🔍 Search:"
+                }
+            });
+        }
+
+        function filterCatalogByCategory(categoryId) {
+            activeCatalogCategory = categoryId;
+            renderKotCatalog(kotCatalogProducts, kotCatalogCategories);
+        }
+
+        function toggleKotProductAvailability(productId, isAvailable) {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot)$/, '');
+
+            fetch(rootPath + '/kot/products/toggle/' + productId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_available: isAvailable ? 1 : 0 })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Update local copy of products
+                    const prod = kotCatalogProducts.find(p => p.id == productId);
+                    if (prod) {
+                        prod.is_available = isAvailable ? 1 : 0;
+                    }
+                    
+                    // Show small notification toast
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Availability updated',
+                        showConfirmButton: false,
+                        timer: 1500,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Failed to update item availability',
+                        icon: 'error',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                }
+            })
+            .catch(err => console.error('Error toggling availability:', err));
         }
     </script>
 
