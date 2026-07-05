@@ -594,6 +594,7 @@
                 <button onclick="openCloseCounterModal()" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--accent-red); padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; margin-right: 10px; transition: all 0.3s;">🔒 Close Counter</button>
             <?php endif; ?>
             <a href="counter" class="nav-link active">Billing Counter</a>
+            <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -1714,6 +1715,34 @@
                         color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                     });
                 }
+            });
+        }
+
+        function showWaiterLoginQr() {
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot)$/, '');
+            const loginUrl = protocol + '//' + host + rootPath + '/login';
+            
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(loginUrl);
+            
+            Swal.fire({
+                title: '📱 Waiter Login Link',
+                html: `
+                    <div style="margin: 15px 0;">
+                        <img src="${qrImageUrl}" alt="Login QR Code" style="width: 220px; height: 220px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid white;">
+                        <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Scan this QR code with a waiter's phone camera to quickly access the system login page.</p>
+                        <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
+                            ${loginUrl}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
         }
     </script>
