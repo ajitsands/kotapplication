@@ -157,4 +157,72 @@ class Order extends Model {
             return false;
         }
     }
+
+    public function getEngagedTables() {
+        $sql = "SELECT o.id as order_id, o.table_number, o.status as order_status, 
+                       IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name,
+                       b.id as bill_id, b.status as bill_status,
+                       b.subtotal as bill_subtotal, b.tax_amount as bill_tax_amount, b.grand_total as bill_grand_total
+                FROM orders o
+                LEFT JOIN users u ON o.waiter_id = u.id
+                LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'pending'
+                WHERE o.status IN ('active', 'closed')
+                ORDER BY o.table_number ASC";
+        $stmt = $this->db->query($sql);
+        $orders = $stmt->fetchAll();
+
+        foreach ($orders as &$order) {
+            if ($order['bill_id'] !== null) {
+                // Use stored bill totals
+                $order['subtotal'] = (float)$order['bill_subtotal'];
+                $order['tax_amount'] = (float)$order['bill_tax_amount'];
+                $order['grand_total'] = (float)$order['bill_grand_total'];
+            } else {
+                // Calculate live totals from KOT items for active orders
+                $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+                             FROM kot_items ki
+                             JOIN kots k ON ki.kot_id = k.id
+                             JOIN products p ON ki.product_id = p.id
+                             WHERE k.order_id = ?";
+                $stmtItems = $this->db->prepare($sqlItems);
+                $stmtItems->execute([$order['order_id']]);
+                $res = $stmtItems->fetch();
+                
+                $subtotal = (float)($res['subtotal'] ?? 0.0);
+                
+                $settings = getSettings();
+                $taxType = $settings['tax_type'] ?? 'VAT';
+                $taxAmount = 0.0;
+                
+                if ($taxType === 'VAT') {
+                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                    $taxAmount = $subtotal * ($vatPercent / 100.0);
+                } else { // GST
+                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                    $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+                }
+                
+                $order['subtotal'] = $subtotal;
+                $order['tax_amount'] = $taxAmount;
+                $order['grand_total'] = $subtotal + $taxAmount;
+            }
+        }
+        
+        return $orders;
+    }
+
+    public function getOrderDetails($orderId) {
+        $stmt = $this->db->prepare("SELECT o.*, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+                                    FROM orders o 
+                                    LEFT JOIN users u ON o.waiter_id = u.id 
+                                    WHERE o.id = ?");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        
+        if ($order) {
+            $order['items'] = $this->getOrderItemsSummary($orderId);
+        }
+        return $order;
+    }
 }

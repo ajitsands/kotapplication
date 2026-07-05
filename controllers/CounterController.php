@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../models/Bill.php';
 require_once __DIR__ . '/../models/Setting.php';
 require_once __DIR__ . '/../models/CounterSession.php';
+require_once __DIR__ . '/../models/Order.php';
 
 class CounterController extends Controller {
     public function __construct() {
@@ -262,5 +263,51 @@ class CounterController extends Controller {
         $csModel   = new CounterSession();
         $success   = $csModel->rejectClose($sessionId);
         $this->json(['success' => $success]);
+    }
+
+    // AJAX: Get engaged tables list
+    public function engagedTablesList() {
+        $orderModel = new Order();
+        $tables = $orderModel->getEngagedTables();
+        $this->json(['tables' => $tables]);
+    }
+
+    // AJAX: Get active/closed order details by ID
+    public function orderDetails($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $orderModel = new Order();
+        $order = $orderModel->getOrderDetails($orderId);
+        
+        if ($order) {
+            // Calculate totals
+            $subtotal = 0.0;
+            if (!empty($order['items'])) {
+                foreach ($order['items'] as $item) {
+                    $subtotal += (float)$item['subtotal_price'];
+                }
+            }
+            
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            $taxType = $settings['tax_type'] ?? 'VAT';
+            $taxAmount = 0.0;
+            
+            if ($taxType === 'VAT') {
+                $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                $taxAmount = $subtotal * ($vatPercent / 100.0);
+            } else { // GST
+                $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+            }
+            
+            $order['subtotal'] = $subtotal;
+            $order['tax_amount'] = $taxAmount;
+            $order['grand_total'] = $subtotal + $taxAmount;
+            
+            $this->json(['order' => $order]);
+        } else {
+            $this->json(['error' => 'Order not found'], 404);
+        }
     }
 }

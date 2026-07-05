@@ -1024,6 +1024,7 @@
         const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
         const rootPath = basePath.replace(/\/counter$/, '');
         let pendingBills = [];
+        let engagedTables = [];
         let selectedBillId = null;
         let selectedPaymentMethod = 'cash';
         let customerLoyaltyData = null;
@@ -1035,11 +1036,20 @@
                 .then(data => {
                     pendingBills = data.bills;
                     renderBills(data.bills);
+                })
+                .catch(err => console.error('Error fetching bills:', err));
+        }
+
+        function fetchEngagedTables() {
+            fetch(basePath + '/engaged-tables')
+                .then(res => res.json())
+                .then(data => {
+                    engagedTables = data.tables;
                     if (document.getElementById('engaged-tables-modal').style.display === 'flex') {
                         refreshEngagedTablesModalContent();
                     }
                 })
-                .catch(err => console.error('Error fetching bills:', err));
+                .catch(err => console.error('Error fetching engaged tables:', err));
         }
 
         function renderBills(bills) {
@@ -1123,7 +1133,7 @@
                             <td style="padding: 12px 10px; text-align: right;" class="price-text">${tax} ${currencyCode}</td>
                             <td style="padding: 12px 10px; text-align: right; font-weight:700; color:var(--accent-green);" class="price-text">${grand} ${currencyCode}</td>
                             <td style="padding: 12px 10px; text-align: center;">
-                                <button onclick="openBillItemsModal(${bill.id})" class="btn-action btn-view-items" style="margin-right: 4px; padding: 5px 10px; font-size: 11px;">
+                                <button onclick="openOrderItemsModal(${bill.order_id})" class="btn-action btn-view-items" style="margin-right: 4px; padding: 5px 10px; font-size: 11px;">
                                     Items
                                 </button>
                                 <button onclick="printBill(${bill.id})" class="btn-action btn-print" style="margin-right: 4px; padding: 5px 10px; font-size: 11px;">
@@ -1149,41 +1159,49 @@
             container.innerHTML = html;
         }
 
-        function openBillItemsModal(billId) {
-            fetch(basePath + '/bill/' + billId)
+        function openOrderItemsModal(orderId) {
+            fetch(basePath + '/order/' + orderId)
                 .then(res => res.json())
                 .then(data => {
-                    const bill = data.bill;
-                    if (!bill) return;
+                    const order = data.order;
+                    if (!order) return;
 
-                    document.getElementById('view-modal-table-label').innerText = 'Table ' + bill.table_number + ' • ' + (bill.waiter_name || 'Self-Order');
+                    document.getElementById('view-modal-table-label').innerText = 'Table T' + order.table_number + ' • ' + (order.waiter_name || 'Self-Order');
                     
                     let itemsHtml = '';
-                    bill.items.forEach(item => {
-                        const price = parseFloat(item.price).toFixed(3);
-                        const total = parseFloat(item.subtotal_price).toFixed(3);
-                        itemsHtml += `
-                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                                <td style="padding: 10px 5px; font-weight: 500; font-size: 14px; text-align: left;">${item.product_name}</td>
-                                <td style="padding: 10px 5px; text-align: center; font-weight: 600; font-size: 14px;">${item.total_quantity}</td>
-                                <td style="padding: 10px 5px; text-align: right; font-size: 14px;" class="price-text">${price} ${currencyCode}</td>
-                                <td style="padding: 10px 5px; text-align: right; font-weight: 600; color: var(--text-color); font-size: 14px;" class="price-text">${total} ${currencyCode}</td>
+                    if (order.items && order.items.length > 0) {
+                        order.items.forEach(item => {
+                            const price = parseFloat(item.price).toFixed(3);
+                            const total = parseFloat(item.subtotal_price).toFixed(3);
+                            itemsHtml += `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td style="padding: 10px 5px; font-weight: 500; font-size: 14px; text-align: left;">${item.name}</td>
+                                    <td style="padding: 10px 5px; text-align: center; font-weight: 600; font-size: 14px;">${item.total_quantity}</td>
+                                    <td style="padding: 10px 5px; text-align: right; font-size: 14px;" class="price-text">${price} ${currencyCode}</td>
+                                    <td style="padding: 10px 5px; text-align: right; font-weight: 600; color: var(--text-color); font-size: 14px;" class="price-text">${total} ${currencyCode}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        itemsHtml = `
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 15px; color: var(--text-muted); font-size: 13px;">No items ordered yet.</td>
                             </tr>
                         `;
-                    });
+                    }
                     
                     document.getElementById('view-modal-items-body').innerHTML = itemsHtml;
-                    document.getElementById('view-modal-subtotal').innerText = parseFloat(bill.subtotal).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-subtotal').innerText = parseFloat(order.subtotal || 0).toFixed(3) + ' ' + currencyCode;
                     
-                    const taxLabel = bill.tax_amount > 0 ? 'Tax Amount:' : 'Tax:';
+                    const taxLabel = order.tax_amount > 0 ? 'Tax Amount:' : 'Tax:';
                     document.getElementById('view-modal-tax-type').innerText = taxLabel;
-                    document.getElementById('view-modal-tax').innerText = parseFloat(bill.tax_amount).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-tax').innerText = parseFloat(order.tax_amount || 0).toFixed(3) + ' ' + currencyCode;
                     
-                    document.getElementById('view-modal-grand-total').innerText = parseFloat(bill.grand_total).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-grand-total').innerText = parseFloat(order.grand_total || 0).toFixed(3) + ' ' + currencyCode;
                     
                     document.getElementById('bill-items-modal').style.display = 'flex';
                 })
-                .catch(err => console.error('Error loading bill details:', err));
+                .catch(err => console.error('Error loading order details:', err));
         }
 
         function closeBillItemsModal() {
@@ -1580,9 +1598,11 @@
         <?php if (!$pendingApproval): ?>
         // Start polling
         fetchBills();
+        fetchEngagedTables();
         fetchSummary();
         fetchCustomers();
         setInterval(fetchBills, 4000);
+        setInterval(fetchEngagedTables, 4000);
         setInterval(fetchSummary, 10000);
 
         function openCloseCounterModal() {
@@ -1844,14 +1864,15 @@
             const listContainer = document.getElementById('modal-engaged-tables-list');
             if (!listContainer) return;
 
-            // Group bills by table_number
+            // Group bills/orders by table_number
             const groups = {};
-            pendingBills.forEach(bill => {
-                const tbl = bill.table_number;
+            const list = engagedTables || [];
+            list.forEach(order => {
+                const tbl = order.table_number;
                 if (!groups[tbl]) {
                     groups[tbl] = [];
                 }
-                groups[tbl].push(bill);
+                groups[tbl].push(order);
             });
 
             const tables = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
@@ -1865,33 +1886,38 @@
             } else {
                 let engagedHtml = '';
                 tables.forEach(tableNum => {
-                    const tableBills = groups[tableNum];
+                    const tableOrders = groups[tableNum];
                     
-                    if (tableBills.length === 1) {
-                        const bill = tableBills[0];
-                        const grand = parseFloat(bill.grand_total).toFixed(3);
+                    if (tableOrders.length === 1) {
+                        const order = tableOrders[0];
+                        const grand = parseFloat(order.grand_total).toFixed(3);
+                        const badgeBg = order.order_status === 'active' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+                        const badgeColor = order.order_status === 'active' ? '#818cf8' : 'var(--accent-green)';
+                        const badgeText = order.order_status === 'active' ? 'Ordering' : 'Billing';
+                        
                         engagedHtml += `
-                            <div onclick="selectEngagedTable(${bill.id})" class="engaged-table-card">
+                            <div onclick="selectEngagedTable(${order.order_id})" class="engaged-table-card">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
-                                    <span style="font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: var(--accent-green); padding: 2px 6px; border-radius: 4px;">Active</span>
+                                    <span style="font-size: 10px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 6px; border-radius: 4px;">${badgeText}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                                    <span>👤 ${bill.waiter_name || 'Self-Order'}</span>
+                                    <span>👤 ${order.waiter_name || 'Self-Order'}</span>
                                     <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
                                 </div>
                             </div>
                         `;
                     } else {
                         let sumGrand = 0;
-                        tableBills.forEach(b => sumGrand += parseFloat(b.grand_total));
+                        tableOrders.forEach(o => sumGrand += parseFloat(o.grand_total));
                         
                         let billsListHtml = '';
-                        tableBills.forEach(b => {
-                            const grand = parseFloat(b.grand_total).toFixed(3);
+                        tableOrders.forEach(o => {
+                            const grand = parseFloat(o.grand_total).toFixed(3);
+                            const label = o.bill_id ? `Receipt #${o.bill_id}` : `Active Order`;
                             billsListHtml += `
-                                <div onclick="event.stopPropagation(); selectEngagedTable(${b.id})" class="engaged-table-subbill">
-                                    <span>🧾 #${b.id} (${b.waiter_name || 'Self-Order'})</span>
+                                <div onclick="event.stopPropagation(); selectEngagedTable(${o.order_id})" class="engaged-table-subbill">
+                                    <span>🧾 ${label} (${o.waiter_name || 'Self-Order'})</span>
                                     <strong style="color: var(--accent-green);">${grand} ${currencyCode}</strong>
                                 </div>
                             `;
@@ -1901,7 +1927,7 @@
                             <div class="engaged-table-card" style="background: rgba(99, 102, 241, 0.03); border: 1px solid rgba(99, 102, 241, 0.15); cursor: default;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="font-weight: 700; font-size: 14px; color: var(--text-color);">Table T${tableNum}</span>
-                                    <span style="font-size: 10px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">${tableBills.length} Bills</span>
+                                    <span style="font-size: 10px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 6px; border-radius: 4px;">${tableOrders.length} Sessions</span>
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 4px; margin-top: 2px;">
                                     <span>Total Engaged:</span>
@@ -1925,9 +1951,9 @@
             document.getElementById('engaged-tables-modal').style.display = 'none';
         }
 
-        function selectEngagedTable(billId) {
+        function selectEngagedTable(orderId) {
             closeEngagedTablesModal();
-            openBillItemsModal(billId);
+            openOrderItemsModal(orderId);
         }
     </script>
 </body>
