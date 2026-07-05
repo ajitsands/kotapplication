@@ -2245,13 +2245,23 @@
                                 <td>${htmlspecialchars(prod.category_name)}</td>
                                 <td style="font-family: monospace; font-weight: 600;">${price} ${currencyCode}</td>
                                 <td>
-                                    <button class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none;" 
-                                            onclick='editProduct(${JSON.stringify(prod)})'>
-                                        Edit
-                                    </button>
-                                    <form action="admin/products/delete/${prod.id}" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
-                                        <button type="submit" class="btn-delete" style="padding: 6px 12px;">Delete</button>
-                                    </form>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <button class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" 
+                                                onclick='editProduct(${JSON.stringify(prod)})' title="Edit Product">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                            </svg>
+                                        </button>
+                                        <form action="admin/products/delete/${prod.id}" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
+                                            <button type="submit" class="btn-delete" style="padding: 6px 10px; display: inline-flex; align-items: center; justify-content: center;" title="Delete Product">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         `;
