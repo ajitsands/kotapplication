@@ -989,11 +989,19 @@
                             <textarea name="description" id="prod-desc" rows="2" placeholder="Item description..."></textarea>
                         </div>
 
-                        <div class="form-group">
-                            <label class="checkbox-container">
-                                <input type="checkbox" name="is_available" id="prod-available" checked>
-                                Available in Menu
-                            </label>
+                        <div style="display: flex; gap: 20px;">
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" name="is_available" id="prod-available" value="1" checked>
+                                    Available in Menu
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" name="is_counter_item" id="prod-counter-item" value="1">
+                                    Counter Item
+                                </label>
+                            </div>
                         </div>
 
                         <div style="display:flex; gap:10px;">
@@ -1027,7 +1035,12 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <div style="font-weight: 600;"><?= htmlspecialchars($prod['name']) ?></div>
+                                        <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                            <?= htmlspecialchars($prod['name']) ?>
+                                            <?php if ((int)$prod['is_counter_item'] === 1): ?>
+                                                <span class="table-status" style="background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); font-size: 10px; padding: 1px 6px;">Counter Item</span>
+                                            <?php endif; ?>
+                                        </div>
                                         <small style="color: var(--text-muted); font-size: 11px;"><?= htmlspecialchars(substr($prod['description'] ?? '', 0, 50)) ?></small>
                                     </td>
                                     <td><?= htmlspecialchars($prod['category_name']) ?></td>
@@ -1988,6 +2001,7 @@
             document.getElementById('prod-price').value = prod.price;
             document.getElementById('prod-desc').value = prod.description;
             document.getElementById('prod-available').checked = (parseInt(prod.is_available) === 1);
+            document.getElementById('prod-counter-item').checked = (parseInt(prod.is_counter_item) === 1);
             
             document.getElementById('product-form-title').innerText = 'Edit Product: ' + prod.name;
             document.getElementById('btn-cancel-edit').style.display = 'inline-block';
@@ -1999,6 +2013,7 @@
         function resetProductForm() {
             document.getElementById('prod-id').value = '';
             document.getElementById('product-form').reset();
+            document.getElementById('prod-counter-item').checked = false;
             document.getElementById('product-form-title').innerText = 'Add/Edit Product';
             document.getElementById('btn-cancel-edit').style.display = 'none';
             document.getElementById('cropped-image-data').value = '';

@@ -96,6 +96,16 @@ try {
         }
     }
 
+    // Check is_counter_item column in products table
+    $productsTableCheck = $pdo->query("SHOW TABLES LIKE 'products'")->fetch();
+    if ($productsTableCheck) {
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `products` LIKE 'is_counter_item'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `products` ADD COLUMN `is_counter_item` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_available`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'is_counter_item' column to 'products' table.</p>";
+        }
+    }
+
     // Check software_expiry_date column in settings table
     $settingsTableCheck = $pdo->query("SHOW TABLES LIKE 'settings'")->fetch();
     if ($settingsTableCheck) {

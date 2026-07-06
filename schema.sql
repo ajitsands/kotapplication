@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS `products` (
     `price` DECIMAL(10,3) NOT NULL, -- Supporting 3 decimals for BHD
     `image_url` VARCHAR(255) DEFAULT NULL,
     `is_available` TINYINT(1) DEFAULT 1,
+    `is_counter_item` TINYINT(1) DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;

@@ -109,7 +109,8 @@ class AdminController extends Controller {
             'name' => $_POST['name'] ?? '',
             'description' => $_POST['description'] ?? '',
             'price' => $_POST['price'] ?? 0.0,
-            'is_available' => isset($_POST['is_available']) ? 1 : 0
+            'is_available' => isset($_POST['is_available']) ? 1 : 0,
+            'is_counter_item' => isset($_POST['is_counter_item']) ? 1 : 0
         ];
 
         // Handle cropped image upload

@@ -78,6 +78,8 @@ $router->add('POST', '/counter/session/reject/:id', 'CounterController@rejectClo
 $router->add('GET', '/counter/engaged-tables', 'CounterController@engagedTablesList');
 $router->add('GET', '/counter/order/:id', 'CounterController@orderDetails');
 $router->add('POST', '/counter/order/close/:id', 'CounterController@closeActiveOrder');
+$router->add('GET', '/counter/products/counter-items', 'CounterController@getCounterItems');
+$router->add('POST', '/counter/order/add-counter-items/:id', 'CounterController@addCounterItems');
 
 // Waiter App & Customer API Routes
 $router->add('POST', '/api/login', 'ApiController@login');

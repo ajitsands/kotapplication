@@ -318,4 +318,99 @@ class CounterController extends Controller {
         $success = $orderModel->closeOrder($orderId);
         $this->json(['success' => $success]);
     }
+
+    // AJAX: Get list of products tagged as counter items
+    public function getCounterItems() {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->query("SELECT id, name, price FROM products WHERE is_counter_item = 1 AND is_available = 1 ORDER BY name ASC");
+        $items = $stmt->fetchAll();
+        $this->json(['success' => true, 'items' => $items]);
+    }
+
+    // AJAX: Add counter items directly to an order/bill
+    public function addCounterItems($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $data = $this->getJsonInput();
+        
+        $productId = (int)($data['product_id'] ?? 0);
+        $quantity = (int)($data['quantity'] ?? 1);
+        
+        if ($orderId <= 0 || $productId <= 0 || $quantity <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid parameters.']);
+            return;
+        }
+
+        $db = Database::getInstance()->getConnection();
+        
+        // 1. Verify the order exists and is not completed
+        $stmt = $db->prepare("SELECT * FROM orders WHERE id = ? AND status IN ('active', 'closed')");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        if (!$order) {
+            $this->json(['success' => false, 'error' => 'Order not found or already completed.']);
+            return;
+        }
+
+        // Get product details
+        $stmtProd = $db->prepare("SELECT name, price FROM products WHERE id = ? AND is_available = 1");
+        $stmtProd->execute([$productId]);
+        $product = $stmtProd->fetch();
+        if (!$product) {
+            $this->json(['success' => false, 'error' => 'Product not found or unavailable.']);
+            return;
+        }
+
+        $db->beginTransaction();
+        try {
+            // 2. Create a "Counter" KOT for this item.
+            // Since this is added at the counter, status of KOT and item is 'dispatched' so it does not go to the kitchen screen.
+            $kotNumber = 'KOT-CNTR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
+            $stmtKot = $db->prepare("INSERT INTO kots (order_id, waiter_id, kot_number, status) VALUES (?, NULL, ?, 'dispatched')");
+            $stmtKot->execute([$orderId, $kotNumber]);
+            $kotId = $db->lastInsertId();
+
+            $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, 'dispatched', 'Counter Sale')");
+            $stmtItem->execute([$kotId, $productId, $quantity]);
+
+            // 3. Recalculate totals
+            $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+                         FROM kot_items ki 
+                         JOIN kots k ON ki.kot_id = k.id 
+                         JOIN products p ON ki.product_id = p.id 
+                         WHERE k.order_id = ?";
+            $stmtSum = $db->prepare($sqlItems);
+            $stmtSum->execute([$orderId]);
+            $subtotal = (float)$stmtSum->fetchColumn();
+
+            // Get settings for Taxes
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            $taxType = $settings['tax_type'] ?? 'VAT';
+            $taxAmount = 0.0;
+            if ($taxType === 'VAT') {
+                $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                $taxAmount = $subtotal * ($vatPercent / 100.0);
+            } else { // GST
+                $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+            }
+            $grandTotal = $subtotal + $taxAmount;
+
+            // 4. Update the bill if it exists
+            $stmtBillCheck = $db->prepare("SELECT id FROM bills WHERE order_id = ? AND status = 'pending'");
+            $stmtBillCheck->execute([$orderId]);
+            $bill = $stmtBillCheck->fetch();
+            if ($bill) {
+                $stmtUpdateBill = $db->prepare("UPDATE bills SET subtotal = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+                $stmtUpdateBill->execute([$subtotal, $taxAmount, $grandTotal, $bill['id']]);
+            }
+
+            $db->commit();
+            $this->json(['success' => true, 'message' => 'Item added successfully.']);
+        } catch (Exception $e) {
+            $db->rollBack();
+            $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
 }

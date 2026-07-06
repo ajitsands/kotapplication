@@ -34,13 +34,14 @@ class Product extends Model {
     public function save($data) {
         if (!empty($data['id'])) {
             // Update
-            $sql = "UPDATE products SET category_id = ?, name = ?, description = ?, price = ?, is_available = ?";
+            $sql = "UPDATE products SET category_id = ?, name = ?, description = ?, price = ?, is_available = ?, is_counter_item = ?";
             $params = [
                 $data['category_id'],
                 $data['name'],
                 $data['description'] ?? null,
                 $data['price'],
-                isset($data['is_available']) ? (int)$data['is_available'] : 1
+                isset($data['is_available']) ? (int)$data['is_available'] : 1,
+                isset($data['is_counter_item']) ? (int)$data['is_counter_item'] : 0
             ];
 
             if (isset($data['image_url'])) {
@@ -55,15 +56,16 @@ class Product extends Model {
             return $stmt->execute($params);
         } else {
             // Insert
-            $stmt = $this->db->prepare("INSERT INTO products (category_id, name, description, price, image_url, is_available) 
-                                        VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt = $this->db->prepare("INSERT INTO products (category_id, name, description, price, image_url, is_available, is_counter_item) 
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)");
             return $stmt->execute([
                 $data['category_id'],
                 $data['name'],
                 $data['description'] ?? null,
                 $data['price'],
                 $data['image_url'] ?? null,
-                isset($data['is_available']) ? (int)$data['is_available'] : 1
+                isset($data['is_available']) ? (int)$data['is_available'] : 1,
+                isset($data['is_counter_item']) ? (int)$data['is_counter_item'] : 0
             ]);
         }
     }

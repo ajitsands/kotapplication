@@ -998,6 +998,18 @@
                 </div>
             </div>
 
+            <!-- Add Counter Items Section -->
+            <div id="counter-items-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--card-border); display: none;">
+                <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-color); display: flex; align-items: center; gap: 6px;">🛒 Add Counter Items (Cookies, Chocolates, Cold Drinks, etc.)</h4>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="counter-item-select" style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); font-size: 13px;">
+                        <option value="">Choose an item...</option>
+                    </select>
+                    <input type="number" id="counter-item-qty" value="1" min="1" style="width: 70px; padding: 10px; text-align: center; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); font-size: 13px;">
+                    <button onclick="addCounterItem()" class="btn-pay" style="padding: 10px 20px; border-radius: 8px; font-size: 13px; margin: 0; width: auto; background: var(--primary-grad); border: none; color: white;">Add to Bill</button>
+                </div>
+            </div>
+
             <div id="view-modal-actions-container" style="text-align: center; margin-top: 25px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
                 <button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 40px; display: inline-block;">Close</button>
             </div>
@@ -1028,6 +1040,8 @@
         let selectedBillId = null;
         let selectedPaymentMethod = 'cash';
         let customerLoyaltyData = null;
+        let currentOpenOrderId = null;
+        let counterProducts = [];
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
 
         function fetchBills() {
@@ -1160,11 +1174,19 @@
         }
 
         function openOrderItemsModal(orderId) {
+            currentOpenOrderId = orderId;
             fetch(basePath + '/order/' + orderId)
                 .then(res => res.json())
                 .then(data => {
                     const order = data.order;
                     if (!order) return;
+
+                    // Show or hide counter items addition panel
+                    if (order.status === 'active' || order.status === 'closed') {
+                        document.getElementById('counter-items-section').style.display = 'block';
+                    } else {
+                        document.getElementById('counter-items-section').style.display = 'none';
+                    }
 
                     document.getElementById('view-modal-table-label').innerText = 'Table T' + order.table_number + ' • ' + (order.waiter_name || 'Self-Order');
                     
@@ -1226,6 +1248,82 @@
 
         function closeBillItemsModal() {
             document.getElementById('bill-items-modal').style.display = 'none';
+        }
+
+        function fetchCounterItems() {
+            fetch(basePath + '/products/counter-items')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        counterProducts = data.items;
+                        const select = document.getElementById('counter-item-select');
+                        if (select) {
+                            select.innerHTML = '<option value="">Choose an item...</option>';
+                            counterProducts.forEach(item => {
+                                select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(3)} ${currencyCode})</option>`;
+                            });
+                        }
+                    }
+                })
+                .catch(err => console.error('Error fetching counter products:', err));
+        }
+
+        function addCounterItem() {
+            if (!currentOpenOrderId) return;
+            
+            const productId = document.getElementById('counter-item-select').value;
+            const quantity = parseInt(document.getElementById('counter-item-qty').value) || 1;
+            
+            if (!productId) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Please select a counter item first.',
+                    icon: 'error',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            fetch(basePath + '/order/add-counter-items/' + currentOpenOrderId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Item added to bill successfully.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    
+                    document.getElementById('counter-item-qty').value = 1;
+                    document.getElementById('counter-item-select').value = '';
+                    
+                    openOrderItemsModal(currentOpenOrderId);
+                    fetchBills();
+                    fetchEngagedTables();
+                    fetchSummary();
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.error || 'Failed to add item.',
+                        icon: 'error',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                }
+            })
+            .catch(err => console.error('Error adding counter item:', err));
         }
 
         function printBill(billId) {
@@ -1621,6 +1719,7 @@
         fetchEngagedTables();
         fetchSummary();
         fetchCustomers();
+        fetchCounterItems();
         setInterval(fetchBills, 4000);
         setInterval(fetchEngagedTables, 4000);
         setInterval(fetchSummary, 10000);
