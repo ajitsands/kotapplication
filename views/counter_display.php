@@ -1201,7 +1201,12 @@
 
                     // Action buttons in details modal
                     let actionsHtml = `<button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 30px; display: inline-block;">Close</button>`;
-                    if (order.status === 'active') {
+                    if (!order.items || order.items.length === 0) {
+                        actionsHtml = `
+                            <button onclick="releaseTable(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-red); border: 1px solid var(--accent-red);">🔓 Release Table & Make Available</button>
+                            ${actionsHtml}
+                        `;
+                    } else if (order.status === 'active') {
                         actionsHtml = `
                             <button onclick="closeTableAndGenerateBill(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-orange); border: 1px solid var(--accent-orange);">🔒 Close Table & Generate Bill</button>
                             ${actionsHtml}
@@ -2021,6 +2026,68 @@
                     })
                     .catch(err => {
                         console.error('Error closing table:', err);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'An error occurred.',
+                            icon: 'error',
+                            background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                            color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                        });
+                    });
+                }
+            });
+        }
+
+        function releaseTable(orderId) {
+            Swal.fire({
+                title: 'Release Table?',
+                text: "Are you sure you want to release this table and make it available? This will delete the empty session.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, Release Table',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(rootPath + '/api/orders/cancel/' + orderId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success',
+                                text: 'Table released successfully.',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false,
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                            
+                            // Re-fetch all data
+                            fetchBills();
+                            fetchEngagedTables();
+                            
+                            // Close the details modal
+                            closeBillItemsModal();
+                        } else {
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'Failed to release table.',
+                                icon: 'error',
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error releasing table:', err);
                         Swal.fire({
                             title: 'Error',
                             text: 'An error occurred.',

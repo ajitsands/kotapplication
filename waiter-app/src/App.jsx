@@ -315,6 +315,50 @@ function App() {
     });
   };
 
+  // Release empty table session
+  const releaseTable = (orderId) => {
+    Swal.fire({
+      title: 'Release Table?',
+      text: 'Are you sure you want to release this table and make it available? This will delete the active empty session.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#4b5563',
+      confirmButtonText: 'Yes, release it',
+      background: theme === 'light' ? '#fff' : '#111827',
+      color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        fetch(`/api/orders/cancel/${orderId}`, { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setActiveView('tables');
+              loadTablesState();
+            } else {
+              Swal.fire({
+                title: 'Error',
+                text: data.error || 'Failed to release table',
+                icon: 'error',
+                background: theme === 'light' ? '#fff' : '#111827',
+                color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+              });
+            }
+          })
+          .catch(err => {
+            console.error("Error releasing table", err);
+            Swal.fire({
+              title: 'Error',
+              text: 'An error occurred while releasing the table',
+              icon: 'error',
+              background: theme === 'light' ? '#fff' : '#111827',
+              color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+            });
+          });
+      }
+    });
+  };
+
   // Dispatch item to table (waiter confirms delivery)
   const dispatchNotificationItem = (kotItemId) => {
     setServedItems(prev => [...prev, kotItemId]);
@@ -493,24 +537,40 @@ function App() {
             {activeOrder ? (
               <div className="order-items-card">
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, borderBottom: '1px solid var(--card-border)', paddingBottom: 6 }}>
-                  Active Bill items ({activeOrder.items.length})
+                  Active Bill items ({activeOrder.items ? activeOrder.items.length : 0})
                 </div>
                 
-                {activeOrder.items.map((item, idx) => (
-                  <div className="order-item-row" key={idx}>
-                    <span><b>{item.total_quantity}</b> × {item.name}</span>
-                    <span className="price-text" style={{ fontStyle: 'monospace' }}>{(item.price * item.total_quantity).toFixed(3)} {currency}</span>
+                {activeOrder.items && activeOrder.items.length > 0 ? (
+                  activeOrder.items.map((item, idx) => (
+                    <div className="order-item-row" key={idx}>
+                      <span><b>{item.total_quantity}</b> × {item.name}</span>
+                      <span className="price-text" style={{ fontStyle: 'monospace' }}>{(item.price * item.total_quantity).toFixed(3)} {currency}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '15px 0', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                    No active items in this session.
                   </div>
-                ))}
+                )}
 
                 <div style={{ marginTop: 15, display: 'flex', gap: 10 }}>
-                  <button 
-                    className="btn-action" 
-                    style={{ flexGrow: 1, padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                    onClick={() => requestBilling(activeOrder.order.id)}
-                  >
-                    Close Table & Bill
-                  </button>
+                  {activeOrder.items && activeOrder.items.length > 0 ? (
+                    <button 
+                      className="btn-action" 
+                      style={{ flexGrow: 1, padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                      onClick={() => requestBilling(activeOrder.order.id)}
+                    >
+                      Close Table & Bill
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn-action" 
+                      style={{ flexGrow: 1, padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                      onClick={() => releaseTable(activeOrder.order.id)}
+                    >
+                      Release Table & Make Available
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
