@@ -81,7 +81,7 @@ function App() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, activeView, selectedTable]);
 
   const loadAppData = () => {
     // Load Settings
@@ -106,7 +106,21 @@ function App() {
   const loadTablesState = () => {
     fetch(rootPath + '/api/tables')
       .then(res => res.json())
-      .then(data => setTables(data))
+      .then(data => {
+        setTables(data);
+        if (activeView === 'order' && selectedTable) {
+          fetch(rootPath + `/api/orders/active/${selectedTable}`)
+            .then(res => res.json())
+            .then(orderData => {
+              if (orderData.active) {
+                setActiveOrder(orderData);
+              } else {
+                setActiveOrder(null);
+              }
+            })
+            .catch(err => console.error("Error reloading active order in poll", err));
+        }
+      })
       .catch(err => console.error("Error loading tables", err));
   };
 
