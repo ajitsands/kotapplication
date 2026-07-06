@@ -322,7 +322,7 @@ class CounterController extends Controller {
     // AJAX: Get list of products tagged as counter items
     public function getCounterItems() {
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->query("SELECT id, name, price FROM products WHERE is_counter_item = 1 AND is_available = 1 ORDER BY name ASC");
+        $stmt = $db->query("SELECT id, name, price FROM products WHERE is_counter_item = 1 ORDER BY name ASC");
         $items = $stmt->fetchAll();
         $this->json(['success' => true, 'items' => $items]);
     }
@@ -352,7 +352,7 @@ class CounterController extends Controller {
         }
 
         // Get product details
-        $stmtProd = $db->prepare("SELECT name, price FROM products WHERE id = ? AND is_available = 1");
+        $stmtProd = $db->prepare("SELECT name, price FROM products WHERE id = ? AND (is_available = 1 OR is_counter_item = 1)");
         $stmtProd->execute([$productId]);
         $product = $stmtProd->fetch();
         if (!$product) {

@@ -9,6 +9,8 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -636,6 +638,76 @@
                 grid-template-columns: 1fr !important;
             }
         }
+
+        /* Select2 Premium Theme Customization */
+        .select2-container {
+            flex: 1;
+            width: auto !important;
+            min-width: 200px;
+        }
+        .select2-container--default .select2-selection--single {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .select2-container--default .select2-selection--single:focus,
+        .select2-container--active .select2-selection--single {
+            border-color: #a855f7 !important;
+        }
+        body.light-theme .select2-container--default .select2-selection--single {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: var(--text-color) !important;
+            padding-left: 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+        .select2-dropdown {
+            background-color: #111827 !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 8px;
+            color: var(--text-color) !important;
+            z-index: 10000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-family: 'Outfit', sans-serif;
+        }
+        body.light-theme .select2-dropdown {
+            background-color: #ffffff !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 6px;
+            color: var(--text-color) !important;
+            padding: 8px !important;
+            outline: none;
+        }
+        body.light-theme .select2-container--default .select2-search--dropdown .select2-search__field {
+            background-color: rgba(0, 0, 0, 0.03) !important;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background: var(--primary-grad) !important;
+            color: white !important;
+        }
+        .select2-container--default .select2-results__option[aria-selected="true"] {
+            background-color: rgba(99, 102, 241, 0.2) !important;
+            color: var(--text-color) !important;
+        }
+        .select2-container--default .select2-results__option {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: var(--text-color);
+        }
     </style>
 </head>
 <body>
@@ -1175,6 +1247,7 @@
 
         function openOrderItemsModal(orderId) {
             currentOpenOrderId = orderId;
+            $('#counter-item-select').val('').trigger('change');
             fetch(basePath + '/order/' + orderId)
                 .then(res => res.json())
                 .then(data => {
@@ -1248,6 +1321,7 @@
 
         function closeBillItemsModal() {
             document.getElementById('bill-items-modal').style.display = 'none';
+            $('#counter-item-select').val('').trigger('change');
         }
 
         function fetchCounterItems() {
@@ -1261,6 +1335,10 @@
                             select.innerHTML = '<option value="">Choose an item...</option>';
                             counterProducts.forEach(item => {
                                 select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(3)} ${currencyCode})</option>`;
+                            });
+                            // Initialize Select2 search dropdown
+                            $('#counter-item-select').select2({
+                                dropdownParent: $('#bill-items-modal')
                             });
                         }
                     }
@@ -1307,7 +1385,7 @@
                     });
                     
                     document.getElementById('counter-item-qty').value = 1;
-                    document.getElementById('counter-item-select').value = '';
+                    $('#counter-item-select').val('').trigger('change');
                     
                     openOrderItemsModal(currentOpenOrderId);
                     fetchBills();
