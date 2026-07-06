@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
+  const getRootPath = () => {
+    const path = window.location.pathname;
+    const waiterAppIndex = path.indexOf('/waiter-app');
+    if (waiterAppIndex !== -1) {
+      return path.substring(0, waiterAppIndex);
+    }
+    return '';
+  };
+  const rootPath = getRootPath();
+
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -45,12 +55,12 @@ function App() {
 
   // Check login session on load
   useEffect(() => {
-    fetch('/api/settings')
+    fetch(rootPath + '/api/settings')
       .then(res => res.json())
       .then(data => setSettings(data))
       .catch(err => console.error("Failed to load settings on startup", err));
 
-    fetch('/api/user')
+    fetch(rootPath + '/api/user')
       .then(res => res.json())
       .then(data => {
         if (data.logged_in) {
@@ -75,17 +85,17 @@ function App() {
 
   const loadAppData = () => {
     // Load Settings
-    fetch('/api/settings')
+    fetch(rootPath + '/api/settings')
       .then(res => res.json())
       .then(data => setSettings(data));
 
     // Load Categories
-    fetch('/api/categories')
+    fetch(rootPath + '/api/categories')
       .then(res => res.json())
       .then(data => setCategories(data));
 
     // Load Products
-    fetch('/api/products')
+    fetch(rootPath + '/api/products')
       .then(res => res.json())
       .then(data => setProducts(data));
 
@@ -94,14 +104,14 @@ function App() {
   };
 
   const loadTablesState = () => {
-    fetch('/api/tables')
+    fetch(rootPath + '/api/tables')
       .then(res => res.json())
       .then(data => setTables(data))
       .catch(err => console.error("Error loading tables", err));
   };
 
   const loadNotifications = () => {
-    fetch('/api/notifications')
+    fetch(rootPath + '/api/notifications')
       .then(res => res.json())
       .then(data => {
         setNotifications(data.notifications || []);
@@ -111,7 +121,7 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    fetch('/api/login', {
+    fetch(rootPath + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
@@ -132,7 +142,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    fetch('/logout').then(() => {
+    fetch(rootPath + '/logout').then(() => {
       setUser(null);
       setActiveView('tables');
     });
@@ -157,7 +167,7 @@ function App() {
           Swal.showValidationMessage('Both fields are required');
           return false;
         }
-        return fetch('/user/change-password', {
+        return fetch(rootPath + '/user/change-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -198,7 +208,7 @@ function App() {
     setSelectedTable(tableNumber);
     setBasket({});
     
-    fetch(`/api/orders/active/${tableNumber}`)
+    fetch(rootPath + `/api/orders/active/${tableNumber}`)
       .then(res => res.json())
       .then(data => {
         if (data.active) {
@@ -271,7 +281,7 @@ function App() {
     const itemsList = Object.values(basket);
     if (itemsList.length === 0) return;
 
-    fetch('/api/orders', {
+    fetch(rootPath + '/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -304,7 +314,7 @@ function App() {
       color: theme === 'light' ? '#1f2937' : '#f3f4f6'
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`/api/orders/close/${orderId}`, { method: 'POST' })
+        fetch(rootPath + `/api/orders/close/${orderId}`, { method: 'POST' })
           .then(res => res.json())
           .then(data => {
             setActiveView('tables');
@@ -329,7 +339,7 @@ function App() {
       color: theme === 'light' ? '#1f2937' : '#f3f4f6'
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`/api/orders/cancel/${orderId}`, { method: 'POST' })
+        fetch(rootPath + `/api/orders/cancel/${orderId}`, { method: 'POST' })
           .then(res => res.json())
           .then(data => {
             if (data.success) {
@@ -363,7 +373,7 @@ function App() {
   const dispatchNotificationItem = (kotItemId) => {
     setServedItems(prev => [...prev, kotItemId]);
 
-    fetch('/api/notifications/dispatch', {
+    fetch(rootPath + '/api/notifications/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ kot_item_id: kotItemId })
