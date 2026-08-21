@@ -814,7 +814,7 @@
                 <span id="modal-total-price" style="font-weight:800; font-size:22px; color:var(--accent-green);">0.000 BHD</span>
             </div>
 
-            <button onclick="placeOrder()" class="btn-checkout" style="padding:15px; font-size:15px;">Send to Kitchen (KOT)</button>
+            <button onclick="placeOrder()" id="btn-place-order" class="btn-checkout" style="padding:15px; font-size:15px;"><?php echo $isTakeaway ? 'Send to Billing' : 'Send to Kitchen (KOT)'; ?></button>
         </div>
     </div>
 
@@ -858,11 +858,12 @@
         </div>
     </div>
 
-    <!-- Success Screen Overlay -->
     <div class="success-screen" id="success-screen">
         <div class="success-icon">✓</div>
         <h2 style="font-size:28px; font-weight:800; margin-bottom:10px;">Order Placed!</h2>
-        <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">Your ticket has been sent directly to the Kitchen KOT printer. Please enjoy your meal!</p>
+        <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">
+            <?php echo $isTakeaway ? 'Your order has been sent to the billing counter. Please wait for your token to be called!' : 'Your ticket has been sent directly to the Kitchen KOT printer. Please enjoy your meal!'; ?>
+        </p>
         <button onclick="dismissSuccess()" class="btn-checkout">Order More</button>
     </div>
 

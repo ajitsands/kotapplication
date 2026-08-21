@@ -129,6 +129,11 @@ class ApiController extends Controller {
             $kotModel = new Kot();
             $kotId = $kotModel->createKot($orderId, $waiterId, $items);
             if ($kotId) {
+                // If it's a takeaway, we want to immediately generate the bill
+                if ($orderType === 'take_away') {
+                    $orderModel->closeOrder($orderId);
+                }
+
                 // Return token number if it's take_away
                 $orderInfo = $orderModel->getOrderDetails($orderId);
                 
