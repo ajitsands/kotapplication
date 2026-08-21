@@ -242,16 +242,12 @@ class Order extends Model {
     }
 
     public function getReadyTakeawayOrders() {
-        // Find takeaway orders that are paid ('closed') but not 'completed', 
-        // AND all their kot items are 'dispatched' (or 'ready')
-        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status
+        // Find takeaway orders that are paid ('closed') but not 'completed'
+        // They will appear in the Live Takeaway queue as soon as they are paid and sent to KOT.
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status,
+                       (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing')) as pending_items_count
                 FROM orders o
                 WHERE o.order_type = 'take_away' AND o.status = 'closed'
-                AND NOT EXISTS (
-                    SELECT 1 FROM kot_items ki
-                    JOIN kots k ON ki.kot_id = k.id
-                    WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing', 'ready')
-                )
                 ORDER BY o.id ASC";
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();

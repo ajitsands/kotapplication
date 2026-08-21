@@ -1882,14 +1882,20 @@
                     if (data.orders && data.orders.length > 0) {
                         let html = '';
                         data.orders.forEach(o => {
+                            const isReady = parseInt(o.pending_items_count) === 0;
+                            const statusLabel = isReady ? 'Ready to Deliver' : 'Preparing in Kitchen';
+                            const statusColor = isReady ? 'var(--accent-green)' : 'var(--accent-orange)';
+                            const btnDisplay = 'inline-block';
+                            
                             html += `
-                                <tr style="border-bottom: 1px solid var(--card-border); background: rgba(16, 185, 129, 0.05);">
-                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--accent-green);">${escapeHtml(o.token_number || '-')}</td>
+                                <tr style="border-bottom: 1px solid var(--card-border); background: ${isReady ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)'};">
+                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:${statusColor};">${escapeHtml(o.token_number || '-')}</td>
                                     <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                     <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
-                                    <td style="padding: 12px 10px; font-weight:700; color:var(--accent-green);">Ready to Deliver</td>
+                                    <td style="padding: 12px 10px; font-weight:700; color:${statusColor};">${statusLabel}</td>
                                     <td style="padding: 12px 10px; text-align:right;">
-                                        <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
+                                        <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="display:${btnDisplay}; background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
+                                        ${!isReady ? '<span style="color:var(--text-muted); font-size:12px;">Waiting...</span>' : ''}
                                     </td>
                                 </tr>
                             `;
