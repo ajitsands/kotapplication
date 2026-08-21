@@ -989,10 +989,19 @@
             </div>
 
             <div id="takeaway-completed-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="date" id="takeaway-start-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
+                        <input type="date" id="takeaway-end-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <button onclick="fetchCompletedTakeaways()" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none;">Search</button>
+                    </div>
+                </div>
                 <div style="overflow-x: auto;">
-                    <table id="takeaway-completed-table" style="width: 100%; border-collapse: collapse;">
+                    <table id="takeaway-completed-table" class="display" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Date</th>
                                 <th style="text-align: left; padding: 12px 10px;">Token No</th>
                                 <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
                                 <th style="text-align: left; padding: 12px 10px;">Mobile</th>
@@ -1939,28 +1948,46 @@
                 .catch(err => console.error('Error fetching delivery queue:', err));
         }
 
+        let completedTakeawayTable = null;
+
         function fetchCompletedTakeaways() {
-            fetch(basePath + '/completed-takeaways')
+            const startDate = document.getElementById('takeaway-start-date').value;
+            const endDate = document.getElementById('takeaway-end-date').value;
+            
+            fetch(`${basePath}/completed-takeaways?start=${startDate}&end=${endDate}`)
                 .then(res => res.json())
                 .then(data => {
-                    const tbody = document.getElementById('takeaway-completed-body');
-                    if (data.orders && data.orders.length > 0) {
-                        let html = '';
-                        data.orders.forEach(o => {
-                            html += `
-                                <tr style="border-bottom: 1px solid var(--card-border);">
-                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.token_number || '-')}</td>
-                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
-                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
-                                    <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(3)} ${currencyCode}</td>
-                                    <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method)}</td>
-                                </tr>
-                            `;
-                        });
-                        tbody.innerHTML = html;
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No completed takeaways yet.</td></tr>';
+                    const orders = data.orders || [];
+                    
+                    if (completedTakeawayTable) {
+                        completedTakeawayTable.destroy();
                     }
+                    
+                    const tbody = document.getElementById('takeaway-completed-body');
+                    let html = '';
+                    orders.forEach(o => {
+                        const dateStr = new Date(o.updated_at || o.created_at).toLocaleString();
+                        html += `
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <td style="padding: 12px 10px;">${dateStr}</td>
+                                <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.token_number || '-')}</td>
+                                <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
+                                <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
+                                <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(3)} ${currencyCode}</td>
+                                <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method)}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                    
+                    completedTakeawayTable = $('#takeaway-completed-table').DataTable({
+                        "order": [[0, "desc"]],
+                        "pageLength": 10,
+                        "bDestroy": true,
+                        "language": {
+                            "emptyTable": "No completed takeaways in this date range."
+                        }
+                    });
                 })
                 .catch(err => console.error('Error fetching completed takeaways:', err));
         }

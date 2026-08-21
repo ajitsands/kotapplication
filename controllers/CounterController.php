@@ -66,8 +66,11 @@ class CounterController extends Controller {
     }
     
     public function getCompletedTakeaways() {
+        $start = $_GET['start'] ?? date('Y-m-d');
+        $end = $_GET['end'] ?? date('Y-m-d');
+        
         $orderModel = new Order();
-        $orders = $orderModel->getCompletedTakeawayOrders();
+        $orders = $orderModel->getCompletedTakeawayOrders($start, $end);
         $this->json(['orders' => $orders]);
     }
 

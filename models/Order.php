@@ -255,15 +255,21 @@ class Order extends Model {
         return $stmt->fetchAll();
     }
 
-    public function getCompletedTakeawayOrders() {
+    public function getCompletedTakeawayOrders($startDate = null, $endDate = null) {
+        $startDate = $startDate ?? date('Y-m-d');
+        $endDate = $endDate ?? date('Y-m-d');
+        $endDateTime = $endDate . ' 23:59:59';
+        
         // Find takeaway orders that are 'completed'
         $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, 
-                       b.grand_total, b.payment_method
+                       b.grand_total, b.payment_method, o.updated_at, o.created_at
                 FROM orders o
                 LEFT JOIN bills b ON b.order_id = o.id
                 WHERE o.order_type = 'take_away' AND o.status = 'completed'
-                ORDER BY o.id DESC LIMIT 50";
-        $stmt = $this->db->query($sql);
+                AND o.updated_at >= ? AND o.updated_at <= ?
+                ORDER BY o.updated_at DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$startDate . ' 00:00:00', $endDateTime]);
         return $stmt->fetchAll();
     }
 
