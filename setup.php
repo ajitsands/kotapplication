@@ -99,6 +99,9 @@ try {
     // Auto-migrate: Check and add missing columns to 'orders' table for V2 (Take Away)
     $ordersTableCheck = $pdo->query("SHOW TABLES LIKE 'orders'")->fetch();
     if ($ordersTableCheck) {
+        // Ensure table_number allows NULL (it was NOT NULL in older versions)
+        $pdo->exec("ALTER TABLE `orders` MODIFY COLUMN `table_number` INT NULL DEFAULT NULL");
+        
         $colCheck = $pdo->query("SHOW COLUMNS FROM `orders` LIKE 'order_type'")->fetch();
         if (!$colCheck) {
             $pdo->exec("ALTER TABLE `orders` ADD COLUMN `order_type` ENUM('dine_in','take_away') NOT NULL DEFAULT 'dine_in' AFTER `id`");
