@@ -2144,6 +2144,11 @@
                         <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
                             ${loginUrl}
                         </div>
+                        <div style="margin-top: 15px;">
+                            <a href="${qrImageUrl}" target="_blank" download="WaiterLogin_QR.png" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);">
+                                ⬇️ Download QR Code
+                            </a>
+                        </div>
                     </div>
                 `,
                 showConfirmButton: true,
@@ -2873,6 +2878,11 @@
                         <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Customers can scan this QR code to access the take-away menu and place an order.</p>
                         <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
                             ${takeawayUrl}
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <a href="${qrImageUrl}" target="_blank" download="TakeAway_QR.png" style="display: inline-block; background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+                                ⬇️ Download QR Code
+                            </a>
                         </div>
                     </div>
                 `,
