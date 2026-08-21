@@ -185,15 +185,31 @@ class ApiController extends Controller {
 
         if ($orderId) {
             $orderModel = new Order();
-            $orderDetails = $orderModel->getOrderDetails($orderId);
+            $order = $orderModel->getOrderDetails($orderId);
+            
+            // Fetch KOTs for this order
+            $stmtKots = $db->prepare("SELECT id, kot_number, status, created_at FROM kots WHERE order_id = ? ORDER BY created_at DESC");
+            $stmtKots->execute([$orderId]);
+            $kots = $stmtKots->fetchAll();
+    
+            foreach ($kots as &$k) {
+                $stmtKi = $db->prepare("SELECT ki.*, p.name as product_name, p.price 
+                                        FROM kot_items ki 
+                                        JOIN products p ON ki.product_id = p.id 
+                                        WHERE ki.kot_id = ?");
+                $stmtKi->execute([$k['id']]);
+                $k['items'] = $stmtKi->fetchAll();
+            }
+
             $this->json([
                 'active' => true,
-                'order' => $orderDetails['order'],
-                'kots' => $orderDetails['kots'],
-                'order_id' => $orderDetails['order']['id'],
-                'status' => $orderDetails['order']['status'],
-                'token_number' => $orderDetails['order']['token_number'],
-                'customer_name' => $orderDetails['order']['customer_name']
+                'order' => $order,
+                'kots' => $kots,
+                'items' => $order['items'],
+                'order_id' => $order['id'],
+                'status' => $order['status'],
+                'token_number' => $order['token_number'],
+                'customer_name' => $order['customer_name']
             ]);
         } else {
             $this->json(['active' => false]);

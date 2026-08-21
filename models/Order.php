@@ -232,11 +232,12 @@ class Order extends Model {
         if ($order) {
             $order['items'] = $this->getOrderItemsSummary($orderId);
             
-            // Fetch pending bill ID if it exists
-            $stmtBill = $this->db->prepare("SELECT id FROM bills WHERE order_id = ? AND status = 'pending' LIMIT 1");
+            // Fetch bill if it exists
+            $stmtBill = $this->db->prepare("SELECT id, status FROM bills WHERE order_id = ? ORDER BY id DESC LIMIT 1");
             $stmtBill->execute([$orderId]);
             $bill = $stmtBill->fetch();
             $order['bill_id'] = $bill ? (int)$bill['id'] : null;
+            $order['bill_status'] = $bill ? $bill['status'] : null;
         }
         return $order;
     }

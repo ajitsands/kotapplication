@@ -1292,17 +1292,36 @@
 
             const orderId = activeOrder.order.id;
             const isKotDeleted = (!activeOrder.kots || activeOrder.kots.length === 0);
+            
+            // For takeaway, dispatched means "Marked Delivered" by Counter. If total == served and total > 0, it is essentially delivered.
             const isFullyServed = (totalItemsCount === servedItemsCount && totalItemsCount > 0);
+            const isFullyReady = (!hasPending && hasReady && totalItemsCount > 0);
+            
+            const billStatus = activeOrder.order.bill_status; // 'pending', 'paid'
+            const isTakeawayPaymentPending = (isTakeaway && billStatus === 'pending');
 
-            if (isKotDeleted) {
+            let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
+
+            if (isKotDeleted && !isTakeawayPaymentPending) {
                 statusBar.className = 'active-status-bar deleted-status';
                 pulseDot.className = 'pulse-dot-red';
                 statusText.innerText = 'Requested Item Not AVL Please reorder another Items.';
+            } else if (isTakeawayPaymentPending) {
+                statusBar.className = 'active-status-bar';
+                statusBar.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusBar.style.borderColor = 'var(--accent-red)';
+                statusBar.style.color = 'var(--accent-red)';
+                pulseDot.className = 'pulse-dot-red';
+                statusText.innerText = tokenInfo + 'Please proceed to the counter to complete payment.';
             } else if (isFullyServed) {
                 statusBar.className = 'active-status-bar served-status';
                 pulseDot.className = 'pulse-dot-green';
-                let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
-                statusText.innerText = tokenInfo + 'Your order is ready & served! Click to view bill.';
+                
+                if (isTakeaway) {
+                    statusText.innerText = tokenInfo + 'Order Delivered. Thank you!';
+                } else {
+                    statusText.innerText = tokenInfo + 'Your order is ready & served! Click to view bill.';
+                }
 
                 // Auto popup when first transitioned to fully served
                 if (!autoOpenedOrders[orderId]) {
@@ -1310,11 +1329,20 @@
                     sessionStorage.setItem('auto_opened_orders', JSON.stringify(autoOpenedOrders));
                     openStatusModal();
                 }
+            } else if (isFullyReady && isTakeaway) {
+                statusBar.className = 'active-status-bar served-status';
+                statusBar.style.background = 'rgba(96, 165, 250, 0.15)';
+                statusBar.style.borderColor = '#60a5fa';
+                statusBar.style.color = '#60a5fa';
+                pulseDot.className = 'pulse-dot-green';
+                statusText.innerText = tokenInfo + 'Ready to Deliver! Please collect your order from the counter.';
             } else {
                 statusBar.className = 'active-status-bar';
+                statusBar.style.background = 'rgba(245, 158, 11, 0.1)';
+                statusBar.style.borderColor = 'var(--accent-orange)';
+                statusBar.style.color = 'var(--accent-orange)';
                 pulseDot.className = 'pulse-dot-orange';
-                let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
-                statusText.innerText = tokenInfo + 'Your order is being prepared. Wait for a moment.';
+                statusText.innerText = tokenInfo + 'Payment Completed. Preparing your order in kitchen...';
             }
         }
 
