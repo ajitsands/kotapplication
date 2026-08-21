@@ -861,9 +861,21 @@
     <div class="success-screen" id="success-screen">
         <div class="success-icon">✓</div>
         <h2 style="font-size:28px; font-weight:800; margin-bottom:10px;">Order Placed!</h2>
-        <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">
-            <?php echo $isTakeaway ? 'Your order has been sent to the billing counter. Please wait for your token to be called!' : 'Your ticket has been sent directly to the Kitchen KOT printer. Please enjoy your meal!'; ?>
-        </p>
+        
+        <?php if ($isTakeaway): ?>
+            <div id="success-token-display" style="font-size:48px; font-weight:900; color:var(--accent-green); margin-bottom:15px; display:none;"></div>
+            <p style="font-size:20px; font-weight:900; text-transform:uppercase; max-width:340px; margin-bottom:15px; color:#ef4444; line-height:1.4;">
+                Go to Billing For Payment To Confirm Your Order
+            </p>
+            <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">
+                Your order token will be called once it is ready.
+            </p>
+        <?php else: ?>
+            <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">
+                Your ticket has been sent directly to the Kitchen KOT printer. Please enjoy your meal!
+            </p>
+        <?php endif; ?>
+        
         <button onclick="dismissSuccess()" class="btn-checkout">Order More</button>
     </div>
 
@@ -1085,6 +1097,18 @@
             .then(data => {
                 if (data.success) {
                     closeReviewModal();
+                    
+                    if (isTakeaway && data.token_number) {
+                        const tokenEl = document.getElementById('success-token-display');
+                        if (tokenEl) {
+                            tokenEl.innerText = 'Token: ' + data.token_number;
+                            tokenEl.style.display = 'block';
+                        }
+                        // Save to session storage in case they reload
+                        sessionStorage.setItem('takeaway_active_order_id', data.order_id);
+                        sessionStorage.setItem('takeaway_token', data.token_number);
+                    }
+
                     // Show success overlay
                     document.getElementById('success-screen').style.display = 'flex';
                     // Reset local cart
