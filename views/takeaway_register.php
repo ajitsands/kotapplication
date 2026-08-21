@@ -137,6 +137,11 @@
 
 <div class="container">
     <button class="theme-toggle" onclick="document.body.classList.toggle('light-theme')">🌓</button>
+    
+    <?php if (!empty($settings['logo_path'])): ?>
+        <img src="/<?= ltrim($settings['logo_path'], '/') ?>" alt="Logo" style="max-height: 80px; margin-bottom: 15px;">
+    <?php endif; ?>
+
     <h1>Take Away</h1>
     <p>Please enter your details to order or check status.</p>
     
