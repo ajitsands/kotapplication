@@ -1483,6 +1483,7 @@
             document.getElementById('sands-products-modal').style.display = 'none';
             openSandsModal();
         }
+    </script>
 
         function openSandsModal() { document.getElementById('sands-modal').style.display = 'flex'; }
         function closeSandsModal() { document.getElementById('sands-modal').style.display = 'none'; }

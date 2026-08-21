@@ -836,6 +836,7 @@
             document.getElementById('sands-products-modal').style.display = 'none';
             openSandsModal();
         }
+    </script>
 
     <!-- Sticky Bottom Cart Bar -->
     <div class="cart-bar" id="cart-drawer-bar">

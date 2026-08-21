@@ -183,7 +183,7 @@
         }
     </style>
 </head>
-<body>
+<body class="light-theme">
     <button id="theme-toggle" onclick="toggleTheme()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 1000; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">🌓</button>
 
     <div class="login-container">
@@ -293,11 +293,15 @@
             document.getElementById('sands-products-modal').style.display = 'none';
             openSandsModal();
         }
+    </script>
 
 
     <script>
         // Apply theme on load
-        if (localStorage.getItem('theme') === 'light') {
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.remove('light-theme');
+        } else {
+            // Default to light theme
             document.body.classList.add('light-theme');
         }
 

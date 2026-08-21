@@ -2383,6 +2383,42 @@
     </div>
 
     <script>
+        function openSandsProductsModal() {
+            closeSandsModal();
+            document.getElementById('sands-products-modal').style.display = 'flex';
+            const listContainer = document.getElementById('sands-products-list');
+            listContainer.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">Loading products...</div>';
+            
+            fetch('/get_latest_products.php')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status && data.data) {
+                        let html = '';
+                        data.data.forEach(p => {
+                            html += `
+                                <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; background: #f9fafb; transition: all 0.2s;">
+                                    <h4 style="margin: 0 0 5px 0; font-size: 16px; color: #111827;">${p.product_name}</h4>
+                                    <p style="margin: 0 0 10px 0; font-size: 12px; color: #4b5563; line-height: 1.4;">${p.product_discription}</p>
+                                    <a href="${p.web_link}" target="_blank" style="display: inline-block; background: #6366f1; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; font-weight: 600;">Explore Product</a>
+                                </div>
+                            `;
+                        });
+                        listContainer.innerHTML = html;
+                    } else {
+                        listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Failed to load products.</div>';
+                    }
+                })
+                .catch(err => {
+                    listContainer.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading products.</div>';
+                });
+        }
+        function closeSandsProductsModal() {
+            document.getElementById('sands-products-modal').style.display = 'none';
+            openSandsModal();
+        }
+    </script>
+
+    <script>
         // Track Scroll for Header styling
         window.addEventListener('scroll', function() {
             const header = document.getElementById('header');
