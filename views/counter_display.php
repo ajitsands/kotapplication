@@ -1248,35 +1248,59 @@
                 return;
             }
 
-            // Group bills by table_number
+            // Group bills by table_number, or by token if it's a takeaway
             const groups = {};
             bills.forEach(bill => {
-                const tbl = bill.table_number;
+                let tbl = bill.table_number;
+                if (bill.order_type === 'take_away') {
+                    tbl = 'TW-' + (bill.token_number || bill.id);
+                } else if (tbl === null || tbl === 'null') {
+                    tbl = '0';
+                }
+                
                 if (!groups[tbl]) {
                     groups[tbl] = [];
                 }
                 groups[tbl].push(bill);
             });
 
-            // Sort table numbers numerically
-            const sortedTables = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
+            // Sort table numbers numerically (TW- items will go to the end/start depending on parseInt, let's keep it simple)
+            const sortedTables = Object.keys(groups).sort((a, b) => {
+                if (a.startsWith('TW-') && b.startsWith('TW-')) {
+                    return a.localeCompare(b);
+                } else if (a.startsWith('TW-')) {
+                    return 1;
+                } else if (b.startsWith('TW-')) {
+                    return -1;
+                }
+                return parseInt(a) - parseInt(b);
+            });
 
             let html = '';
 
             sortedTables.forEach(tableNum => {
                 const tableBills = groups[tableNum];
                 const isGrouped = tableBills.length > 1;
+                
+                let groupLabel = '';
+                if (String(tableNum).startsWith('TW-')) {
+                    groupLabel = 'Take Away (TW) • Token ' + String(tableNum).replace('TW-', '');
+                } else if (tableNum === '0' || tableNum === 0 || tableNum === 'null' || tableNum === null) {
+                    groupLabel = 'Take Away Orders';
+                } else {
+                    groupLabel = 'Table T' + tableNum;
+                }
 
                 html += `
                     <div class="table-group-card" style="margin-bottom: 25px; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.01);">
                         <div class="table-group-header" style="background: rgba(255,255,255,0.03); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border);">
                             <div style="display:flex; align-items:center; gap: 10px;">
                                 <span class="table-badge" style="font-size:14px; padding:6px 12px;">
-                                    ${tableNum === '0' || tableNum === 0 ? 'Take Away Orders' : 'Table T' + tableNum}
+                                    ${groupLabel}
                                 </span>
                                 <span style="font-size:13px; color:var(--text-muted); font-weight:600;">(${tableBills.length} pending bill${tableBills.length > 1 ? 's' : ''})</span>
                             </div>
-                            ${isGrouped ? `
+                            ${isGrouped && !String(tableNum).startsWith('TW-') ? `
                                 <button onclick="mergeBills(${tableNum})" class="btn-action" style="background: var(--primary-grad); border: none; color: white; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);">
                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
