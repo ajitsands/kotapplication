@@ -240,4 +240,37 @@ class Order extends Model {
         }
         return $order;
     }
+
+    public function getReadyTakeawayOrders() {
+        // Find takeaway orders that are paid ('closed') but not 'completed', 
+        // AND all their kot items are 'dispatched' (or 'ready')
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status
+                FROM orders o
+                WHERE o.order_type = 'take_away' AND o.status = 'closed'
+                AND NOT EXISTS (
+                    SELECT 1 FROM kot_items ki
+                    JOIN kots k ON ki.kot_id = k.id
+                    WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing', 'ready')
+                )
+                ORDER BY o.id ASC";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+
+    public function getCompletedTakeawayOrders() {
+        // Find takeaway orders that are 'completed'
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, 
+                       b.grand_total, b.payment_method
+                FROM orders o
+                LEFT JOIN bills b ON b.order_id = o.id
+                WHERE o.order_type = 'take_away' AND o.status = 'completed'
+                ORDER BY o.id DESC LIMIT 50";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+
+    public function markOrderCompleted($orderId) {
+        $stmt = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
+        return $stmt->execute([$orderId]);
+    }
 }
