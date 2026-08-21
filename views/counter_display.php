@@ -925,6 +925,57 @@
                 </div>
             </div>
 
+            <!-- Takeaway Delivery Section -->
+            <h1 class="screen-title" style="margin-top: 45px;">
+                🛍️ Takeaway Orders (Live)
+                <div class="live-indicator" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-green);">
+                    <span class="live-dot" style="background: var(--accent-green);"></span> READY TO DELIVER
+                </div>
+            </h1>
+
+            <div class="panel-card" style="margin-bottom: 25px;">
+                <div style="overflow-x: auto;">
+                    <table id="takeaway-ready-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
+                                <th style="text-align: left; padding: 12px 10px;">Mobile</th>
+                                <th style="text-align: left; padding: 12px 10px;">Status</th>
+                                <th style="text-align: right; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="takeaway-ready-body">
+                            <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Completed Takeaway Section -->
+            <h1 class="screen-title" style="margin-top: 45px;">
+                ✅ Completed Takeaways
+            </h1>
+
+            <div class="panel-card" style="margin-bottom: 25px;">
+                <div style="overflow-x: auto;">
+                    <table id="takeaway-completed-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
+                                <th style="text-align: left; padding: 12px 10px;">Mobile</th>
+                                <th style="text-align: right; padding: 12px 10px;">Total</th>
+                                <th style="text-align: right; padding: 12px 10px;">Payment Method</th>
+                            </tr>
+                        </thead>
+                        <tbody id="takeaway-completed-body">
+                            <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Customer Directory Card -->
             <h1 class="screen-title" style="margin-top: 45px;">
                 👥 Registered Customers (Loyalty Directory)
@@ -1814,9 +1865,111 @@
         fetchSummary();
         fetchCustomers();
         fetchCounterItems();
+        fetchTakeawayDeliveryQueue();
+        fetchCompletedTakeaways();
+        
         setInterval(fetchBills, 4000);
         setInterval(fetchEngagedTables, 4000);
+        setInterval(fetchTakeawayDeliveryQueue, 4000);
+        setInterval(fetchCompletedTakeaways, 8000);
         setInterval(fetchSummary, 10000);
+
+        function fetchTakeawayDeliveryQueue() {
+            fetch(basePath + '/delivery-queue')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('takeaway-ready-body');
+                    if (data.orders && data.orders.length > 0) {
+                        let html = '';
+                        data.orders.forEach(o => {
+                            html += `
+                                <tr style="border-bottom: 1px solid var(--card-border); background: rgba(16, 185, 129, 0.05);">
+                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--accent-green);">${escapeHtml(o.token_number || '-')}</td>
+                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.customer_name || 'Guest')}</td>
+                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
+                                    <td style="padding: 12px 10px; font-weight:700; color:var(--accent-green);">Ready to Deliver</td>
+                                    <td style="padding: 12px 10px; text-align:right;">
+                                        <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        tbody.innerHTML = html;
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No takeaway orders ready for delivery.</td></tr>';
+                    }
+                })
+                .catch(err => console.error('Error fetching delivery queue:', err));
+        }
+
+        function fetchCompletedTakeaways() {
+            fetch(basePath + '/completed-takeaways')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('takeaway-completed-body');
+                    if (data.orders && data.orders.length > 0) {
+                        let html = '';
+                        data.orders.forEach(o => {
+                            html += `
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.token_number || '-')}</td>
+                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
+                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
+                                    <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(3)} ${currencyCode}</td>
+                                    <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method)}</td>
+                                </tr>
+                            `;
+                        });
+                        tbody.innerHTML = html;
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No completed takeaways yet.</td></tr>';
+                    }
+                })
+                .catch(err => console.error('Error fetching completed takeaways:', err));
+        }
+
+        function markTakeawayDelivered(orderId) {
+            Swal.fire({
+                title: 'Confirm Delivery',
+                text: 'Has this order been handed to the customer?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Delivered',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/delivery-queue/deliver/' + orderId, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    title: 'Delivered!',
+                                    text: 'Order marked as completed.',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false,
+                                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                                });
+                                fetchTakeawayDeliveryQueue();
+                                fetchCompletedTakeaways();
+                            } else {
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: 'Failed to mark as delivered.',
+                                    icon: 'error',
+                                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                                });
+                            }
+                        })
+                        .catch(err => console.error('Error marking delivered:', err));
+                }
+            });
+        }
 
         function openCloseCounterModal() {
             fetch(basePath + '/session')

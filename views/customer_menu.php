@@ -1438,14 +1438,32 @@
 
             let buttonsHtml = `
                 <div style="display:flex; gap:12px; flex-direction:column;">
+            `;
+
+            if (isTakeaway) {
+                if (isFullyServed) {
+                    buttonsHtml += `
+                        <button onclick="confirmItemReceived(${activeOrder.order_id})" class="btn-checkout" style="padding:14px; font-size:16px; border-radius:12px; background:var(--accent-green); border:none; color:white; font-weight:800;">
+                            ✅ I Have Received My Order
+                        </button>
+                    `;
+                }
+                buttonsHtml += `
+                    <button onclick="closeStatusModal()" class="btn-checkout" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:var(--text-color); padding:12px; font-size:14px; border-radius:12px;">
+                        Close Status
+                    </button>
+                `;
+            } else {
+                buttonsHtml += `
                     <button onclick="closeStatusModal()" class="btn-checkout" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:var(--text-color); padding:12px; font-size:14px; border-radius:12px;">
                         ➕ Add New Order / Keep Ordering
                     </button>
-                    <button onclick="requestCustomerBilling(${activeOrder.order.id})" class="btn-checkout" style="padding:14px; font-size:14px; border-radius:12px; background:var(--primary-grad); border:none; color:white; font-weight:800;">
+                    <button onclick="requestCustomerBilling(${activeOrder.order_id || activeOrder.order.id})" class="btn-checkout" style="padding:14px; font-size:14px; border-radius:12px; background:var(--primary-grad); border:none; color:white; font-weight:800;">
                         🏁 Complete & Request Bill
                     </button>
-                </div>
-            `;
+                `;
+            }
+            buttonsHtml += `</div>`;
 
             modalBody.innerHTML = itemsHtml + billHtml + buttonsHtml;
             modal.style.display = 'flex';
@@ -1529,6 +1547,26 @@
                         .catch(err => console.error('Error requesting bill:', err));
                 }
             });
+        }
+
+        function confirmItemReceived(orderId) {
+            fetch('../api/orders/received/' + orderId, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        closeStatusModal();
+                        document.getElementById('success-screen').innerHTML = `
+                            <div class="success-icon" style="background:rgba(16, 185, 129, 0.1); color:var(--accent-green); border-color:var(--accent-green); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);">✓</div>
+                            <h2 style="font-size:28px; font-weight:800; margin-bottom:10px;">Thank You!</h2>
+                            <p style="color:var(--text-muted); font-size:14px; max-width:280px; margin-bottom:30px;">Hope you enjoy your meal! Please visit us again.</p>
+                            <button onclick="location.reload()" class="btn-checkout">New Order</button>
+                        `;
+                        document.getElementById('success-screen').style.display = 'flex';
+                        sessionStorage.removeItem('takeaway_active_order_id');
+                        sessionStorage.removeItem('takeaway_token');
+                    }
+                })
+                .catch(err => console.error('Error confirming item received:', err));
         }
 
         function openSandsModal() {

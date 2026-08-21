@@ -59,6 +59,25 @@ class CounterController extends Controller {
         }
     }
 
+    public function getDeliveryQueue() {
+        $orderModel = new Order();
+        $orders = $orderModel->getReadyTakeawayOrders();
+        $this->json(['orders' => $orders]);
+    }
+    
+    public function getCompletedTakeaways() {
+        $orderModel = new Order();
+        $orders = $orderModel->getCompletedTakeawayOrders();
+        $this->json(['orders' => $orders]);
+    }
+
+    public function markDelivered($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $orderModel = new Order();
+        $success = $orderModel->markOrderCompleted($orderId);
+        $this->json(['success' => $success]);
+    }
+
     public function payBill($params) {
         $billId = (int)($params['id'] ?? 0);
         $data = $this->getJsonInput();

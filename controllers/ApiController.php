@@ -179,21 +179,36 @@ class ApiController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT * FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed') ORDER BY id DESC LIMIT 1");
+        $stmt = $db->prepare("SELECT id FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed') ORDER BY id DESC LIMIT 1");
         $stmt->execute([$mobile]);
-        $order = $stmt->fetch();
+        $orderId = $stmt->fetchColumn();
 
-        if ($order) {
+        if ($orderId) {
+            $orderModel = new Order();
+            $orderDetails = $orderModel->getOrderDetails($orderId);
             $this->json([
                 'active' => true,
-                'order_id' => $order['id'],
-                'status' => $order['status'],
-                'token_number' => $order['token_number'],
-                'customer_name' => $order['customer_name']
+                'order' => $orderDetails['order'],
+                'kots' => $orderDetails['kots'],
+                'order_id' => $orderDetails['order']['id'],
+                'status' => $orderDetails['order']['status'],
+                'token_number' => $orderDetails['order']['token_number'],
+                'customer_name' => $orderDetails['order']['customer_name']
             ]);
         } else {
             $this->json(['active' => false]);
         }
+    }
+
+    public function customerItemReceived($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        if ($orderId <= 0) {
+            $this->json(['success' => false]);
+            return;
+        }
+        $orderModel = new Order();
+        $success = $orderModel->markOrderCompleted($orderId);
+        $this->json(['success' => $success]);
     }
 
     // Request billing/close order

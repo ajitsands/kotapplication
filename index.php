@@ -80,7 +80,9 @@ $router->add('GET', '/counter/order/:id', 'CounterController@orderDetails');
 $router->add('POST', '/counter/order/close/:id', 'CounterController@closeActiveOrder');
 $router->add('GET', '/counter/products/counter-items', 'CounterController@getCounterItems');
 $router->add('POST', '/counter/order/add-counter-items/:id', 'CounterController@addCounterItems');
-
+$router->add('GET', '/counter/delivery-queue', 'CounterController@getDeliveryQueue');
+$router->add('GET', '/counter/completed-takeaways', 'CounterController@getCompletedTakeaways');
+$router->add('POST', '/counter/delivery-queue/deliver/:id', 'CounterController@markDelivered');
 // Waiter App & Customer API Routes
 $router->add('POST', '/api/login', 'ApiController@login');
 $router->add('GET', '/api/user', 'ApiController@user');
@@ -97,7 +99,7 @@ $router->add('POST', '/api/notifications/dispatch', 'ApiController@dispatchKotIt
 $router->add('POST', '/api/notifications/dispatch/:id', 'ApiController@dispatchKotItem');
 $router->add('GET', '/api/orders/status/:id', 'ApiController@getOrderStatus');
 $router->add('GET', '/api/orders/mobile/:mobile', 'ApiController@getActiveOrderByMobile');
-
+$router->add('POST', '/api/orders/received/:id', 'ApiController@customerItemReceived');
 // Catch-all Customer Web Menu for scanned QR code (e.g. /customer/5)
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
 $router->add('GET', '/takeaway', 'HomeController@takeawayView');
