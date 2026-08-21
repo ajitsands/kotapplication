@@ -71,7 +71,38 @@ class CounterController extends Controller {
         
         $orderModel = new Order();
         $orders = $orderModel->getCompletedTakeawayOrders($start, $end);
-        $this->json(['orders' => $orders]);
+        
+        $summary = [
+            'total_amount' => 0,
+            'total_count' => 0,
+            'cash_amount' => 0,
+            'cash_count' => 0,
+            'card_amount' => 0,
+            'card_count' => 0,
+            'qr_amount' => 0,
+            'qr_count' => 0
+        ];
+        
+        foreach ($orders as $o) {
+            $amt = (float)$o['grand_total'];
+            $method = strtolower($o['payment_method'] ?? 'cash');
+            
+            $summary['total_amount'] += $amt;
+            $summary['total_count']++;
+            
+            if ($method === 'cash') {
+                $summary['cash_amount'] += $amt;
+                $summary['cash_count']++;
+            } elseif ($method === 'card') {
+                $summary['card_amount'] += $amt;
+                $summary['card_count']++;
+            } else {
+                $summary['qr_amount'] += $amt;
+                $summary['qr_count']++;
+            }
+        }
+        
+        $this->json(['orders' => $orders, 'summary' => $summary]);
     }
 
     public function markDelivered($params) {

@@ -996,6 +996,9 @@
                         <input type="date" id="takeaway-end-date" class="discount-input" value="<?= date('Y-m-d') ?>">
                         <button onclick="fetchCompletedTakeaways()" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none;">Search</button>
                     </div>
+                    <div id="takeaway-summary-container" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 10px 15px; border-radius: 8px; display: flex; gap: 15px; font-size: 13px;">
+                        <!-- Populated dynamically via AJAX -->
+                    </div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table id="takeaway-completed-table" class="display" style="width: 100%; border-collapse: collapse;">
@@ -1958,6 +1961,16 @@
                 .then(res => res.json())
                 .then(data => {
                     const orders = data.orders || [];
+                    const summary = data.summary || null;
+                    
+                    if (summary) {
+                        document.getElementById('takeaway-summary-container').innerHTML = `
+                            <div><strong style="color:var(--text-muted);">Total Takeaway:</strong> <span style="font-weight:700; color:var(--accent-green); font-size:15px;">${parseFloat(summary.total_amount).toFixed(3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💵 Cash:</strong> <span style="font-weight:600;">${parseFloat(summary.cash_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.cash_count})</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💳 Card:</strong> <span style="font-weight:600;">${parseFloat(summary.card_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.card_count})</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">📱 QR:</strong> <span style="font-weight:600;">${parseFloat(summary.qr_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.qr_count})</span></div>
+                        `;
+                    }
                     
                     if (completedTakeawayTable) {
                         completedTakeawayTable.destroy();
