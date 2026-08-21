@@ -39,8 +39,8 @@ class Bill extends Model {
     public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '') {
         $this->db->beginTransaction();
         try {
-            // Get bill details
-            $stmt = $this->db->prepare("SELECT * FROM bills WHERE id = ?");
+            // Get bill details and order type
+            $stmt = $this->db->prepare("SELECT b.*, o.order_type FROM bills b JOIN orders o ON b.order_id = o.id WHERE b.id = ?");
             $stmt->execute([$billId]);
             $bill = $stmt->fetch();
 
@@ -91,9 +91,12 @@ class Bill extends Model {
             $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ? WHERE id = ?");
             $stmtBill->execute([$paymentMethod, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
 
-            // Update order status to completed
-            $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
-            $stmtOrder->execute([$bill['order_id']]);
+            // For Dine In orders, payment completes the order flow.
+            // For Take Away orders, payment just pays the bill. The order remains 'closed' until it is delivered.
+            if (($bill['order_type'] ?? 'dine_in') !== 'take_away') {
+                $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
+                $stmtOrder->execute([$bill['order_id']]);
+            }
 
             $this->db->commit();
             return true;
