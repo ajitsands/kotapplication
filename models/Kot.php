@@ -59,7 +59,7 @@ class Kot extends Model {
                                   AND (
                                       (o.order_type = 'dine_in' AND o.status = 'active') 
                                       OR 
-                                      (o.order_type = 'take_away' AND EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid'))
+                                      (o.order_type = 'take_away' AND o.status != 'completed' AND EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid'))
                                   )
                                   ORDER BY k.created_at ASC");
         $kots = $stmt->fetchAll();
