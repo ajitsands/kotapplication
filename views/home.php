@@ -2364,6 +2364,20 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.503-5.739-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.118-2.91-6.999-1.88-1.882-4.36-2.914-7.001-2.915-5.442 0-9.867 4.42-9.871 9.866-.002 2.015.528 3.985 1.536 5.736l-.991 3.616 3.7-.977zm11.452-6.52c-.29-.145-1.716-.847-1.982-.944-.265-.098-.458-.146-.65.145-.193.292-.748.944-.917 1.138-.17.19-.338.213-.628.068-.29-.145-1.226-.452-2.336-1.443-.864-.77-1.447-1.722-1.616-2.012-.17-.29-.018-.447.127-.59.13-.13.29-.338.435-.508.145-.17.193-.29.29-.483.097-.19.048-.36-.024-.505-.072-.145-.65-1.568-.89-2.146-.233-.56-.47-.483-.65-.492-.168-.008-.362-.01-.555-.01-.193 0-.507.072-.77.36-.266.29-1.014.992-1.014 2.42 0 1.427 1.038 2.805 1.182 3 .145.195 2.043 3.12 4.95 4.377.69.298 1.23.477 1.65.61.693.22 1.325.19 1.822.115.555-.083 1.716-.7 1.96-1.375.242-.676.242-1.256.17-1.376-.073-.12-.266-.194-.556-.34z"/></svg>
                     Contact Now
                 </a>
+                <button onclick="openSandsProductsModal()" style="display: block; width: 100%; border: none; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #06b6d4); padding: 12px; border-radius: 12px; color: white; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(59,130,246,0.3); text-align: center; margin-top: 12px;">🚀 Our Latest Products</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SaNDS Lab Products Modal -->
+    <div id="sands-products-modal" class="modal-sands" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 15, 25, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 2005; align-items: center; justify-content: center;">
+        <div class="modal-sands-content" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08); padding: 30px 20px; border-radius: 24px; text-align: left; max-width: 600px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.2); position: relative; color: #1f2937;">
+            <button onclick="closeSandsProductsModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #6b7280; font-size: 24px; cursor: pointer; line-height: 1; z-index: 10;">&times;</button>
+            <h3 style="font-size: 20px; font-weight: 800; color: #1f2937; margin-bottom: 5px; text-align: center;">Our Latest Products</h3>
+            <p style="font-size: 12px; color: #6b7280; text-align: center; margin-bottom: 20px;">Discover the innovative solutions by SaNDS Lab</p>
+            
+            <div id="sands-products-list" style="overflow-y: auto; padding-right: 5px; display: flex; flex-direction: column; gap: 15px; flex: 1;">
+                <div style="text-align: center; color: #6b7280; padding: 20px;">Loading products...</div>
             </div>
         </div>
     </div>
