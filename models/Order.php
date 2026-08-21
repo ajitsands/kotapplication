@@ -10,15 +10,23 @@ class Order extends Model {
         return $stmt->fetch();
     }
 
-    public function createOrder($tableNumber, $waiterId) {
-        // Check if there is already an active order for this table
-        $existing = $this->getActiveOrderByTable($tableNumber);
-        if ($existing) {
-            return $existing['id'];
+    public function createOrder($tableNumber, $waiterId, $orderType = 'dine_in', $customerName = null, $customerMobile = null) {
+        if ($orderType === 'dine_in') {
+            // Check if there is already an active order for this table
+            $existing = $this->getActiveOrderByTable($tableNumber);
+            if ($existing) {
+                return $existing['id'];
+            }
         }
 
-        $stmt = $this->db->prepare("INSERT INTO orders (table_number, waiter_id, status) VALUES (?, ?, 'active')");
-        $stmt->execute([$tableNumber, $waiterId]);
+        $tokenNumber = null;
+        if ($orderType === 'take_away') {
+            $tokenNumber = str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+            $tableNumber = null;
+        }
+
+        $stmt = $this->db->prepare("INSERT INTO orders (table_number, waiter_id, status, order_type, customer_name, customer_mobile, token_number) VALUES (?, ?, 'active', ?, ?, ?, ?)");
+        $stmt->execute([$tableNumber, $waiterId, $orderType, $customerName, $customerMobile, $tokenNumber]);
         return $this->db->lastInsertId();
     }
 
@@ -160,6 +168,7 @@ class Order extends Model {
 
     public function getEngagedTables() {
         $sql = "SELECT o.id as order_id, o.table_number, o.status as order_status, 
+                       o.order_type, o.customer_name, o.customer_mobile, o.token_number,
                        IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name,
                        b.id as bill_id, b.status as bill_status,
                        b.subtotal as bill_subtotal, b.tax_amount as bill_tax_amount, b.grand_total as bill_grand_total
@@ -167,7 +176,7 @@ class Order extends Model {
                 LEFT JOIN users u ON o.waiter_id = u.id
                 LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'pending'
                 WHERE o.status IN ('active', 'closed')
-                ORDER BY o.table_number ASC";
+                ORDER BY o.order_type ASC, o.table_number ASC, o.id ASC";
         $stmt = $this->db->query($sql);
         $orders = $stmt->fetchAll();
 

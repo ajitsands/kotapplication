@@ -51,11 +51,12 @@ class Kot extends Model {
 
     public function getActiveKots() {
         // Fetch KOTs that are not fully dispatched
-        $stmt = $this->db->query("SELECT k.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+        $stmt = $this->db->query("SELECT k.*, o.table_number, o.order_type, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                                   FROM kots k 
                                   JOIN orders o ON k.order_id = o.id 
                                   LEFT JOIN users u ON k.waiter_id = u.id 
                                   WHERE k.status != 'dispatched' AND o.status = 'active'
+                                  AND (o.order_type = 'dine_in' OR (o.order_type = 'take_away' AND EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid')))
                                   ORDER BY k.created_at ASC");
         $kots = $stmt->fetchAll();
 
@@ -157,6 +158,7 @@ class Kot extends Model {
                 JOIN orders o ON k.order_id = o.id
                 JOIN products p ON ki.product_id = p.id
                 WHERE o.status = 'active' 
+                  AND o.order_type = 'dine_in'
                   AND (o.waiter_id = ? OR o.waiter_id IS NULL) 
                   AND ki.status = 'ready'
                 ORDER BY k.created_at DESC";

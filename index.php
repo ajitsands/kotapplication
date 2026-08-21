@@ -95,9 +95,12 @@ $router->add('POST', '/api/orders/cancel/:id', 'ApiController@cancelOrder');
 $router->add('GET', '/api/notifications', 'ApiController@getWaiterNotifications');
 $router->add('POST', '/api/notifications/dispatch', 'ApiController@dispatchKotItem');
 $router->add('POST', '/api/notifications/dispatch/:id', 'ApiController@dispatchKotItem');
+$router->add('GET', '/api/orders/status/:id', 'ApiController@getOrderStatus');
+$router->add('GET', '/api/orders/mobile/:mobile', 'ApiController@getActiveOrderByMobile');
 
 // Catch-all Customer Web Menu for scanned QR code (e.g. /customer/5)
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
+$router->add('GET', '/takeaway', 'HomeController@takeawayView');
 
 // Check for license expiry
 try {

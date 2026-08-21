@@ -110,9 +110,12 @@ class ApiController extends Controller {
     public function createOrder() {
         $data = $this->getJsonInput();
         $tableNumber = (int)($data['table_number'] ?? 0);
+        $orderType = $data['order_type'] ?? 'dine_in';
+        $customerName = $data['customer_name'] ?? null;
+        $customerMobile = $data['customer_mobile'] ?? null;
         $items = $data['items'] ?? []; // Array of ['product_id' => X, 'quantity' => Y, 'notes' => Z]
 
-        if ($tableNumber <= 0 || empty($items)) {
+        if (($orderType === 'dine_in' && $tableNumber <= 0) || empty($items)) {
             $this->json(['error' => 'Invalid parameters'], 400);
         }
 
@@ -120,23 +123,71 @@ class ApiController extends Controller {
         $waiterId = isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'waiter' ? $_SESSION['user_id'] : null;
 
         $orderModel = new Order();
-        $orderId = $orderModel->createOrder($tableNumber, $waiterId);
+        $orderId = $orderModel->createOrder($tableNumber, $waiterId, $orderType, $customerName, $customerMobile);
 
         if ($orderId) {
             $kotModel = new Kot();
             $kotId = $kotModel->createKot($orderId, $waiterId, $items);
             if ($kotId) {
+                // Return token number if it's take_away
+                $orderInfo = $orderModel->getOrderDetails($orderId);
+                
                 $this->json([
                     'success' => true,
                     'order_id' => $orderId,
                     'kot_id' => $kotId,
-                    'message' => 'KOT generated successfully'
+                    'token_number' => $orderInfo['token_number'] ?? null,
+                    'message' => 'Order placed successfully'
                 ]);
             } else {
                 $this->json(['error' => 'Failed to create KOT ticket'], 500);
             }
         } else {
-            $this->json(['error' => 'Failed to initialize table session'], 500);
+            $this->json(['error' => 'Failed to initialize order'], 500);
+        }
+    }
+
+    public function getOrderStatus($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        if ($orderId <= 0) {
+            $this->json(['error' => 'Invalid order ID'], 400);
+        }
+
+        $orderModel = new Order();
+        $order = $orderModel->getOrderDetails($orderId);
+        
+        if (!$order) {
+            $this->json(['error' => 'Order not found'], 404);
+        }
+
+        $this->json([
+            'order_id' => $order['id'],
+            'status' => $order['status'], // 'active', 'closed', 'completed'
+            'token_number' => $order['token_number']
+        ]);
+    }
+
+    public function getActiveOrderByMobile($params) {
+        $mobile = $params['mobile'] ?? '';
+        if (empty($mobile)) {
+            $this->json(['active' => false]);
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT * FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed') ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$mobile]);
+        $order = $stmt->fetch();
+
+        if ($order) {
+            $this->json([
+                'active' => true,
+                'order_id' => $order['id'],
+                'status' => $order['status'],
+                'token_number' => $order['token_number'],
+                'customer_name' => $order['customer_name']
+            ]);
+        } else {
+            $this->json(['active' => false]);
         }
     }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu | Table <?= htmlspecialchars($tableNumber) ?></title>
+    <title>Menu | <?php echo $isTakeaway ? 'Take Away' : 'Table ' . htmlspecialchars($tableNumber); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -694,10 +694,12 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
-<body>
+<body class="light-theme">
     <script>
         // Apply theme immediately on load to prevent flash of theme mismatch
-        if (localStorage.getItem('theme') === 'light') {
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.remove('light-theme');
+        } else {
             document.body.classList.add('light-theme');
         }
 
@@ -720,7 +722,7 @@
         </div>
         <div class="table-badge" style="display: flex; align-items: center; gap: 8px;">
             <button onclick="toggleTheme()" style="background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; padding: 2px;">🌓</button>
-            <span>Table <?= htmlspecialchars($tableNumber) ?></span>
+            <span><?php echo $isTakeaway ? 'Take Away' : 'Table ' . htmlspecialchars($tableNumber); ?></span>
         </div>
     </header>
 
@@ -866,6 +868,9 @@
 
     <script>
         const tableNumber = <?= $tableNumber ?>;
+        const isTakeaway = <?= $isTakeaway ? 'true' : 'false' ?>;
+        const takeawayName = sessionStorage.getItem('takeaway_name');
+        const takeawayMobile = sessionStorage.getItem('takeaway_mobile');
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const categories = <?= json_encode($categories) ?>;
         const taxType = '<?= $settings['tax_type'] ?? 'VAT' ?>';
@@ -1069,6 +1074,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     table_number: tableNumber,
+                    order_type: isTakeaway ? 'take_away' : 'dine_in',
+                    customer_name: isTakeaway ? takeawayName : null,
+                    customer_mobile: isTakeaway ? takeawayMobile : null,
                     items: itemsList
                 })
             })
@@ -1201,7 +1209,13 @@
         }
 
         function checkActiveOrderStatus() {
-            fetch('../api/orders/active/' + tableNumber)
+            let url = '../api/orders/active/' + tableNumber;
+            if (isTakeaway) {
+                if (!takeawayMobile) return;
+                url = '../api/orders/mobile/' + encodeURIComponent(takeawayMobile);
+            }
+            
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (data.active) {
@@ -1262,7 +1276,8 @@
             } else if (isFullyServed) {
                 statusBar.className = 'active-status-bar served-status';
                 pulseDot.className = 'pulse-dot-green';
-                statusText.innerText = 'Your order is ready & served! Click to view bill.';
+                let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
+                statusText.innerText = tokenInfo + 'Your order is ready & served! Click to view bill.';
 
                 // Auto popup when first transitioned to fully served
                 if (!autoOpenedOrders[orderId]) {
@@ -1273,7 +1288,8 @@
             } else {
                 statusBar.className = 'active-status-bar';
                 pulseDot.className = 'pulse-dot-orange';
-                statusText.innerText = 'Your order is being prepared. Wait for a moment.';
+                let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
+                statusText.innerText = tokenInfo + 'Your order is being prepared. Wait for a moment.';
             }
         }
 

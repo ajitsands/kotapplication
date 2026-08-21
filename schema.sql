@@ -61,8 +61,12 @@ CREATE TABLE IF NOT EXISTS `dining_tables` (
 -- Orders Table
 CREATE TABLE IF NOT EXISTS `orders` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `table_number` INT NOT NULL,
+    `table_number` INT DEFAULT NULL,
     `status` ENUM('active', 'closed', 'completed') DEFAULT 'active',
+    `order_type` ENUM('dine_in', 'take_away') DEFAULT 'dine_in',
+    `customer_name` VARCHAR(100) DEFAULT NULL,
+    `customer_mobile` VARCHAR(20) DEFAULT NULL,
+    `token_number` VARCHAR(10) DEFAULT NULL,
     `waiter_id` INT DEFAULT NULL, -- Logged in waiter who started order
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

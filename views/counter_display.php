@@ -742,6 +742,7 @@
             <a href="counter" class="nav-link active">Billing Counter</a>
             <a href="javascript:void(0)" onclick="showEngagedTablesModal()" class="nav-link">🍽️ Table Status</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
+            <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link">🛍️ Take Away QR</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -1176,7 +1177,9 @@
                     <div class="table-group-card" style="margin-bottom: 25px; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.01);">
                         <div class="table-group-header" style="background: rgba(255,255,255,0.03); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border);">
                             <div style="display:flex; align-items:center; gap: 10px;">
-                                <span class="table-badge" style="font-size:14px; padding:6px 12px;">Table T${tableNum}</span>
+                                <span class="table-badge" style="font-size:14px; padding:6px 12px;">
+                                    ${tableNum === '0' || tableNum === 0 ? 'Take Away Orders' : 'Table T' + tableNum}
+                                </span>
                                 <span style="font-size:13px; color:var(--text-muted); font-weight:600;">(${tableBills.length} pending bill${tableBills.length > 1 ? 's' : ''})</span>
                             </div>
                             ${isGrouped ? `
@@ -1192,7 +1195,7 @@
                             <table style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="border-bottom:1px solid var(--card-border);">
-                                        <th style="text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Bill ID</th>
+                                        <th style="text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Bill ID / Info</th>
                                         <th style="text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Closed Time</th>
                                         <th style="text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Waiter</th>
                                         <th style="text-align: right; padding: 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Subtotal</th>
@@ -1209,10 +1212,15 @@
                     const tax = parseFloat(bill.tax_amount).toFixed(3);
                     const grand = parseFloat(bill.grand_total).toFixed(3);
                     const date = new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    let infoCol = `#${bill.id}`;
+                    if (bill.order_type === 'take_away') {
+                        infoCol += `<br><span style="font-size:11px; color:var(--accent-orange);">Token: ${bill.token_number}</span><br><span style="font-size:11px;">${bill.customer_name || ''}</span>`;
+                    }
 
                     html += `
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
-                            <td style="padding: 12px 10px; font-weight: 700; color: var(--text-muted);">#${bill.id}</td>
+                            <td style="padding: 12px 10px; font-weight: 700; color: var(--text-muted); line-height:1.3;">${infoCol}</td>
                             <td style="padding: 12px 10px;">${date}</td>
                             <td style="padding: 12px 10px; font-weight:600;">${bill.waiter_name || 'Self-Order'}</td>
                             <td style="padding: 12px 10px; text-align: right;" class="price-text">${sub} ${currencyCode}</td>
@@ -1261,7 +1269,11 @@
                         document.getElementById('counter-items-section').style.display = 'none';
                     }
 
-                    document.getElementById('view-modal-table-label').innerText = 'Table T' + order.table_number + ' • ' + (order.waiter_name || 'Self-Order');
+                    if (order.order_type === 'take_away') {
+                        document.getElementById('view-modal-table-label').innerText = 'Take Away • Token: ' + order.token_number + ' • ' + (order.customer_name || 'Walk-in');
+                    } else {
+                        document.getElementById('view-modal-table-label').innerText = 'Table T' + order.table_number + ' • ' + (order.waiter_name || 'Self-Order');
+                    }
                     
                     let itemsHtml = '';
                     if (order.items && order.items.length > 0) {
@@ -1416,7 +1428,11 @@
             selectedBillId = billId;
             selectedPaymentMethod = 'cash';
 
-            document.getElementById('modal-table-label').innerText = 'Complete payment for Table ' + bill.table_number;
+            if (bill.order_type === 'take_away') {
+                document.getElementById('modal-table-label').innerText = 'Complete payment for Take Away • Token: ' + bill.token_number;
+            } else {
+                document.getElementById('modal-table-label').innerText = 'Complete payment for Table ' + bill.table_number;
+            }
             document.getElementById('modal-amount-label').innerText = parseFloat(bill.grand_total).toFixed(3) + ' ' + currencyCode;
             
             // Reset discount fields
@@ -2046,6 +2062,34 @@
                         <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Scan this QR code with a waiter's phone camera to quickly access the system login page.</p>
                         <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
                             ${loginUrl}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            });
+        }
+
+        function showTakeawayQr() {
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot)$/, '');
+            const takeawayUrl = protocol + '//' + host + rootPath + '/takeaway';
+            
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(takeawayUrl);
+            
+            Swal.fire({
+                title: '🛍️ Take Away Menu Link',
+                html: `
+                    <div style="margin: 15px 0;">
+                        <img src="${qrImageUrl}" alt="Take Away QR Code" style="width: 220px; height: 220px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid white;">
+                        <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Customers can scan this QR code to access the take-away menu and place an order.</p>
+                        <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
+                            ${takeawayUrl}
                         </div>
                     </div>
                 `,

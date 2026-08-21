@@ -2,7 +2,7 @@
 
 class Bill extends Model {
     public function getPendingBills() {
-        $stmt = $this->db->query("SELECT b.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.created_at as order_created_at
+        $stmt = $this->db->query("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.created_at as order_created_at
                                   FROM bills b
                                   JOIN orders o ON b.order_id = o.id
                                   LEFT JOIN users u ON o.waiter_id = u.id
@@ -12,7 +12,7 @@ class Bill extends Model {
     }
 
     public function getBillDetails($billId) {
-        $stmt = $this->db->prepare("SELECT b.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.id as order_id
+        $stmt = $this->db->prepare("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.id as order_id
                                     FROM bills b
                                     JOIN orders o ON b.order_id = o.id
                                     LEFT JOIN users u ON o.waiter_id = u.id

@@ -147,7 +147,9 @@ class HomeController extends Controller {
 
     public function customerView($params) {
         $tableNumber = (int)($params['table'] ?? 0);
-        if ($tableNumber <= 0 || $tableNumber > 20) {
+        $isTakeaway = isset($_GET['takeaway']) && $_GET['takeaway'] == '1';
+        
+        if (!$isTakeaway && ($tableNumber <= 0 || $tableNumber > 20)) {
             echo "<h1>Invalid Table</h1>";
             exit;
         }
@@ -169,11 +171,18 @@ class HomeController extends Controller {
 
         $this->render('customer_menu', [
             'tableNumber' => $tableNumber,
+            'isTakeaway' => $isTakeaway,
             'settings' => $settings,
             'categories' => $categories,
             'productsByCategory' => $productsByCategory,
             'products' => $products
         ]);
+    }
+
+    public function takeawayView() {
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $this->render('takeaway_register', ['settings' => $settings]);
     }
 
     public function changePassword() {

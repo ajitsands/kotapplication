@@ -96,6 +96,19 @@ try {
         }
     }
 
+    // Auto-migrate: Check and add missing columns to 'orders' table for V2 (Take Away)
+    $ordersTableCheck = $pdo->query("SHOW TABLES LIKE 'orders'")->fetch();
+    if ($ordersTableCheck) {
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `orders` LIKE 'order_type'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `orders` ADD COLUMN `order_type` ENUM('dine_in','take_away') NOT NULL DEFAULT 'dine_in' AFTER `id`");
+            $pdo->exec("ALTER TABLE `orders` ADD COLUMN `customer_name` VARCHAR(100) DEFAULT NULL AFTER `order_type`");
+            $pdo->exec("ALTER TABLE `orders` ADD COLUMN `customer_mobile` VARCHAR(20) DEFAULT NULL AFTER `customer_name`");
+            $pdo->exec("ALTER TABLE `orders` ADD COLUMN `token_number` VARCHAR(10) DEFAULT NULL AFTER `customer_mobile`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'order_type', 'customer_name', 'customer_mobile', 'token_number' to 'orders' table.</p>";
+        }
+    }
+
     // Check is_counter_item column in products table
     $productsTableCheck = $pdo->query("SHOW TABLES LIKE 'products'")->fetch();
     if ($productsTableCheck) {

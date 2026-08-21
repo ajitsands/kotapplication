@@ -954,8 +954,11 @@
                 html += `
                     <div class="${cardClass}" id="kot-${kot.id}">
                         <div class="kot-header">
-                            <span class="table-badge">T${kot.table_number}</span>
+                            <span class="table-badge">
+                                ${kot.order_type === 'take_away' ? 'Take Away' : 'T' + kot.table_number}
+                            </span>
                             <div class="kot-meta">
+                                ${kot.order_type === 'take_away' ? `<div style="font-size:16px; font-weight:800; color:var(--accent-orange); margin-bottom:4px;">Token: ${kot.token_number}</div>` : ''}
                                 <div class="kot-num">${kot.kot_number}</div>
                                 <div class="kot-time">${timeLabel}</div>
                                 <div class="kot-waiter">By: ${kot.waiter_name || 'Self-Order'}</div>
