@@ -809,7 +809,7 @@
             const listContainer = document.getElementById('sands-products-list');
             listContainer.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">Loading products...</div>';
             
-            fetch('https://sandslab.com/get_our_latest_products.php')
+            fetch('/get_latest_products.php')
                 .then(res => res.json())
                 .then(data => {
                     if (data.status && data.data) {
@@ -834,6 +834,7 @@
         }
         function closeSandsProductsModal() {
             document.getElementById('sands-products-modal').style.display = 'none';
+            openSandsModal();
         }
 
     <!-- Sticky Bottom Cart Bar -->
