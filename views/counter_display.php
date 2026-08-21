@@ -925,15 +925,51 @@
                 </div>
             </div>
 
-            <!-- Takeaway Delivery Section -->
-            <h1 class="screen-title" style="margin-top: 45px;">
-                🛍️ Takeaway Orders (Live)
-                <div class="live-indicator" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-green);">
-                    <span class="live-dot" style="background: var(--accent-green);"></span> READY TO DELIVER
-                </div>
-            </h1>
+            <!-- Takeaway Delivery Tabs Section -->
+            <div style="display: flex; gap: 10px; margin-top: 45px; margin-bottom: 20px; border-bottom: 2px solid var(--card-border); padding-bottom: 10px;">
+                <button id="tab-btn-live" onclick="switchTakeawayTab('live')" style="background: transparent; border: none; color: var(--text-color); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; display: flex; align-items: center; gap: 10px;" class="active-tab">
+                    🛍️ Takeaway Orders (Live)
+                    <div class="live-indicator" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-green); position: relative; top: 0; transform: none; margin-left: 5px;">
+                        <span class="live-dot" style="background: var(--accent-green);"></span>
+                    </div>
+                </button>
+                <button id="tab-btn-completed" onclick="switchTakeawayTab('completed')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s;">
+                    ✅ Completed Takeaways
+                </button>
+            </div>
 
-            <div class="panel-card" style="margin-bottom: 25px;">
+            <style>
+                .active-tab {
+                    background: var(--card-bg) !important;
+                    border: 1px solid var(--primary-light) !important;
+                    color: var(--primary-light) !important;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                }
+            </style>
+
+            <script>
+                function switchTakeawayTab(tab) {
+                    document.getElementById('tab-btn-live').classList.remove('active-tab');
+                    document.getElementById('tab-btn-completed').classList.remove('active-tab');
+                    document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
+                    document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
+                    
+                    document.getElementById('takeaway-live-section').style.display = 'none';
+                    document.getElementById('takeaway-completed-section').style.display = 'none';
+
+                    if (tab === 'live') {
+                        document.getElementById('tab-btn-live').classList.add('active-tab');
+                        document.getElementById('tab-btn-live').style.color = 'var(--primary-light)';
+                        document.getElementById('takeaway-live-section').style.display = 'block';
+                    } else {
+                        document.getElementById('tab-btn-completed').classList.add('active-tab');
+                        document.getElementById('tab-btn-completed').style.color = 'var(--primary-light)';
+                        document.getElementById('takeaway-completed-section').style.display = 'block';
+                    }
+                }
+            </script>
+
+            <div id="takeaway-live-section" class="panel-card" style="margin-bottom: 25px;">
                 <div style="overflow-x: auto;">
                     <table id="takeaway-ready-table" style="width: 100%; border-collapse: collapse;">
                         <thead>
@@ -952,12 +988,7 @@
                 </div>
             </div>
 
-            <!-- Completed Takeaway Section -->
-            <h1 class="screen-title" style="margin-top: 45px;">
-                ✅ Completed Takeaways
-            </h1>
-
-            <div class="panel-card" style="margin-bottom: 25px;">
+            <div id="takeaway-completed-section" class="panel-card" style="margin-bottom: 25px; display: none;">
                 <div style="overflow-x: auto;">
                     <table id="takeaway-completed-table" style="width: 100%; border-collapse: collapse;">
                         <thead>
