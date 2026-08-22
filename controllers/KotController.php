@@ -70,15 +70,19 @@ class KotController extends Controller {
 
     public function deleteItem($params) {
         $itemId = (int)($params['id'] ?? 0);
+        error_log("KotController::deleteItem called for ID: $itemId");
         $kotModel = new Kot();
         $success = $kotModel->deleteKotItem($itemId);
+        error_log("KotController::deleteItem success: " . var_export($success, true));
         $this->json(['success' => $success]);
     }
 
     public function deleteKot($params) {
         $kotId = (int)($params['id'] ?? 0);
+        error_log("KotController::deleteKot called for ID: $kotId");
         $kotModel = new Kot();
         $success = $kotModel->deleteKot($kotId);
+        error_log("KotController::deleteKot success: " . var_export($success, true));
         $this->json(['success' => $success]);
     }
 
