@@ -70,18 +70,22 @@ class KotController extends Controller {
 
     public function deleteItem($params) {
         $itemId = (int)($params['id'] ?? 0);
+        file_put_contents(__DIR__ . '/../debug_log.txt', date('Y-m-d H:i:s') . " - KotController::deleteItem called for ID: $itemId\n", FILE_APPEND);
         error_log("KotController::deleteItem called for ID: $itemId");
         $kotModel = new Kot();
         $success = $kotModel->deleteKotItem($itemId);
+        file_put_contents(__DIR__ . '/../debug_log.txt', date('Y-m-d H:i:s') . " - KotController::deleteItem success: " . var_export($success, true) . "\n", FILE_APPEND);
         error_log("KotController::deleteItem success: " . var_export($success, true));
         $this->json(['success' => $success]);
     }
 
     public function deleteKot($params) {
         $kotId = (int)($params['id'] ?? 0);
+        file_put_contents(__DIR__ . '/../debug_log.txt', date('Y-m-d H:i:s') . " - KotController::deleteKot called for ID: $kotId\n", FILE_APPEND);
         error_log("KotController::deleteKot called for ID: $kotId");
         $kotModel = new Kot();
         $success = $kotModel->deleteKot($kotId);
+        file_put_contents(__DIR__ . '/../debug_log.txt', date('Y-m-d H:i:s') . " - KotController::deleteKot success: " . var_export($success, true) . "\n", FILE_APPEND);
         error_log("KotController::deleteKot success: " . var_export($success, true));
         $this->json(['success' => $success]);
     }
