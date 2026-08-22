@@ -1522,12 +1522,21 @@
             let buttonsHtml = `
                 <div style="display:flex; gap:12px; flex-direction:column;">
             `;
+            
+            const canCancel = (!isCancelled && !isKotDeleted && !isFullyServed);
 
             if (isTakeaway) {
                 if (isFullyServed) {
                     buttonsHtml += `
-                        <button onclick="confirmItemReceived(${activeOrder.order_id})" class="btn-checkout" style="padding:14px; font-size:16px; border-radius:12px; background:var(--accent-green); border:none; color:white; font-weight:800;">
+                        <button onclick="confirmItemReceived(${activeOrder.order.id})" class="btn-checkout" style="padding:14px; font-size:16px; border-radius:12px; background:var(--accent-green); border:none; color:white; font-weight:800;">
                             ✅ I Have Received My Order
+                        </button>
+                    `;
+                }
+                if (canCancel) {
+                    buttonsHtml += `
+                        <button onclick="customerCancelOrder(${activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
+                            Cancel Order
                         </button>
                     `;
                 }
@@ -1537,11 +1546,18 @@
                     </button>
                 `;
             } else {
+                if (canCancel) {
+                    buttonsHtml += `
+                        <button onclick="customerCancelOrder(${activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
+                            Cancel Order
+                        </button>
+                    `;
+                }
                 buttonsHtml += `
                     <button onclick="closeStatusModal()" class="btn-checkout" style="background:rgba(255,255,255,0.05); border:1px solid var(--card-border); color:var(--text-color); padding:12px; font-size:14px; border-radius:12px;">
                         ➕ Add New Order / Keep Ordering
                     </button>
-                    <button onclick="requestCustomerBilling(${activeOrder.order_id || activeOrder.order.id})" class="btn-checkout" style="padding:14px; font-size:14px; border-radius:12px; background:var(--primary-grad); border:none; color:white; font-weight:800;">
+                    <button onclick="requestCustomerBilling(${activeOrder.order.id})" class="btn-checkout" style="padding:14px; font-size:14px; border-radius:12px; background:var(--primary-grad); border:none; color:white; font-weight:800;">
                         🏁 Complete & Request Bill
                     </button>
                 `;
