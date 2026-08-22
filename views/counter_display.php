@@ -729,6 +729,9 @@
     </script>
     <header>
         <div class="header-logo">
+            <?php if (!empty($settings['logo_path'])): ?>
+                <img src="/<?= ltrim(htmlspecialchars($settings['logo_path']), '/') ?>" alt="Logo" style="height: 32px; object-fit: contain; border-radius: 4px;">
+            <?php endif; ?>
             <span class="header-title"><?= htmlspecialchars($settings['restaurant_name']) ?> | Cashier</span>
         </div>
         <div class="header-nav">
