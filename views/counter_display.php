@@ -1244,9 +1244,9 @@
     </div>
     <div id="order-refund-modal" class="modal" onclick="if(event.target===this) closeRefundModal()">
         <div class="modal-content" style="max-width: 600px; text-align: left;">
-            <div class="modal-header">
-                <h2>Refund Details - Token <span id="refund-token-display"></span></h2>
-                <button class="close-modal" onclick="closeRefundModal()">×</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0;">Refund Details - Token <span id="refund-token-display"></span></h3>
+                <button onclick="closeRefundModal()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
             </div>
             <div id="refund-items-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
                 <!-- Populated dynamically -->
