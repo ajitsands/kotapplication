@@ -2851,7 +2851,7 @@
         let currentRefundedList = {};
         
         function fetchRefundedItemsList() {
-            fetch(rootPath + '/api/counter/refunds/completed')
+            fetch(rootPath + '/counter/refunds/completed')
                 .then(res => res.json())
                 .then(data => {
                     if (data.refunds) {
