@@ -852,58 +852,58 @@
                 </div>
 
                 <!-- Stats Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px;">
                     <!-- Cash Card -->
-                    <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(16, 185, 129, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💵</div>
+                    <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(16, 185, 129, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💵</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Cash Payment</div>
-                            <div id="summary-cash-total" style="font-size: 20px; font-weight: 800; color: var(--accent-green); margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Cash Payment</div>
+                            <div id="summary-cash-total" style="font-size: 18px; font-weight: 800; color: var(--accent-green); margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
 
                     <!-- Card Card -->
-                    <div style="background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(59, 130, 246, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💳</div>
+                    <div style="background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(59, 130, 246, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💳</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Card Payment</div>
-                            <div id="summary-card-total" style="font-size: 20px; font-weight: 800; color: #60a5fa; margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Card Payment</div>
+                            <div id="summary-card-total" style="font-size: 18px; font-weight: 800; color: var(--accent-blue); margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
 
                     <!-- QR Card -->
-                    <div style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.1); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(245, 158, 11, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">📱</div>
+                    <div style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.1); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(245, 158, 11, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">📱</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">QR Pay</div>
-                            <div id="summary-qr-total" style="font-size: 20px; font-weight: 800; color: var(--accent-orange); margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">QR Pay</div>
+                            <div id="summary-qr-total" style="font-size: 18px; font-weight: 800; color: var(--accent-orange); margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
 
                     <!-- Total Card -->
-                    <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(168, 85, 247, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💰</div>
+                    <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(168, 85, 247, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💰</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Collected</div>
-                            <div id="summary-grand-total" style="font-size: 24px; font-weight: 800; color: #c084fc; margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Collected</div>
+                            <div id="summary-grand-total" style="font-size: 18px; font-weight: 800; color: #c084fc; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
                     
                     <!-- Total Refunded Card -->
-                    <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(239, 68, 68, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">❌</div>
+                    <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(239, 68, 68, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">❌</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Refunded</div>
-                            <div id="summary-refund-total" style="font-size: 24px; font-weight: 800; color: #ef4444; margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Refunded</div>
+                            <div id="summary-refund-total" style="font-size: 18px; font-weight: 800; color: #ef4444; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
 
                     <!-- Actual Collected Card -->
-                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
-                        <div style="font-size: 32px; background: rgba(16, 185, 129, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">✅</div>
+                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(16, 185, 129, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">✅</div>
                         <div>
-                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Actual Collected</div>
-                            <div id="summary-actual-total" style="font-size: 24px; font-weight: 800; color: #10b981; margin-top: 4px;">0.000 BHD</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Actual Collected</div>
+                            <div id="summary-actual-total" style="font-size: 18px; font-weight: 800; color: #10b981; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
                 </div>
