@@ -55,7 +55,7 @@ class Kot extends Model {
                                   FROM kots k 
                                   JOIN orders o ON k.order_id = o.id 
                                   LEFT JOIN users u ON k.waiter_id = u.id 
-                                  WHERE k.status != 'dispatched'
+                                  WHERE k.status NOT IN ('dispatched', 'cancelled')
                                   AND (
                                       (o.order_type = 'dine_in' AND o.status = 'active') 
                                       OR 
@@ -64,16 +64,21 @@ class Kot extends Model {
                                   ORDER BY k.created_at ASC");
         $kots = $stmt->fetchAll();
 
+        $activeKots = [];
         foreach ($kots as &$kot) {
             $stmtItems = $this->db->prepare("SELECT ki.*, p.name as product_name 
                                              FROM kot_items ki 
                                              JOIN products p ON ki.product_id = p.id 
-                                             WHERE ki.kot_id = ?");
+                                             WHERE ki.kot_id = ? AND ki.status != 'cancelled'");
             $stmtItems->execute([$kot['id']]);
             $kot['items'] = $stmtItems->fetchAll();
+            
+            if (count($kot['items']) > 0) {
+                $activeKots[] = $kot;
+            }
         }
 
-        return $kots;
+        return $activeKots;
     }
 
     public function markItemReady($kotItemId) {
