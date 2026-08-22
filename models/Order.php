@@ -247,10 +247,11 @@ class Order extends Model {
         // They will appear in the Live Takeaway queue as soon as they are paid and sent to KOT.
         $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status,
                        (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing')) as pending_items_count
-                FROM orders o
-                JOIN bills b ON b.order_id = o.id
-                WHERE o.order_type = 'take_away' AND o.status = 'closed' AND b.status = 'paid'
-                ORDER BY o.id ASC";
+                  FROM orders o
+                  JOIN bills b ON b.order_id = o.id
+                  WHERE o.order_type = 'take_away' AND o.status = 'closed' AND b.status = 'paid'
+                  AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0
+                  ORDER BY o.id ASC";
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
     }
