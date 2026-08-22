@@ -1649,6 +1649,46 @@
             });
         }
 
+        function customerCancelOrder(orderId) {
+            Swal.fire({
+                title: 'Cancel Order?',
+                text: 'Are you sure you want to cancel your order?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Cancel Order',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('../api/orders/cancel/' + orderId, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                closeStatusModal();
+                                Swal.fire({
+                                    title: 'Order Cancelled',
+                                    text: 'Your order has been cancelled successfully.',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false,
+                                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                                });
+                                checkActiveOrderStatus(); // Refresh UI to show cancelled status
+                            } else {
+                                Swal.fire('Error', 'Failed to cancel the order. Please contact staff.', 'error');
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            Swal.fire('Error', 'An error occurred while canceling.', 'error');
+                        });
+                }
+            });
+        }
+
         function confirmItemReceived(orderId) {
             fetch('../api/orders/received/' + orderId, { method: 'POST' })
                 .then(res => res.json())
