@@ -2898,26 +2898,22 @@
         function downloadQrDirectly(url, filename) {
             Swal.fire({
                 title: 'Select QR Resolution',
-                input: 'select',
-                inputOptions: {
-                    '300x300': '300 x 300 (Small)',
-                    '500x500': '500 x 500 (Medium)',
-                    '1000x1000': '1000 x 1000 (Large)'
-                },
-                inputPlaceholder: 'Select size',
+                html: `
+                    <div style="padding: 0 10px;">
+                        <select id="qr-size-select" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--card-border, #d1d5db); background: var(--input-bg, rgba(0,0,0,0.03)); color: inherit; outline: none; margin: 15px auto 5px; display: block; box-sizing: border-box; font-family: inherit; font-size: 15px; cursor: pointer;">
+                            <option value="300x300" style="color: #000;">300 x 300 (Small)</option>
+                            <option value="500x500" selected style="color: #000;">500 x 500 (Medium)</option>
+                            <option value="1000x1000" style="color: #000;">1000 x 1000 (Large)</option>
+                        </select>
+                    </div>
+                `,
                 showCancelButton: true,
                 confirmButtonText: 'Download',
                 confirmButtonColor: '#10b981',
                 background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
-                inputValidator: (value) => {
-                    return new Promise((resolve) => {
-                        if (value) {
-                            resolve();
-                        } else {
-                            resolve('You need to select a resolution');
-                        }
-                    });
+                preConfirm: () => {
+                    return document.getElementById('qr-size-select').value;
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
