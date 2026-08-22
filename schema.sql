@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `dining_tables` (
 CREATE TABLE IF NOT EXISTS `orders` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `table_number` INT DEFAULT NULL,
-    `status` ENUM('active', 'closed', 'completed') DEFAULT 'active',
+    `status` ENUM('active', 'closed', 'completed', 'cancelled') DEFAULT 'active',
     `order_type` ENUM('dine_in', 'take_away') DEFAULT 'dine_in',
     `customer_name` VARCHAR(100) DEFAULT NULL,
     `customer_mobile` VARCHAR(20) DEFAULT NULL,
