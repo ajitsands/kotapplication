@@ -210,6 +210,11 @@ class CounterController extends Controller {
         if ($userRole === 'admin') {
             $summary   = $billModel->getCollectionSummary($startDate, $endDate, null);
             $breakdown = $billModel->getCashiersBreakdown($startDate, $endDate);
+            $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
+            
+            $summary['refund_total'] = $refundTotal;
+            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
+            
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
         } else {
             // For cashier, default to current active session if date range is exactly today
@@ -248,6 +253,11 @@ class CounterController extends Controller {
             } else {
                 $summary = $billModel->getCollectionSummary($startDate, $endDate, $userId);
             }
+            
+            $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
+            $summary['refund_total'] = $refundTotal;
+            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
+            
             $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);
         }
     }
@@ -474,9 +484,24 @@ class CounterController extends Controller {
     }
 
     public function completedRefunds() {
+        $startDate = $_GET['start_date'] ?? date('Y-m-d');
+        $endDate = $_GET['end_date'] ?? date('Y-m-d');
         $billModel = new Bill();
-        $refunds = $billModel->getRefundedItems();
-        $this->json(['refunds' => $refunds]);
+        $refunds = $billModel->getRefundedItems($startDate, $endDate);
+        
+        // Calculate total amount for the datatable summary
+        $totalAmount = 0;
+        foreach ($refunds as $order) {
+            $totalAmount += (float)$order['total_refund_amount'];
+        }
+        
+        $this->json([
+            'refunds' => $refunds,
+            'summary' => [
+                'total_refund_amount' => $totalAmount,
+                'total_count' => count($refunds)
+            ]
+        ]);
     }
 
     public function processRefund($params) {

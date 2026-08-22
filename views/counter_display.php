@@ -888,6 +888,24 @@
                             <div id="summary-grand-total" style="font-size: 24px; font-weight: 800; color: #c084fc; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
+                    
+                    <!-- Total Refunded Card -->
+                    <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 32px; background: rgba(239, 68, 68, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">❌</div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Refunded</div>
+                            <div id="summary-refund-total" style="font-size: 24px; font-weight: 800; color: #ef4444; margin-top: 4px;">0.000 BHD</div>
+                        </div>
+                    </div>
+
+                    <!-- Actual Collected Card -->
+                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 32px; background: rgba(16, 185, 129, 0.1); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">✅</div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Actual Collected</div>
+                            <div id="summary-actual-total" style="font-size: 24px; font-weight: 800; color: #10b981; margin-top: 4px;">0.000 BHD</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Admin Cashier Breakdown Section -->
@@ -1061,6 +1079,17 @@
             </div>
 
             <div id="takeaway-refunded-list-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="date" id="refunded-start-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
+                        <input type="date" id="refunded-end-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <button onclick="fetchRefundedItemsList()" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none;">Search</button>
+                    </div>
+                    <div id="refunded-summary-container" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); padding: 10px 15px; border-radius: 8px; display: flex; gap: 15px; font-size: 13px;">
+                        <!-- Populated dynamically via AJAX -->
+                    </div>
+                </div>
                 <div style="overflow-x: auto;">
                     <table id="takeaway-refunded-list-table" class="display" style="width: 100%; border-collapse: collapse;">
                         <thead>
@@ -1900,6 +1929,8 @@
                     document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total).toFixed(3) + ' ' + cur;
                     document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total).toFixed(3) + ' ' + cur;
                     document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total).toFixed(3) + ' ' + cur;
+                    document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(3) + ' ' + cur;
+                    document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(3) + ' ' + cur;
                     
                     const badge = document.getElementById('summary-user-badge');
                     const breakdownContainer = document.getElementById('admin-breakdown-container');
@@ -2851,9 +2882,19 @@
         let currentRefundedList = {};
         
         function fetchRefundedItemsList() {
-            fetch(rootPath + '/counter/refunds/completed')
+            const startDate = document.getElementById('refunded-start-date') ? document.getElementById('refunded-start-date').value : '';
+            const endDate = document.getElementById('refunded-end-date') ? document.getElementById('refunded-end-date').value : '';
+            const queryParams = startDate && endDate ? `?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}` : '';
+            
+            fetch(rootPath + '/counter/refunds/completed' + queryParams)
                 .then(res => res.json())
                 .then(data => {
+                    if (data.summary) {
+                        const summary = data.summary;
+                        document.getElementById('refunded-summary-container').innerHTML = `
+                            <div><strong style="color:var(--text-muted);">Total Refunds:</strong> <span style="font-weight:700; color:#ef4444; font-size:15px;">${parseFloat(summary.total_refund_amount).toFixed(3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
+                        `;
+                    }
                     if (data.refunds) {
                         const tbody = document.getElementById('takeaway-refunded-list-body');
                         
