@@ -1386,11 +1386,26 @@
             const statusText = document.getElementById('status-text-label');
 
             if (activeItemsCount === 0) {
-                statusBar.style.display = 'flex';
-                statusBar.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-                pulseDot.style.background = '#fca5a5';
-                pulseDot.style.boxShadow = '0 0 0 0 rgba(252, 165, 165, 0.7)';
-                statusText.innerText = 'Order Cancelled';
+                let hasPendingRefunds = false;
+                if (activeOrder.kots) {
+                    activeOrder.kots.forEach(kot => {
+                        kot.items.forEach(item => {
+                            if (item.status === 'cancelled' && item.refund_status === 'pending') {
+                                hasPendingRefunds = true;
+                            }
+                        });
+                    });
+                }
+
+                if (hasPendingRefunds) {
+                    statusBar.style.display = 'flex';
+                    statusBar.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                    pulseDot.style.background = '#fca5a5';
+                    pulseDot.style.boxShadow = '0 0 0 0 rgba(252, 165, 165, 0.7)';
+                    statusText.innerText = 'Order Cancelled (Pending Refund)';
+                } else {
+                    statusBar.style.display = 'none';
+                }
                 return;
             }
 
