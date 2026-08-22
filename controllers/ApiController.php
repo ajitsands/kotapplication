@@ -276,6 +276,22 @@ class ApiController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
+        
+        // Fetch order to verify it can be cancelled
+        $stmt = $db->prepare("SELECT status, order_type FROM orders WHERE id = ?");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        
+        if (!$order) {
+            $this->json(['success' => false, 'error' => 'Order not found']);
+            return;
+        }
+        
+        if ($order['status'] !== 'active') {
+            $this->json(['success' => false, 'error' => 'Order cannot be cancelled at this stage because it is already processed. Please contact staff.']);
+            return;
+        }
+
         $db->beginTransaction();
         try {
             // Soft delete order
@@ -286,7 +302,28 @@ class ApiController extends Controller {
             $this->json(['success' => true]);
         } catch (Exception $e) {
             $db->rollBack();
-            $this->json(['success' => false, 'error' => $e->getMessage()]);
+            $errMsg = $e->getMessage();
+            
+            // Auto-heal schema if 'cancelled' is not in ENUM yet (e.g. on production server)
+            if (strpos($errMsg, 'Data truncated for column \'status\'') !== false || strpos($errMsg, '1265') !== false) {
+                try {
+                    $db->exec("ALTER TABLE orders MODIFY status ENUM('active','closed','completed','cancelled') DEFAULT 'active'");
+                    
+                    // Retry update
+                    $db->beginTransaction();
+                    $stmt = $db->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?");
+                    $stmt->execute([$orderId]);
+                    $db->commit();
+                    
+                    $this->json(['success' => true]);
+                    return;
+                } catch (Exception $e2) {
+                    $this->json(['success' => false, 'error' => 'Schema auto-update failed: ' . $e2->getMessage()]);
+                    return;
+                }
+            }
+            
+            $this->json(['success' => false, 'error' => $errMsg]);
         }
     }
 }
