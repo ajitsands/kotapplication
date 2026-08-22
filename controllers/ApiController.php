@@ -278,7 +278,7 @@ class ApiController extends Controller {
         $db = Database::getInstance()->getConnection();
         
         // Fetch order to verify it can be cancelled
-        $stmt = $db->prepare("SELECT status, order_type FROM orders WHERE id = ?");
+        $stmt = $db->prepare("SELECT o.status, o.order_type, b.status as bill_status FROM orders o LEFT JOIN bills b ON o.id = b.order_id WHERE o.id = ?");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
         
@@ -287,7 +287,14 @@ class ApiController extends Controller {
             return;
         }
         
-        if ($order['status'] !== 'active') {
+        $canCancel = false;
+        if ($order['status'] === 'active') {
+            $canCancel = true;
+        } else if ($order['order_type'] === 'take_away' && $order['bill_status'] === 'pending') {
+            $canCancel = true;
+        }
+
+        if (!$canCancel) {
             $this->json(['success' => false, 'error' => 'Order cannot be cancelled at this stage because it is already processed. Please contact staff.']);
             return;
         }
@@ -297,6 +304,10 @@ class ApiController extends Controller {
             // Soft delete order
             $stmt = $db->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?");
             $stmt->execute([$orderId]);
+
+            // Also delete any pending bill so it doesn't show up in Cashier's pending bills
+            $stmtBill = $db->prepare("DELETE FROM bills WHERE order_id = ? AND status = 'pending'");
+            $stmtBill->execute([$orderId]);
 
             $db->commit();
             $this->json(['success' => true]);
