@@ -1536,7 +1536,7 @@
                 }
                 if (canCancel) {
                     buttonsHtml += `
-                        <button onclick="customerCancelOrder(${activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
+                        <button onclick="customerCancelOrder(${activeOrder.order_id || activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
                             Cancel Order
                         </button>
                     `;
@@ -1549,7 +1549,7 @@
             } else {
                 if (canCancel) {
                     buttonsHtml += `
-                        <button onclick="customerCancelOrder(${activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
+                        <button onclick="customerCancelOrder(${activeOrder.order_id || activeOrder.order.id})" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding:12px; font-size:14px; border-radius:12px;">
                             Cancel Order
                         </button>
                     `;
@@ -1678,12 +1678,12 @@
                                 });
                                 checkActiveOrderStatus(); // Refresh UI to show cancelled status
                             } else {
-                                Swal.fire('Error', 'Failed to cancel the order. Please contact staff.', 'error');
+                                Swal.fire('Error', data.error || 'Failed to cancel the order. Please contact staff.', 'error');
                             }
                         })
                         .catch(err => {
                             console.error(err);
-                            Swal.fire('Error', 'An error occurred while canceling.', 'error');
+                            Swal.fire('Error', 'An error occurred while canceling. orderId was: ' + orderId, 'error');
                         });
                 }
             });
