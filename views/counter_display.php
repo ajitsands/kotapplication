@@ -745,7 +745,7 @@
             <a href="counter" class="nav-link active">Billing Counter</a>
             <a href="javascript:void(0)" onclick="showEngagedTablesModal()" class="nav-link">🍽️ Table Status</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
-            <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link">🛍️ Take Away QR</a>
+            <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link" style="color: #f59e0b;">🛍️ Take Away QR</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -940,7 +940,7 @@
                     ✅ Completed Takeaways
                 </button>
                 <button id="tab-btn-refunds" onclick="switchTakeawayTab('refunds')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
-                    ❌ KOT Cancel
+                    ❌ KOT Cancel List
                     <span id="refund-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
                 </button>
             </div>
@@ -2005,7 +2005,7 @@
                         if (tbody) tbody.innerHTML = html;
                     } else {
                         badge.style.display = 'none';
-                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No pending refunds.</td></tr>';
+                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
                     }
                 })
                 .catch(err => console.error('Error fetching refunds:', err));

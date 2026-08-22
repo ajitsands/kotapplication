@@ -1277,6 +1277,7 @@
         // --- ORDER preparación/serving polling system ---
         let autoOpenedOrders = JSON.parse(sessionStorage.getItem('auto_opened_orders') || '{}');
         let acknowledgedRefunds = JSON.parse(sessionStorage.getItem('acknowledged_refunds') || '[]');
+        let acknowledgedCancellations = JSON.parse(sessionStorage.getItem('acknowledged_cancellations') || '[]');
 
         function startOrderPolling() {
             if (pollInterval) clearInterval(pollInterval);
@@ -1311,6 +1312,16 @@
                                             });
                                             acknowledgedRefunds.push(item.id);
                                             sessionStorage.setItem('acknowledged_refunds', JSON.stringify(acknowledgedRefunds));
+                                        } else if (item.status === 'cancelled' && !acknowledgedCancellations.includes(item.id)) {
+                                            Swal.fire({
+                                                title: 'Item Cancelled ❌',
+                                                text: `Your item (${item.product_name}) has been cancelled. Please expect a refund from the counter.`,
+                                                icon: 'warning',
+                                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                                            });
+                                            acknowledgedCancellations.push(item.id);
+                                            sessionStorage.setItem('acknowledged_cancellations', JSON.stringify(acknowledgedCancellations));
                                         }
                                     });
                                 }

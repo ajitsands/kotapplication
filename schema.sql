@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS `kots` (
     `order_id` INT NOT NULL,
     `waiter_id` INT DEFAULT NULL, -- Waiter who created this specific KOT
     `kot_number` VARCHAR(50) NOT NULL UNIQUE, -- e.g. KOT-20260630-001
-    `status` ENUM('pending', 'preparing', 'ready', 'dispatched') DEFAULT 'pending',
+    `status` ENUM('pending', 'preparing', 'ready', 'dispatched', 'cancelled') DEFAULT 'pending',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`waiter_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
@@ -91,7 +91,8 @@ CREATE TABLE IF NOT EXISTS `kot_items` (
     `kot_id` INT NOT NULL,
     `product_id` INT NOT NULL,
     `quantity` INT NOT NULL,
-    `status` ENUM('pending', 'preparing', 'ready', 'dispatched') DEFAULT 'pending',
+    `status` ENUM('pending', 'preparing', 'ready', 'dispatched', 'cancelled') DEFAULT 'pending',
+    `refund_status` ENUM('pending', 'refunded') DEFAULT 'pending',
     `notes` VARCHAR(255) DEFAULT NULL,
     FOREIGN KEY (`kot_id`) REFERENCES `kots`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
