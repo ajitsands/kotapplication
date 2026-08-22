@@ -1442,12 +1442,24 @@
             const isFullyServed = (totalItemsCount === servedItemsCount && totalItemsCount > 0);
 
             let titleText = isFullyServed ? 'Order Served & Bill Details' : 'Active KOT Order Status';
-            if (activeOrder.token_number) {
-                titleText += ` (Token: ${activeOrder.token_number})`;
-            }
             modalTitle.innerText = titleText;
 
-            let itemsHtml = `
+            let itemsHtml = '';
+            
+            if (activeOrder.token_number) {
+                itemsHtml += `
+                <div style="background: linear-gradient(135deg, var(--primary-grad)); border-radius: 12px; padding: 15px; margin-bottom: 20px; color: white; text-align: center; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2); position: relative; overflow: hidden; border: 2px dashed rgba(255,255,255,0.4);">
+                    <div style="position: absolute; top: 50%; left: -10px; width: 20px; height: 20px; background: var(--bg-color); border-radius: 50%; transform: translateY(-50%);"></div>
+                    <div style="position: absolute; top: 50%; right: -10px; width: 20px; height: 20px; background: var(--bg-color); border-radius: 50%; transform: translateY(-50%);"></div>
+                    
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9; margin-bottom: 5px; font-weight: 700;">Takeaway Token Number</div>
+                    <div style="font-size: 38px; font-weight: 900; letter-spacing: 2px; margin: 5px 0;">#${activeOrder.token_number}</div>
+                    <div style="font-size: 11px; opacity: 0.8; font-weight: 500;">Present this ticket at the counter</div>
+                </div>
+                `;
+            }
+
+            itemsHtml += `
                 <div style="font-size: 13px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px;">
                     Order Item-wise Status
                 </div>
