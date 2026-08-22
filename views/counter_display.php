@@ -2906,12 +2906,11 @@
             const order = currentRefundedList[orderId];
             if (!order) return;
             
+            document.getElementById('refund-token-display').innerText = order.token_number;
+            document.getElementById('refund-total-display').innerText = order.total_refund_amount + ' ' + currencyCode;
+            
             let html = `
                 <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid var(--card-border);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span style="color: var(--text-muted);">Token No:</span>
-                        <span style="font-weight: bold; color: var(--primary-light);">${order.token_number}</span>
-                    </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span style="color: var(--text-muted);">Customer:</span>
                         <span style="font-weight: bold;">${order.customer_name || 'Walk-in'}</span>
@@ -2919,10 +2918,6 @@
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span style="color: var(--text-muted);">Mobile:</span>
                         <span style="font-weight: bold;">${order.customer_mobile || '-'}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-border);">
-                        <span style="font-weight: bold;">Total Refunded:</span>
-                        <span style="font-weight: 900; color: #10b981; font-size: 18px;">${order.total_refund_amount} BHD</span>
                     </div>
                 </div>
                 
@@ -2959,13 +2954,13 @@
             `;
             
             // Re-using the same modal but hiding the process buttons since it's already refunded
-            document.getElementById('refund-details-content').innerHTML = html;
+            document.getElementById('refund-items-container').innerHTML = html;
             
             // Hide the Process Order Refund button
-            const btn = document.querySelector('#refund-modal button.btn-pay-confirm');
+            const btn = document.getElementById('process-order-refund-btn');
             if (btn) btn.style.display = 'none';
             
-            document.getElementById('refund-modal').style.display = 'flex';
+            document.getElementById('order-refund-modal').style.display = 'flex';
         }
     </script>
 </body>
