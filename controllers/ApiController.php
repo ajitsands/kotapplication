@@ -179,7 +179,7 @@ class ApiController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed', 'cancelled') ORDER BY id DESC LIMIT 1");
+        $stmt = $db->prepare("SELECT id FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed') ORDER BY id DESC LIMIT 1");
         $stmt->execute([$mobile]);
         $orderId = $stmt->fetchColumn();
 
