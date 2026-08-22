@@ -1817,6 +1817,10 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     Customer Self-Order
                 </button>
+                <button class="tab-trigger" onclick="switchTab(event, 'tab-takeaway')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    Take Away
+                </button>
             </div>
 
             <!-- Tab content views -->
@@ -2158,7 +2162,61 @@
                                     <button class="mock-cust-add-btn">+ Add</button>
                                 </div>
                             </div>
-                            <button class="mock-waiter-cart-btn" style="padding: 6px; font-size:10px; margin-top:12px;">Place Order</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Take Away -->
+            <div id="tab-takeaway" class="tab-content">
+                <div class="tour-display">
+                    <div class="tour-info">
+                        <h3>Take Away Self-Order Terminal</h3>
+                        <p>A fast, intuitive menu optimized for takeaway customers waiting at the front desk. Users can browse the full menu and place orders in seconds.</p>
+                        <ul class="tour-features">
+                            <li>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                Prompts for customer name and phone before building the order.
+                            </li>
+                            <li>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                High-speed category switching and one-tap 'add to order' actions.
+                            </li>
+                            <li>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                Generates a specialized Takeaway token to track pickup readiness.
+                            </li>
+                        </ul>
+                        <a href="/takeaway" class="btn btn-primary">Open Take Away Menu</a>
+                    </div>
+                    <div class="tour-visual" style="justify-content: center; align-items: center; padding: 24px 0;">
+                        <div class="mock-customer-layout">
+                            <div class="mock-cust-header" style="background: var(--primary-grad);">
+                                <div class="mock-cust-title"><?= htmlspecialchars($settings['restaurant_name']) ?></div>
+                                <div class="mock-cust-sub">Take Away Menu</div>
+                            </div>
+                            <div class="mock-cust-categories">
+                                <div class="mock-cust-cat">Starters</div>
+                                <div class="mock-cust-cat active">Main Course</div>
+                                <div class="mock-cust-cat">Dessert</div>
+                            </div>
+                            <div class="mock-cust-list">
+                                <div class="mock-cust-dish">
+                                    <div class="mock-cust-dish-info">
+                                        <div class="mock-cust-dish-name">Chicken Biryani</div>
+                                        <div class="mock-cust-dish-price"><?= htmlspecialchars($settings['currency_code']) ?> 3.500</div>
+                                    </div>
+                                    <button class="mock-cust-add-btn" style="background: var(--success); color: white;">+ Add</button>
+                                </div>
+                                <div class="mock-cust-dish">
+                                    <div class="mock-cust-dish-info">
+                                        <div class="mock-cust-dish-name">Mutton Kebab</div>
+                                        <div class="mock-cust-dish-price interstitial"><?= htmlspecialchars($settings['currency_code']) ?> 4.000</div>
+                                    </div>
+                                    <button class="mock-cust-add-btn">+ Add</button>
+                                </div>
+                            </div>
+                            <button class="mock-waiter-cart-btn" style="padding: 10px; font-size:12px; margin-top:12px; background: #f43f5e; border-radius: 8px;">View Order (1 Item)</button>
                         </div>
                     </div>
                 </div>
@@ -2300,6 +2358,27 @@
                         <a href="/login" class="demo-btn-link">Open Cashier Portal</a>
                     </div>
                 </div>
+
+                <!-- Take Away Card -->
+                <div class="demo-card takeaway" style="border-top-color: #f43f5e;">
+                    <div>
+                        <div class="demo-role-badge" style="background: rgba(244, 63, 94, 0.1); color: #f43f5e; border-color: rgba(244, 63, 94, 0.2);">Take Away</div>
+                        <h3>Take Away Desk</h3>
+                        <p>Process quick takeaway orders, accept customer names, and track pick-up queues.</p>
+                    </div>
+                    <div>
+                        <div class="demo-credentials" style="margin-bottom: 12px; visibility: hidden;">
+                            <!-- Placeholder to keep the card height consistent -->
+                            <div class="demo-cred-row">
+                                <span class="demo-cred-label">-</span>
+                            </div>
+                            <div class="demo-cred-row">
+                                <span class="demo-cred-label">-</span>
+                            </div>
+                        </div>
+                        <a href="/takeaway" class="demo-btn-link" style="background: #f43f5e; color: white;">Open Take Away Menu</a>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -2322,6 +2401,7 @@
                         <li><a href="#tour">Waiter App</a></li>
                         <li><a href="#tour">Kitchen Board</a></li>
                         <li><a href="#tour">Cashier Desk</a></li>
+                        <li><a href="#tour">Take Away Menu</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
