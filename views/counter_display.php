@@ -1333,7 +1333,11 @@
                     
                     let infoCol = `#${bill.id}`;
                     if (bill.order_type === 'take_away') {
-                        infoCol += `<br><span style="font-size:11px; color:var(--accent-orange);">Token: ${bill.token_number}</span><br><span style="font-size:11px;">${bill.customer_name || ''}</span>`;
+                        let customerInfo = bill.customer_name || '';
+                        if (bill.customer_mobile) {
+                            customerInfo += customerInfo ? ` - ${bill.customer_mobile}` : bill.customer_mobile;
+                        }
+                        infoCol += `<br><span style="font-size:14px; font-weight:800; color:var(--accent-orange);">Token: ${bill.token_number}</span><br><span style="font-size:11px;">${customerInfo}</span>`;
                     }
 
                     html += `
