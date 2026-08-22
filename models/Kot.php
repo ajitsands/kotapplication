@@ -181,8 +181,7 @@ class Kot extends Model {
 
             if (!$item || $item['status'] !== 'pending') {
                 $this->db->rollBack();
-                file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKotItem failed: Item not found or not pending (ID: $kotItemId). item=" . json_encode($item) . "\n", FILE_APPEND);
-                return false;
+                return "Item not found or not pending";
             }
 
             $kotId = $item['kot_id'];
@@ -235,13 +234,10 @@ class Kot extends Model {
             }
 
             $this->db->commit();
-            file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKotItem SUCCESS for ID: $kotItemId\n", FILE_APPEND);
             return true;
         } catch (Exception $e) {
             $this->db->rollBack();
-            error_log("deleteKotItem error: " . $e->getMessage());
-            file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKotItem Exception: " . $e->getMessage() . "\n", FILE_APPEND);
-            return false;
+            return "Exception: " . $e->getMessage();
         }
     }
 
@@ -255,8 +251,7 @@ class Kot extends Model {
 
             if (!$status || $status !== 'pending') {
                 $this->db->rollBack();
-                file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKot failed: KOT not found or not pending (ID: $kotId). status=" . json_encode($status) . "\n", FILE_APPEND);
-                return false;
+                return "KOT not found or not pending";
             }
             
             $stmtOrderType = $this->db->prepare("SELECT o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
@@ -276,13 +271,10 @@ class Kot extends Model {
             }
 
             $this->db->commit();
-            file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKot SUCCESS for ID: $kotId\n", FILE_APPEND);
             return true;
         } catch (Exception $e) {
             $this->db->rollBack();
-            error_log("deleteKot error: " . $e->getMessage());
-            file_put_contents('E:\kotapplication\debug_log.txt', date('Y-m-d H:i:s') . " - deleteKot Exception: " . $e->getMessage() . "\n", FILE_APPEND);
-            return false;
+            return "Exception: " . $e->getMessage();
         }
     }
 

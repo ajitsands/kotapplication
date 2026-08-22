@@ -1063,7 +1063,7 @@
                             } else {
                                 Swal.fire({
                                     title: 'Error',
-                                    text: 'Failed to remove item. It may not be in pending status.',
+                                    text: data.error ? 'Backend error: ' + data.error : 'Failed to remove item. It may not be in pending status.',
                                     icon: 'error',
                                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
@@ -1096,7 +1096,7 @@
                             } else {
                                 Swal.fire({
                                     title: 'Error',
-                                    text: 'Failed to delete kitchen ticket. It may not be in pending status.',
+                                    text: data.error ? 'Backend error: ' + data.error : 'Failed to delete kitchen ticket. It may not be in pending status.',
                                     icon: 'error',
                                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
