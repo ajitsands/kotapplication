@@ -1661,7 +1661,7 @@
             </div>
             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Scan this QR code with a mobile device to access customer self-ordering menu.</p>
             <div>
-                <a id="qr-download-link" href="#" download class="btn-primary" style="display:inline-block; text-decoration:none; margin-right:10px;">Download</a>
+                <button id="qr-download-link" type="button" class="btn-primary" style="display:inline-block; border: none; cursor: pointer; text-decoration:none; margin-right:10px;">Download</button>
                 <button onclick="closeQrCode()" class="modal-close" style="margin-top:0;">Close</button>
             </div>
         </div>
@@ -2117,8 +2117,9 @@
             document.getElementById('qr-container').innerHTML = '<img src="' + qrImageUrl + '" alt="QR Code" style="width:200px; height:200px;">';
             
             const dlLink = document.getElementById('qr-download-link');
-            dlLink.href = qrImageUrl;
-            dlLink.download = 'Table_' + tableNum + '_QR.png';
+            dlLink.onclick = function() {
+                downloadQrDirectly(orderUrl, 'Table_' + tableNum + '_QR.png');
+            };
 
             document.getElementById('qr-modal').style.display = 'flex';
         }
@@ -2145,9 +2146,9 @@
                             ${loginUrl}
                         </div>
                         <div style="margin-top: 15px;">
-                            <a href="${qrImageUrl}" target="_blank" download="WaiterLogin_QR.png" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);">
+                            <button type="button" onclick="downloadQrDirectly('${loginUrl}', 'WaiterLogin_QR.png')" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); border: none; cursor: pointer;">
                                 ⬇️ Download QR Code
-                            </a>
+                            </button>
                         </div>
                     </div>
                 `,
@@ -2880,9 +2881,9 @@
                             ${takeawayUrl}
                         </div>
                         <div style="margin-top: 15px;">
-                            <a href="${qrImageUrl}" target="_blank" download="TakeAway_QR.png" style="display: inline-block; background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+                            <button type="button" onclick="downloadQrDirectly('${takeawayUrl}', 'TakeAway_QR.png')" style="display: inline-block; background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); border: none; cursor: pointer;">
                                 ⬇️ Download QR Code
-                            </a>
+                            </button>
                         </div>
                     </div>
                 `,
@@ -2891,6 +2892,48 @@
                 confirmButtonColor: '#6366f1',
                 background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            });
+        }
+
+        function downloadQrDirectly(url, filename) {
+            Swal.fire({
+                title: 'Select QR Resolution',
+                input: 'select',
+                inputOptions: {
+                    '300x300': '300 x 300 (Small)',
+                    '500x500': '500 x 500 (Medium)',
+                    '1000x1000': '1000 x 1000 (Large)'
+                },
+                inputPlaceholder: 'Select size',
+                showCancelButton: true,
+                confirmButtonText: 'Download',
+                confirmButtonColor: '#10b981',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                inputValidator: (value) => {
+                    return new Promise((resolve) => {
+                        if (value) {
+                            resolve();
+                        } else {
+                            resolve('You need to select a resolution');
+                        }
+                    });
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const size = result.value;
+                    const downloadUrl = '/download_qr.php?data=' + encodeURIComponent(url) + '&size=' + size + '&filename=' + encodeURIComponent(filename);
+                    
+                    // Create an invisible iframe to trigger the download without changing the page
+                    let iframe = document.getElementById('download-iframe');
+                    if (!iframe) {
+                        iframe = document.createElement('iframe');
+                        iframe.id = 'download-iframe';
+                        iframe.style.display = 'none';
+                        document.body.appendChild(iframe);
+                    }
+                    iframe.src = downloadUrl;
+                }
             });
         }
 
