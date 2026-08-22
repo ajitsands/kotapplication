@@ -1783,6 +1783,30 @@
                     <h3>Instant Notification Sync</h3>
                     <p>Low latency long-polling infrastructure alerts servers and waiters of ready orders without requiring manual page refreshes or external WebSockets.</p>
                 </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                    </div>
+                    <h3>Unlimited Table QR Codes</h3>
+                    <p>Generate and download high-resolution QR codes for an unlimited number of dining tables to enable seamless and frictionless customer self-ordering.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <h3>Unlimited Waiter Logins</h3>
+                    <p>Create dedicated waiter accounts and scan-to-login QR badges without any per-user pricing limitations, empowering your entire staff.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    </div>
+                    <h3>Take Away Token System</h3>
+                    <p>Process quick takeaway orders with an automated token number generation system to efficiently track, manage, and dispatch pick-ups.</p>
+                </div>
             </div>
         </div>
     </section>
