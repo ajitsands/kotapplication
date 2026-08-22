@@ -1213,8 +1213,8 @@
             </div>
         </div>
     </div>
-    <div id="order-refund-modal" class="modal-overlay" onclick="if(event.target===this) closeRefundModal()">
-        <div class="modal-content" style="max-width: 600px;">
+    <div id="order-refund-modal" class="modal" onclick="if(event.target===this) closeRefundModal()">
+        <div class="modal-content" style="max-width: 600px; text-align: left;">
             <div class="modal-header">
                 <h2>Refund Details - Token <span id="refund-token-display"></span></h2>
                 <button class="close-modal" onclick="closeRefundModal()">×</button>
@@ -2053,11 +2053,11 @@
             
             document.getElementById('refund-items-container').innerHTML = html;
             document.getElementById('process-order-refund-btn').onclick = function() { processRefundOrder(orderId); };
-            document.getElementById('order-refund-modal').classList.add('active');
+            document.getElementById('order-refund-modal').style.display = 'flex';
         }
 
         function closeRefundModal() {
-            document.getElementById('order-refund-modal').classList.remove('active');
+            document.getElementById('order-refund-modal').style.display = 'none';
         }
 
         function processRefundUi(itemId) {
