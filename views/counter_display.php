@@ -1034,10 +1034,11 @@
 
             <div id="takeaway-refunds-section" class="panel-card" style="margin-bottom: 25px; display: none;">
                 <div style="overflow-x: auto;">
-                    <table id="takeaway-refunds-table" style="width: 100%; border-collapse: collapse;">
+                    <table id="takeaway-refunds-table" class="display" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
                                 <th style="text-align: left; padding: 12px 10px;">Customer Mobile</th>
                                 <th style="text-align: left; padding: 12px 10px;">Total Refund Amount</th>
                                 <th style="text-align: right; padding: 12px 10px;">Action</th>
@@ -2013,6 +2014,7 @@
                             html += `
                                 <tr style="border-bottom: 1px solid var(--card-border); cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'" onclick="openRefundModal(${r.order_id})">
                                     <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--text-color);">${escapeHtml(r.token_number || '-')}</td>
+                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_name || '-')}</td>
                                     <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_mobile || '-')}</td>
                                     <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${r.total_refund_amount} ${currencyCode}</td>
                                     <td style="padding: 12px 10px; text-align:right;">
@@ -2021,10 +2023,28 @@
                                 </tr>
                             `;
                         });
-                        if (tbody) tbody.innerHTML = html;
+                        if (tbody) {
+                            if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
+                                $('#takeaway-refunds-table').DataTable().destroy();
+                            }
+                            tbody.innerHTML = html;
+                            $('#takeaway-refunds-table').DataTable({
+                                "order": [[0, "desc"]],
+                                "pageLength": 20,
+                                "bDestroy": true,
+                                "language": {
+                                    "emptyTable": "No cancelled items pending refund."
+                                }
+                            });
+                        }
                     } else {
                         badge.style.display = 'none';
-                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
+                        if (tbody) {
+                            if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
+                                $('#takeaway-refunds-table').DataTable().destroy();
+                            }
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
+                        }
                     }
                 })
                 .catch(err => console.error('Error fetching refunds:', err));

@@ -365,7 +365,7 @@ class Bill extends Model {
         $sql = "SELECT ki.id as item_id, ki.quantity, ki.status as item_status, 
                        p.name as product_name, p.price as base_price,
                        k.kot_number, k.id as kot_id,
-                       o.token_number, o.id as order_id, o.customer_mobile
+                       o.token_number, o.id as order_id, o.customer_mobile, o.customer_name
                 FROM kot_items ki
                 JOIN products p ON ki.product_id = p.id
                 JOIN kots k ON ki.kot_id = k.id
@@ -401,6 +401,7 @@ class Bill extends Model {
                     'order_id' => $orderId,
                     'token_number' => $item['token_number'],
                     'customer_mobile' => $item['customer_mobile'],
+                    'customer_name' => $item['customer_name'],
                     'total_refund_amount' => 0,
                     'items' => []
                 ];
