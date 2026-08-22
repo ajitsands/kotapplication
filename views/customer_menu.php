@@ -1448,7 +1448,7 @@
             
             if (activeOrder.token_number) {
                 itemsHtml += `
-                <div style="background: linear-gradient(135deg, var(--primary-grad)); border-radius: 12px; padding: 15px; margin-bottom: 20px; color: white; text-align: center; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2); position: relative; overflow: hidden; border: 2px dashed rgba(255,255,255,0.4);">
+                <div style="background: var(--primary-grad); border-radius: 12px; padding: 15px; margin-bottom: 20px; color: white; text-align: center; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2); position: relative; overflow: hidden; border: 2px dashed rgba(255,255,255,0.4);">
                     <div style="position: absolute; top: 50%; left: -10px; width: 20px; height: 20px; background: var(--bg-color); border-radius: 50%; transform: translateY(-50%);"></div>
                     <div style="position: absolute; top: 50%; right: -10px; width: 20px; height: 20px; background: var(--bg-color); border-radius: 50%; transform: translateY(-50%);"></div>
                     
