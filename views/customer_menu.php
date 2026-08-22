@@ -1349,10 +1349,15 @@
             
             const billStatus = activeOrder.order.bill_status; // 'pending', 'paid'
             const isTakeawayPaymentPending = (isTakeaway && billStatus === 'pending');
+            const isCancelled = (activeOrder.order.status === 'cancelled');
 
             let tokenInfo = activeOrder.token_number ? `[Token: ${activeOrder.token_number}] ` : '';
 
-            if (isKotDeleted && !isTakeawayPaymentPending) {
+            if (isCancelled) {
+                statusBar.className = 'active-status-bar deleted-status';
+                pulseDot.className = 'pulse-dot-red';
+                statusText.innerText = tokenInfo + 'Order Cancelled. Please contact the counter for assistance.';
+            } else if (isKotDeleted && !isTakeawayPaymentPending) {
                 statusBar.className = 'active-status-bar deleted-status';
                 pulseDot.className = 'pulse-dot-red';
                 statusText.innerText = 'Requested Item Not AVL Please reorder another Items.';
@@ -1392,7 +1397,7 @@
                 statusBar.style.borderColor = 'var(--accent-orange)';
                 statusBar.style.color = 'var(--accent-orange)';
                 pulseDot.className = 'pulse-dot-orange';
-                statusText.innerText = tokenInfo + 'Payment Completed. Preparing your order in kitchen...';
+                statusText.innerText = tokenInfo + 'Preparation Status';
             }
         }
 
