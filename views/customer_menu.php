@@ -1409,6 +1409,7 @@
             const modalBody = document.getElementById('status-modal-body');
 
             const isKotDeleted = (!activeOrder.kots || activeOrder.kots.length === 0);
+            const isCancelled = (activeOrder.order && activeOrder.order.status === 'cancelled');
 
             if (isKotDeleted) {
                 modalTitle.innerText = 'Order Cancelled / Unavailable';
