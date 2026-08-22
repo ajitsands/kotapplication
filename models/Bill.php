@@ -419,6 +419,64 @@ class Bill extends Model {
         return $result;
     }
 
+    public function getRefundedItems() {
+        $sql = "SELECT ki.id as item_id, ki.quantity, ki.status as item_status, 
+                       p.name as product_name, p.price as base_price,
+                       k.kot_number, k.id as kot_id,
+                       o.token_number, o.id as order_id, o.customer_mobile, o.customer_name
+                FROM kot_items ki
+                JOIN products p ON ki.product_id = p.id
+                JOIN kots k ON ki.kot_id = k.id
+                JOIN orders o ON k.order_id = o.id
+                WHERE ki.refund_status = 'refunded' AND ki.status = 'cancelled' AND o.order_type = 'take_away'
+                ORDER BY ki.id DESC LIMIT 100";
+        $stmt = $this->db->query($sql);
+        $items = $stmt->fetchAll();
+
+        $stmtSettings = $this->db->query("SELECT tax_type, vat_percent, cgst_percent, sgst_percent FROM settings LIMIT 1");
+        $settings = $stmtSettings->fetch();
+        
+        $taxType = $settings['tax_type'] ?? 'none';
+        $vatPercent = (float)($settings['vat_percent'] ?? 0);
+        $cgstPercent = (float)($settings['cgst_percent'] ?? 0);
+        $sgstPercent = (float)($settings['sgst_percent'] ?? 0);
+        
+        $taxMultiplier = 1.0;
+        if ($taxType === 'vat') {
+            $taxMultiplier = 1.0 + ($vatPercent / 100.0);
+        } else if ($taxType === 'gst') {
+            $taxMultiplier = 1.0 + (($cgstPercent + $sgstPercent) / 100.0);
+        }
+
+        $grouped = [];
+        foreach ($items as $item) {
+            $itemTotal = (float)$item['base_price'] * (int)$item['quantity'];
+            $item['refund_amount'] = number_format($itemTotal * $taxMultiplier, 3, '.', '');
+            
+            $orderId = $item['order_id'];
+            if (!isset($grouped[$orderId])) {
+                $grouped[$orderId] = [
+                    'order_id' => $orderId,
+                    'token_number' => $item['token_number'],
+                    'customer_mobile' => $item['customer_mobile'],
+                    'customer_name' => $item['customer_name'],
+                    'total_refund_amount' => 0,
+                    'items' => []
+                ];
+            }
+            $grouped[$orderId]['total_refund_amount'] += (float)$item['refund_amount'];
+            $grouped[$orderId]['items'][] = $item;
+        }
+
+        $result = [];
+        foreach ($grouped as $order) {
+            $order['total_refund_amount'] = number_format($order['total_refund_amount'], 3, '.', '');
+            $result[] = $order;
+        }
+
+        return $result;
+    }
+
     public function processRefund($itemId) {
         $stmt = $this->db->prepare("UPDATE kot_items SET refund_status = 'refunded' WHERE id = ?");
         return $stmt->execute([$itemId]);

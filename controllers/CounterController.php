@@ -473,6 +473,12 @@ class CounterController extends Controller {
         $this->json(['refunds' => $refunds]);
     }
 
+    public function completedRefunds() {
+        $billModel = new Bill();
+        $refunds = $billModel->getRefundedItems();
+        $this->json(['refunds' => $refunds]);
+    }
+
     public function processRefund($params) {
         $itemId = (int)($params['id'] ?? 0);
         $billModel = new Bill();

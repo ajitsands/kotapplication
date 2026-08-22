@@ -84,6 +84,7 @@ $router->add('GET', '/counter/delivery-queue', 'CounterController@getDeliveryQue
 $router->add('GET', '/counter/completed-takeaways', 'CounterController@getCompletedTakeaways');
 $router->add('POST', '/counter/delivery-queue/deliver/:id', 'CounterController@markDelivered');
 $router->add('GET', '/counter/refunds/pending', 'CounterController@pendingRefunds');
+$router->add('GET', '/counter/refunds/completed', 'CounterController@completedRefunds');
 $router->add('POST', '/counter/refunds/pay/:id', 'CounterController@processRefund');
 $router->add('POST', '/counter/refunds/pay-order/:id', 'CounterController@processOrderRefund');
 // Waiter App & Customer API Routes

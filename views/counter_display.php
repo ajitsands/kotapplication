@@ -943,6 +943,9 @@
                     ❌ KOT Cancel List
                     <span id="refund-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
                 </button>
+                <button id="tab-btn-refunded-list" onclick="switchTakeawayTab('refunded-list')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
+                    ✅ Refunded List
+                </button>
             </div>
 
             <style>
@@ -959,13 +962,16 @@
                     document.getElementById('tab-btn-live').classList.remove('active-tab');
                     document.getElementById('tab-btn-completed').classList.remove('active-tab');
                     document.getElementById('tab-btn-refunds').classList.remove('active-tab');
+                    document.getElementById('tab-btn-refunded-list').classList.remove('active-tab');
                     document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-refunds').style.color = 'var(--text-muted)';
+                    document.getElementById('tab-btn-refunded-list').style.color = 'var(--text-muted)';
                     
                     document.getElementById('takeaway-live-section').style.display = 'none';
                     document.getElementById('takeaway-completed-section').style.display = 'none';
                     document.getElementById('takeaway-refunds-section').style.display = 'none';
+                    document.getElementById('takeaway-refunded-list-section').style.display = 'none';
 
                     document.getElementById('tab-btn-' + tab).classList.add('active-tab');
                     document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-light)';
@@ -978,6 +984,9 @@
                     } else if (tab === 'refunds') {
                         document.getElementById('takeaway-refunds-section').style.display = 'block';
                         fetchPendingRefunds();
+                    } else if (tab === 'refunded-list') {
+                        document.getElementById('takeaway-refunded-list-section').style.display = 'block';
+                        fetchRefundedItemsList();
                     }
                 }
             </script>
@@ -1045,6 +1054,25 @@
                             </tr>
                         </thead>
                         <tbody id="takeaway-refunds-body">
+                            <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="takeaway-refunded-list-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="overflow-x: auto;">
+                    <table id="takeaway-refunded-list-table" class="display" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Mobile</th>
+                                <th style="text-align: left; padding: 12px 10px;">Total Refund Amount</th>
+                                <th style="text-align: right; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="takeaway-refunded-list-body">
                             <!-- Populated dynamically via AJAX -->
                         </tbody>
                     </table>
@@ -2819,6 +2847,125 @@
                     });
                 }
             });
+        }
+        let currentRefundedList = {};
+        
+        function fetchRefundedItemsList() {
+            fetch(rootPath + '/api/counter/refunds/completed')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.refunds) {
+                        const tbody = document.getElementById('takeaway-refunded-list-body');
+                        
+                        if (data.refunds.length > 0) {
+                            if ($.fn.DataTable.isDataTable('#takeaway-refunded-list-table')) {
+                                $('#takeaway-refunded-list-table').DataTable().destroy();
+                            }
+                            
+                            tbody.innerHTML = '';
+                            currentRefundedList = {};
+                            data.refunds.forEach(r => {
+                                currentRefundedList[r.order_id] = r;
+                                const tr = document.createElement('tr');
+                                tr.style.borderBottom = '1px solid var(--card-border)';
+                                tr.innerHTML = `
+                                    <td style="padding: 12px 10px; font-weight: 600;">${r.token_number}</td>
+                                    <td style="padding: 12px 10px; color: var(--text-muted);">${r.customer_name || 'Walk-in'}</td>
+                                    <td style="padding: 12px 10px; font-weight: 500;">${r.customer_mobile || '-'}</td>
+                                    <td style="padding: 12px 10px; font-weight: 600; color: #10b981;">${r.total_refund_amount} BHD</td>
+                                    <td style="padding: 12px 10px; text-align: right;">
+                                        <button onclick="viewRefundedListDetails(${r.order_id})" class="btn-action btn-print" style="margin: 0;">View Details</button>
+                                    </td>
+                                `;
+                                tbody.appendChild(tr);
+                            });
+                            
+                            $('#takeaway-refunded-list-table').DataTable({
+                                "paging": true,
+                                "searching": true,
+                                "ordering": true,
+                                "info": true,
+                                "pageLength": 20,
+                                "bDestroy": true,
+                                "language": {
+                                    "emptyTable": "No completely refunded items found."
+                                }
+                            });
+                        } else {
+                            if ($.fn.DataTable.isDataTable('#takeaway-refunded-list-table')) {
+                                $('#takeaway-refunded-list-table').DataTable().destroy();
+                            }
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No completely refunded items found.</td></tr>';
+                        }
+                    }
+                })
+                .catch(err => console.error('Error fetching refunded list:', err));
+        }
+        
+        function viewRefundedListDetails(orderId) {
+            const order = currentRefundedList[orderId];
+            if (!order) return;
+            
+            let html = `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid var(--card-border);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: var(--text-muted);">Token No:</span>
+                        <span style="font-weight: bold; color: var(--primary-light);">${order.token_number}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: var(--text-muted);">Customer:</span>
+                        <span style="font-weight: bold;">${order.customer_name || 'Walk-in'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: var(--text-muted);">Mobile:</span>
+                        <span style="font-weight: bold;">${order.customer_mobile || '-'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-border);">
+                        <span style="font-weight: bold;">Total Refunded:</span>
+                        <span style="font-weight: 900; color: #10b981; font-size: 18px;">${order.total_refund_amount} BHD</span>
+                    </div>
+                </div>
+                
+                <h4 style="text-align: left; margin-bottom: 15px; color: var(--text-muted);">Refunded Items</h4>
+                <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 12px; border: 1px solid var(--card-border);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-weight: 500;">Item</th>
+                                <th style="text-align: center; padding: 12px; color: var(--text-muted); font-weight: 500;">Qty</th>
+                                <th style="text-align: right; padding: 12px; color: var(--text-muted); font-weight: 500;">Refund Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            order.items.forEach(item => {
+                html += `
+                    <tr style="border-bottom: 1px solid var(--card-border);">
+                        <td style="padding: 12px; text-align: left; font-weight: 600;">
+                            ${item.product_name}
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">KOT: ${item.kot_number}</div>
+                        </td>
+                        <td style="padding: 12px; text-align: center; font-weight: 600;">${item.quantity}</td>
+                        <td style="padding: 12px; text-align: right; font-weight: bold; color: #10b981;">${item.refund_amount} BHD</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Re-using the same modal but hiding the process buttons since it's already refunded
+            document.getElementById('refund-details-content').innerHTML = html;
+            
+            // Hide the Process Order Refund button
+            const btn = document.querySelector('#refund-modal button.btn-pay-confirm');
+            if (btn) btn.style.display = 'none';
+            
+            document.getElementById('refund-modal').style.display = 'flex';
         }
     </script>
 </body>
