@@ -1276,8 +1276,8 @@
 
         // --- ORDER preparación/serving polling system ---
         let autoOpenedOrders = JSON.parse(sessionStorage.getItem('auto_opened_orders') || '{}');
-        let acknowledgedRefunds = JSON.parse(sessionStorage.getItem('acknowledged_refunds') || '[]');
-        let acknowledgedCancellations = JSON.parse(sessionStorage.getItem('acknowledged_cancellations') || '[]');
+        let acknowledgedRefunds = JSON.parse(localStorage.getItem('acknowledged_refunds') || '[]');
+        let acknowledgedCancellations = JSON.parse(localStorage.getItem('acknowledged_cancellations') || '[]');
 
         function startOrderPolling() {
             if (pollInterval) clearInterval(pollInterval);
@@ -1311,7 +1311,7 @@
                                                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                                             });
                                             acknowledgedRefunds.push(item.id);
-                                            sessionStorage.setItem('acknowledged_refunds', JSON.stringify(acknowledgedRefunds));
+                                            localStorage.setItem('acknowledged_refunds', JSON.stringify(acknowledgedRefunds));
                                         } else if (item.status === 'cancelled' && !acknowledgedCancellations.includes(item.id)) {
                                             Swal.fire({
                                                 title: 'Item Cancelled ❌',
@@ -1321,7 +1321,7 @@
                                                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                                             });
                                             acknowledgedCancellations.push(item.id);
-                                            sessionStorage.setItem('acknowledged_cancellations', JSON.stringify(acknowledgedCancellations));
+                                            localStorage.setItem('acknowledged_cancellations', JSON.stringify(acknowledgedCancellations));
                                         }
                                     });
                                 }
@@ -1359,11 +1359,16 @@
             let hasServed = false;
             let totalItemsCount = 0;
             let servedItemsCount = 0;
+            let activeItemsCount = 0;
 
             if (activeOrder.kots) {
                 activeOrder.kots.forEach(kot => {
                     kot.items.forEach(item => {
+                        if (item.status === 'cancelled') return;
+
                         totalItemsCount += parseInt(item.quantity);
+                        activeItemsCount++;
+                        
                         if (item.status === 'dispatched') {
                             hasServed = true;
                             servedItemsCount += parseInt(item.quantity);
@@ -1379,6 +1384,15 @@
             const statusBar = document.getElementById('active-order-status-bar');
             const pulseDot = document.getElementById('status-pulse-dot');
             const statusText = document.getElementById('status-text-label');
+
+            if (activeItemsCount === 0) {
+                statusBar.style.display = 'flex';
+                statusBar.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                pulseDot.style.background = '#fca5a5';
+                pulseDot.style.boxShadow = '0 0 0 0 rgba(252, 165, 165, 0.7)';
+                statusText.innerText = 'Order Cancelled';
+                return;
+            }
 
             statusBar.style.display = 'flex';
 
