@@ -1441,7 +1441,11 @@
             }
             const isFullyServed = (totalItemsCount === servedItemsCount && totalItemsCount > 0);
 
-            modalTitle.innerText = isFullyServed ? 'Order Served & Bill Details' : 'Active KOT Order Status';
+            let titleText = isFullyServed ? 'Order Served & Bill Details' : 'Active KOT Order Status';
+            if (activeOrder.token_number) {
+                titleText += ` (Token: ${activeOrder.token_number})`;
+            }
+            modalTitle.innerText = titleText;
 
             let itemsHtml = `
                 <div style="font-size: 13px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px;">
