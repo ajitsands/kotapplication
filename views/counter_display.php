@@ -2016,7 +2016,7 @@
                                     <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_mobile || '-')}</td>
                                     <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${r.total_refund_amount} ${currencyCode}</td>
                                     <td style="padding: 12px 10px; text-align:right;">
-                                        <button class="btn-pay" onclick="event.stopPropagation(); openRefundModal(${r.order_id})" style="background:var(--primary-color); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View Details</button>
+                                        <button class="btn-pay" onclick="event.stopPropagation(); openRefundModal(${r.order_id})" style="background:#6366f1; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View Details</button>
                                     </td>
                                 </tr>
                             `;
@@ -2114,6 +2114,10 @@
                 }
             });
         }
+
+        window.openRefundModal = openRefundModal;
+        window.closeRefundModal = closeRefundModal;
+        window.processRefundOrder = processRefundOrder;
 
         function fetchTakeawayDeliveryQueue() {
             fetch(basePath + '/delivery-queue')
