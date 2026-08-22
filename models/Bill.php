@@ -370,7 +370,7 @@ class Bill extends Model {
                 JOIN products p ON ki.product_id = p.id
                 JOIN kots k ON ki.kot_id = k.id
                 JOIN orders o ON k.order_id = o.id
-                WHERE ki.refund_status = 'pending' AND o.order_type = 'take_away'
+                WHERE ki.refund_status = 'pending' AND ki.status = 'cancelled' AND o.order_type = 'take_away'
                 ORDER BY ki.id ASC";
         $stmt = $this->db->query($sql);
         $items = $stmt->fetchAll();
