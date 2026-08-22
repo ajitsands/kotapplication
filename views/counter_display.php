@@ -939,6 +939,10 @@
                 <button id="tab-btn-completed" onclick="switchTakeawayTab('completed')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s;">
                     ✅ Completed Takeaways
                 </button>
+                <button id="tab-btn-refunds" onclick="switchTakeawayTab('refunds')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
+                    ❌ KOT Cancel
+                    <span id="refund-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);">0</span>
+                </button>
             </div>
 
             <style>
@@ -954,20 +958,26 @@
                 function switchTakeawayTab(tab) {
                     document.getElementById('tab-btn-live').classList.remove('active-tab');
                     document.getElementById('tab-btn-completed').classList.remove('active-tab');
+                    document.getElementById('tab-btn-refunds').classList.remove('active-tab');
                     document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
+                    document.getElementById('tab-btn-refunds').style.color = 'var(--text-muted)';
                     
                     document.getElementById('takeaway-live-section').style.display = 'none';
                     document.getElementById('takeaway-completed-section').style.display = 'none';
+                    document.getElementById('takeaway-refunds-section').style.display = 'none';
+
+                    document.getElementById('tab-btn-' + tab).classList.add('active-tab');
+                    document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-light)';
 
                     if (tab === 'live') {
-                        document.getElementById('tab-btn-live').classList.add('active-tab');
-                        document.getElementById('tab-btn-live').style.color = 'var(--primary-light)';
                         document.getElementById('takeaway-live-section').style.display = 'block';
-                    } else {
-                        document.getElementById('tab-btn-completed').classList.add('active-tab');
-                        document.getElementById('tab-btn-completed').style.color = 'var(--primary-light)';
+                    } else if (tab === 'completed') {
                         document.getElementById('takeaway-completed-section').style.display = 'block';
+                        fetchCompletedTakeaways();
+                    } else if (tab === 'refunds') {
+                        document.getElementById('takeaway-refunds-section').style.display = 'block';
+                        fetchPendingRefunds();
                     }
                 }
             </script>
@@ -1016,6 +1026,24 @@
                             </tr>
                         </thead>
                         <tbody id="takeaway-completed-body">
+                            <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="takeaway-refunds-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="overflow-x: auto;">
+                    <table id="takeaway-refunds-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Item Details</th>
+                                <th style="text-align: left; padding: 12px 10px;">Refund Amount</th>
+                                <th style="text-align: right; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="takeaway-refunds-body">
                             <!-- Populated dynamically via AJAX -->
                         </tbody>
                     </table>
@@ -1946,7 +1974,69 @@
         setInterval(fetchEngagedTables, 4000);
         setInterval(fetchTakeawayDeliveryQueue, 4000);
         setInterval(fetchCompletedTakeaways, 8000);
+        setInterval(fetchPendingRefunds, 5000);
         setInterval(fetchSummary, 10000);
+
+        function fetchPendingRefunds() {
+            fetch(basePath + '/refunds/pending')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('takeaway-refunds-body');
+                    const badge = document.getElementById('refund-badge');
+                    if (data.refunds && data.refunds.length > 0) {
+                        badge.innerText = data.refunds.length;
+                        badge.style.display = 'inline-block';
+                        let html = '';
+                        data.refunds.forEach(r => {
+                            html += `
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--text-color);">${escapeHtml(r.token_number || '-')}</td>
+                                    <td style="padding: 12px 10px;">
+                                        <div style="font-weight:600; font-size: 15px;">${escapeHtml(r.product_name)} x ${r.quantity}</div>
+                                        <div style="font-size:12px; color:var(--text-muted);">KOT: ${escapeHtml(r.kot_number)}</div>
+                                    </td>
+                                    <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${parseFloat(r.refund_amount).toFixed(3)} ${currencyCode}</td>
+                                    <td style="padding: 12px 10px; text-align:right;">
+                                        <button class="btn-pay" onclick="processRefundUi(${r.item_id})" style="background:#ef4444; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Refunded</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        if (tbody) tbody.innerHTML = html;
+                    } else {
+                        badge.style.display = 'none';
+                        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No pending refunds.</td></tr>';
+                    }
+                })
+                .catch(err => console.error('Error fetching refunds:', err));
+        }
+
+        function processRefundUi(itemId) {
+            Swal.fire({
+                title: 'Process Refund',
+                text: 'Did you pay back the customer?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Refunded',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/refunds/pay/' + itemId, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({ icon: 'success', title: 'Refunded', showConfirmButton: false, timer: 1000, background: document.body.classList.contains('light-theme') ? '#fff' : '#111827', color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6' });
+                                fetchPendingRefunds();
+                            } else {
+                                Swal.fire('Error', data.error || 'Failed to process refund', 'error');
+                            }
+                        });
+                }
+            });
+        }
 
         function fetchTakeawayDeliveryQueue() {
             fetch(basePath + '/delivery-queue')

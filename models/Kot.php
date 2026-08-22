@@ -185,30 +185,51 @@ class Kot extends Model {
             }
 
             $kotId = $item['kot_id'];
+            
+            $stmtOrderType = $this->db->prepare("SELECT o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
+            $stmtOrderType->execute([$kotId]);
+            $orderType = $stmtOrderType->fetchColumn();
 
-            // Delete the item
-            $stmtDel = $this->db->prepare("DELETE FROM kot_items WHERE id = ?");
-            $stmtDel->execute([$kotItemId]);
+            if ($orderType === 'take_away') {
+                $stmtDel = $this->db->prepare("UPDATE kot_items SET status = 'cancelled', refund_status = 'pending' WHERE id = ?");
+                $stmtDel->execute([$kotItemId]);
+                
+                $stmtCount = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ? AND status != 'cancelled'");
+                $stmtCount->execute([$kotId]);
+                $remaining = $stmtCount->fetchColumn();
 
-            // Check if any items remain in this KOT
-            $stmtCount = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ?");
-            $stmtCount->execute([$kotId]);
-            $remaining = $stmtCount->fetchColumn();
-
-            if ($remaining == 0) {
-                // If no items remain, delete the KOT ticket itself
-                $stmtDelKot = $this->db->prepare("DELETE FROM kots WHERE id = ?");
-                $stmtDelKot->execute([$kotId]);
+                if ($remaining == 0) {
+                    $stmtDelKot = $this->db->prepare("UPDATE kots SET status = 'cancelled' WHERE id = ?");
+                    $stmtDelKot->execute([$kotId]);
+                } else {
+                    $stmtCheckReady = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ? AND status = 'pending'");
+                    $stmtCheckReady->execute([$kotId]);
+                    $pendingCount = $stmtCheckReady->fetchColumn();
+                    if ($pendingCount == 0) {
+                        $stmtUpdateKot = $this->db->prepare("UPDATE kots SET status = 'ready' WHERE id = ?");
+                        $stmtUpdateKot->execute([$kotId]);
+                    }
+                }
             } else {
-                // Check if all remaining items are ready
-                $stmtCheckReady = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ? AND status = 'pending'");
-                $stmtCheckReady->execute([$kotId]);
-                $pendingCount = $stmtCheckReady->fetchColumn();
+                // Dine in logic - hard delete
+                $stmtDel = $this->db->prepare("DELETE FROM kot_items WHERE id = ?");
+                $stmtDel->execute([$kotItemId]);
 
-                if ($pendingCount == 0) {
-                    // Update KOT to ready if all remaining items are ready
-                    $stmtUpdateKot = $this->db->prepare("UPDATE kots SET status = 'ready' WHERE id = ?");
-                    $stmtUpdateKot->execute([$kotId]);
+                $stmtCount = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ?");
+                $stmtCount->execute([$kotId]);
+                $remaining = $stmtCount->fetchColumn();
+
+                if ($remaining == 0) {
+                    $stmtDelKot = $this->db->prepare("DELETE FROM kots WHERE id = ?");
+                    $stmtDelKot->execute([$kotId]);
+                } else {
+                    $stmtCheckReady = $this->db->prepare("SELECT COUNT(*) FROM kot_items WHERE kot_id = ? AND status = 'pending'");
+                    $stmtCheckReady->execute([$kotId]);
+                    $pendingCount = $stmtCheckReady->fetchColumn();
+                    if ($pendingCount == 0) {
+                        $stmtUpdateKot = $this->db->prepare("UPDATE kots SET status = 'ready' WHERE id = ?");
+                        $stmtUpdateKot->execute([$kotId]);
+                    }
                 }
             }
 
@@ -232,10 +253,22 @@ class Kot extends Model {
                 $this->db->rollBack();
                 return false;
             }
+            
+            $stmtOrderType = $this->db->prepare("SELECT o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
+            $stmtOrderType->execute([$kotId]);
+            $orderType = $stmtOrderType->fetchColumn();
 
-            // Delete the KOT (will cascade delete items)
-            $stmtDel = $this->db->prepare("DELETE FROM kots WHERE id = ?");
-            $stmtDel->execute([$kotId]);
+            if ($orderType === 'take_away') {
+                $stmtDelItems = $this->db->prepare("UPDATE kot_items SET status = 'cancelled', refund_status = 'pending' WHERE kot_id = ?");
+                $stmtDelItems->execute([$kotId]);
+                
+                $stmtDelKot = $this->db->prepare("UPDATE kots SET status = 'cancelled' WHERE id = ?");
+                $stmtDelKot->execute([$kotId]);
+            } else {
+                // Delete the KOT (will cascade delete items)
+                $stmtDel = $this->db->prepare("DELETE FROM kots WHERE id = ?");
+                $stmtDel->execute([$kotId]);
+            }
 
             $this->db->commit();
             return true;

@@ -1276,6 +1276,7 @@
 
         // --- ORDER preparación/serving polling system ---
         let autoOpenedOrders = JSON.parse(sessionStorage.getItem('auto_opened_orders') || '{}');
+        let acknowledgedRefunds = JSON.parse(sessionStorage.getItem('acknowledged_refunds') || '[]');
 
         function startOrderPolling() {
             if (pollInterval) clearInterval(pollInterval);
@@ -1295,6 +1296,27 @@
                 .then(data => {
                     if (data.active) {
                         activeOrder = data;
+
+                        if (activeOrder.kots && isTakeaway) {
+                            activeOrder.kots.forEach(k => {
+                                if (k.items) {
+                                    k.items.forEach(item => {
+                                        if (item.refund_status === 'refunded' && !acknowledgedRefunds.includes(item.id)) {
+                                            Swal.fire({
+                                                title: 'Refund Issued 💰',
+                                                text: `Amount for canceled item (${item.product_name}) has been refunded against Token No: ${activeOrder.token_number}.`,
+                                                icon: 'info',
+                                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                                            });
+                                            acknowledgedRefunds.push(item.id);
+                                            sessionStorage.setItem('acknowledged_refunds', JSON.stringify(acknowledgedRefunds));
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
                         updateOrderStatusUI();
                     } else {
                         if (data.cancelled && activeOrder) {
