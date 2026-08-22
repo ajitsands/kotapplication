@@ -1038,8 +1038,8 @@
                         <thead>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <th style="text-align: left; padding: 12px 10px;">Token No</th>
-                                <th style="text-align: left; padding: 12px 10px;">Item Details</th>
-                                <th style="text-align: left; padding: 12px 10px;">Refund Amount</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer Mobile</th>
+                                <th style="text-align: left; padding: 12px 10px;">Total Refund Amount</th>
                                 <th style="text-align: right; padding: 12px 10px;">Action</th>
                             </tr>
                         </thead>
@@ -1213,7 +1213,25 @@
             </div>
         </div>
     </div>
-    <!-- Engaged Tables Modal -->
+    <div id="order-refund-modal" class="modal-overlay" onclick="if(event.target===this) closeRefundModal()">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Refund Details - Token <span id="refund-token-display"></span></h2>
+                <button class="close-modal" onclick="closeRefundModal()">×</button>
+            </div>
+            <div id="refund-items-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                <!-- Populated dynamically -->
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:15px;">
+                <div style="color:var(--text-muted); font-size:14px;">Review items and process refund.</div>
+                <button class="btn-pay" id="process-order-refund-btn" style="background:#ef4444; border:none; color:white; padding:12px 24px; border-radius:8px; font-weight:700; cursor:pointer; font-size:16px;">
+                    Refund Entire Order (<span id="refund-total-display"></span>)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Approval List Modal -->
     <div id="engaged-tables-modal" class="modal">
         <div class="modal-content" style="max-width: 500px; text-align: left;">
             <h3 style="text-align: center; margin-bottom: 5px;">🍽️ Table Status</h3>
@@ -1977,6 +1995,8 @@
         setInterval(fetchPendingRefunds, 5000);
         setInterval(fetchSummary, 10000);
 
+        let currentPendingRefunds = {};
+        
         function fetchPendingRefunds() {
             fetch(basePath + '/refunds/pending')
                 .then(res => res.json())
@@ -1987,17 +2007,16 @@
                         badge.innerText = data.refunds.length;
                         badge.style.display = 'inline-block';
                         let html = '';
+                        currentPendingRefunds = {};
                         data.refunds.forEach(r => {
+                            currentPendingRefunds[r.order_id] = r;
                             html += `
-                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                <tr style="border-bottom: 1px solid var(--card-border); cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'" onclick="openRefundModal(${r.order_id})">
                                     <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--text-color);">${escapeHtml(r.token_number || '-')}</td>
-                                    <td style="padding: 12px 10px;">
-                                        <div style="font-weight:600; font-size: 15px;">${escapeHtml(r.product_name)} x ${r.quantity}</div>
-                                        <div style="font-size:12px; color:var(--text-muted);">KOT: ${escapeHtml(r.kot_number)}</div>
-                                    </td>
-                                    <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${parseFloat(r.refund_amount).toFixed(3)} ${currencyCode}</td>
+                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_mobile || '-')}</td>
+                                    <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${r.total_refund_amount} ${currencyCode}</td>
                                     <td style="padding: 12px 10px; text-align:right;">
-                                        <button class="btn-pay" onclick="processRefundUi(${r.item_id})" style="background:#ef4444; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Refunded</button>
+                                        <button class="btn-pay" onclick="event.stopPropagation(); openRefundModal(${r.order_id})" style="background:var(--primary-color); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View Details</button>
                                     </td>
                                 </tr>
                             `;
@@ -2009,6 +2028,36 @@
                     }
                 })
                 .catch(err => console.error('Error fetching refunds:', err));
+        }
+
+        function openRefundModal(orderId) {
+            const order = currentPendingRefunds[orderId];
+            if (!order) return;
+            
+            document.getElementById('refund-token-display').innerText = order.token_number;
+            document.getElementById('refund-total-display').innerText = order.total_refund_amount + ' ' + currencyCode;
+            
+            let html = '<table style="width:100%; border-collapse:collapse; margin-bottom:10px;">';
+            order.items.forEach(item => {
+                html += `
+                    <tr style="border-bottom: 1px solid var(--card-border);">
+                        <td style="padding:10px;">
+                            <div style="font-weight:600; font-size:15px;">${escapeHtml(item.product_name)} x ${item.quantity}</div>
+                            <div style="font-size:12px; color:var(--text-muted);">KOT: ${escapeHtml(item.kot_number)}</div>
+                        </td>
+                        <td style="padding:10px; text-align:right; font-weight:700; color:#ef4444;">${parseFloat(item.refund_amount).toFixed(3)} ${currencyCode}</td>
+                    </tr>
+                `;
+            });
+            html += '</table>';
+            
+            document.getElementById('refund-items-container').innerHTML = html;
+            document.getElementById('process-order-refund-btn').onclick = function() { processRefundOrder(orderId); };
+            document.getElementById('order-refund-modal').classList.add('active');
+        }
+
+        function closeRefundModal() {
+            document.getElementById('order-refund-modal').classList.remove('active');
         }
 
         function processRefundUi(itemId) {
@@ -2029,6 +2078,34 @@
                         .then(data => {
                             if (data.success) {
                                 Swal.fire({ icon: 'success', title: 'Refunded', showConfirmButton: false, timer: 1000, background: document.body.classList.contains('light-theme') ? '#fff' : '#111827', color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6' });
+                                fetchPendingRefunds();
+                            } else {
+                                Swal.fire('Error', data.error || 'Failed to process refund', 'error');
+                            }
+                        });
+                }
+            });
+        }
+
+        function processRefundOrder(orderId) {
+            Swal.fire({
+                title: 'Process Order Refund?',
+                text: "Are you sure you want to refund all cancelled items for this order?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Process Refund',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/refunds/pay-order/' + orderId, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({ icon: 'success', title: 'Refunded', showConfirmButton: false, timer: 1000, background: document.body.classList.contains('light-theme') ? '#fff' : '#111827', color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6' });
+                                closeRefundModal();
                                 fetchPendingRefunds();
                             } else {
                                 Swal.fire('Error', data.error || 'Failed to process refund', 'error');

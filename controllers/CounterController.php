@@ -466,4 +466,24 @@ class CounterController extends Controller {
             $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
         }
     }
+
+    public function pendingRefunds() {
+        $billModel = new Bill();
+        $refunds = $billModel->getPendingRefunds();
+        $this->json(['refunds' => $refunds]);
+    }
+
+    public function processRefund($params) {
+        $itemId = (int)($params['id'] ?? 0);
+        $billModel = new Bill();
+        $success = $billModel->processRefund($itemId);
+        $this->json(['success' => $success]);
+    }
+
+    public function processOrderRefund($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $billModel = new Bill();
+        $success = $billModel->processRefundOrder($orderId);
+        $this->json(['success' => $success]);
+    }
 }

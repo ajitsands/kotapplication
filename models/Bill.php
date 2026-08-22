@@ -390,16 +390,41 @@ class Bill extends Model {
             $taxMultiplier = 1.0 + (($cgstPercent + $sgstPercent) / 100.0);
         }
 
-        foreach ($items as &$item) {
+        $grouped = [];
+        foreach ($items as $item) {
             $itemTotal = (float)$item['base_price'] * (int)$item['quantity'];
             $item['refund_amount'] = number_format($itemTotal * $taxMultiplier, 3, '.', '');
+            
+            $orderId = $item['order_id'];
+            if (!isset($grouped[$orderId])) {
+                $grouped[$orderId] = [
+                    'order_id' => $orderId,
+                    'token_number' => $item['token_number'],
+                    'customer_mobile' => $item['customer_mobile'],
+                    'total_refund_amount' => 0,
+                    'items' => []
+                ];
+            }
+            $grouped[$orderId]['total_refund_amount'] += (float)$item['refund_amount'];
+            $grouped[$orderId]['items'][] = $item;
         }
 
-        return $items;
+        $result = [];
+        foreach ($grouped as $order) {
+            $order['total_refund_amount'] = number_format($order['total_refund_amount'], 3, '.', '');
+            $result[] = $order;
+        }
+
+        return $result;
     }
 
     public function processRefund($itemId) {
         $stmt = $this->db->prepare("UPDATE kot_items SET refund_status = 'refunded' WHERE id = ?");
         return $stmt->execute([$itemId]);
+    }
+
+    public function processRefundOrder($orderId) {
+        $stmt = $this->db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.refund_status = 'refunded' WHERE k.order_id = ? AND ki.refund_status = 'pending'");
+        return $stmt->execute([$orderId]);
     }
 }
