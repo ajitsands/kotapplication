@@ -168,8 +168,8 @@ class Bill extends Model {
             $orderId = $stmt->fetchColumn();
 
             if ($orderId) {
-                // Set order status back to active
-                $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'active' WHERE id = ?");
+                // Set order status to cancelled
+                $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?");
                 $stmtOrder->execute([$orderId]);
             }
 

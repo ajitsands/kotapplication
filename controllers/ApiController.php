@@ -77,7 +77,16 @@ class ApiController extends Controller {
         $order = $orderModel->getActiveOrderByTable($table);
 
         if (!$order) {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT id, status FROM orders WHERE table_number = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$table]);
+            $lastOrder = $stmt->fetch();
+            if ($lastOrder && $lastOrder['status'] === 'cancelled') {
+                 $this->json(['active' => false, 'cancelled' => true]);
+                 return;
+            }
             $this->json(['active' => false]);
+            return;
         }
 
         // Fetch item details
@@ -179,11 +188,12 @@ class ApiController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT id FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? AND status IN ('active', 'closed') ORDER BY id DESC LIMIT 1");
+        $stmt = $db->prepare("SELECT id, status FROM orders WHERE order_type = 'take_away' AND customer_mobile = ? ORDER BY id DESC LIMIT 1");
         $stmt->execute([$mobile]);
-        $orderId = $stmt->fetchColumn();
+        $row = $stmt->fetch();
 
-        if ($orderId) {
+        if ($row && in_array($row['status'], ['active', 'closed'])) {
+            $orderId = $row['id'];
             $orderModel = new Order();
             $order = $orderModel->getOrderDetails($orderId);
             
@@ -211,6 +221,8 @@ class ApiController extends Controller {
                 'token_number' => $order['token_number'],
                 'customer_name' => $order['customer_name']
             ]);
+        } else if ($row && $row['status'] === 'cancelled') {
+            $this->json(['active' => false, 'cancelled' => true]);
         } else {
             $this->json(['active' => false]);
         }
