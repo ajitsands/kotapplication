@@ -172,11 +172,11 @@ class Order extends Model {
                        IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name,
                        b.id as bill_id, b.status as bill_status,
                        b.subtotal as bill_subtotal, b.tax_amount as bill_tax_amount, b.grand_total as bill_grand_total
-                FROM orders o
-                LEFT JOIN users u ON o.waiter_id = u.id
-                LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'pending'
-                WHERE o.status IN ('active', 'closed')
-                ORDER BY o.order_type ASC, o.table_number ASC, o.id ASC";
+                  FROM orders o
+                  LEFT JOIN users u ON o.waiter_id = u.id
+                  LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'pending'
+                  WHERE o.status IN ('active', 'closed') AND o.order_type = 'dine_in'
+                  ORDER BY o.table_number ASC, o.id ASC";
         $stmt = $this->db->query($sql);
         $orders = $stmt->fetchAll();
 
