@@ -1514,10 +1514,10 @@
                         <tr>
                             <th>Item Name</th>
                             <th>Qty Sold</th>
-                            <th>Sales Revenue</th>
-                            <th>Recipe/Consumption Cost</th>
-                            <th>Net Profit</th>
-                            <th>Margin %</th>
+                            <th style="text-align: right;">Sales Revenue</th>
+                            <th style="text-align: right;">Recipe/Consumption Cost</th>
+                            <th style="text-align: right;">Net Profit</th>
+                            <th style="text-align: center;">Margin %</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1525,12 +1525,11 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th style="text-align:right">Total:</th>
-                            <th id="insights-total-qty">0</th>
-                            <th id="insights-total-rev">0</th>
-                            <th id="insights-total-cost">0</th>
-                            <th id="insights-total-profit">0</th>
-                            <th id="insights-total-margin">0%</th>
+                            <th style="text-align:right" colspan="2">Total:</th>
+                            <th id="insights-total-rev" style="text-align: right;">0</th>
+                            <th id="insights-total-cost" style="text-align: right;">0</th>
+                            <th id="insights-total-profit" style="text-align: right;">0</th>
+                            <th id="insights-total-margin" style="text-align: center;">0%</th>
                         </tr>
                     </tfoot>
                 </table>
@@ -2648,12 +2647,12 @@
                                 <tr>
                                     <td>${item.product_name}</td>
                                     <td>${item.total_sold}</td>
-                                    <td>${_cur} ${parseFloat(item.total_revenue).toFixed(window.PRICE_DECIMALS)}</td>
-                                    <td>${_cur} ${parseFloat(item.total_expense).toFixed(window.PRICE_DECIMALS)}</td>
-                                    <td style="color: ${item.total_profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight: bold;">
+                                    <td style="text-align: right;">${_cur} ${parseFloat(item.total_revenue).toFixed(window.PRICE_DECIMALS)}</td>
+                                    <td style="text-align: right;">${_cur} ${parseFloat(item.total_expense).toFixed(window.PRICE_DECIMALS)}</td>
+                                    <td style="text-align: right; color: ${item.total_profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight: bold;">
                                         ${item.total_profit >= 0 ? '+' : ''}${_cur} ${parseFloat(item.total_profit).toFixed(window.PRICE_DECIMALS)}
                                     </td>
-                                    <td>
+                                    <td style="text-align: center;">
                                         <span class="table-status" style="background: ${item.margin_percent >= 30 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${item.margin_percent >= 30 ? 'var(--accent-green)' : 'var(--accent-red)'}; border-color: transparent;">
                                             ${item.margin_percent}%
                                         </span>
