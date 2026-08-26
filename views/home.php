@@ -1847,7 +1847,7 @@
                 </button>
                 <button class="tab-trigger" onclick="switchTab(event, 'tab-v3')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l10 6.5v7L12 22 2 15.5v-7L12 2zM12 22v-6.5"/><path d="M22 8.5l-10 7L2 8.5"/></svg>
-                    V3 Options and Features
+                    Inventory & Management
                 </button>
             </div>
 
@@ -2250,27 +2250,27 @@
                 </div>
             </div>
 
-            <!-- 7. V3 Option -->
+            <!-- 7. Inventory & Consumption -->
             <div id="tab-v3" class="tab-content">
                 <div class="tour-display">
                     <div class="tour-info">
-                        <h3>V3 Advanced Configuration</h3>
-                        <p>Explore the next generation features and options available in the V3 release of our restaurant management system.</p>
+                        <h3>Inventory & Consumption Management</h3>
+                        <p>Track raw materials, configure recipe structures, and automatically manage stock consumption with each sale.</p>
                         <ul class="tour-features">
                             <li>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                Enhanced performance and UI responsiveness.
+                                Real-time deduction of ingredients when orders are placed.
                             </li>
                             <li>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                Advanced analytics and sales forecasting algorithms.
+                                Supplier management and purchase order tracking.
                             </li>
                             <li>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                Multi-branch synchronization and cloud backups.
+                                Low stock alerts and comprehensive consumption reports.
                             </li>
                         </ul>
-                        <a href="#v3" class="btn btn-primary">Discover V3 Features</a>
+                        <a href="/login" class="btn btn-primary">Explore Inventory Features</a>
                     </div>
                     <div class="tour-visual" style="justify-content: center; align-items: center; padding: 24px 0;">
                         <div class="mock-window" style="width: 100%; max-width: 400px;">
@@ -2280,13 +2280,13 @@
                                     <div class="mock-win-dot"></div>
                                     <div class="mock-win-dot"></div>
                                 </div>
-                                <div class="mock-win-title">V3 Dashboard Preview</div>
+                                <div class="mock-win-title">Inventory Dashboard Preview</div>
                                 <div style="width: 30px;"></div>
                             </div>
                             <div class="mock-win-body" style="background: rgba(99,102,241,0.05); display: flex; align-items: center; justify-content: center;">
                                 <div style="text-align: center; padding: 40px 20px;">
-                                    <h4 style="font-size: 18px; margin-bottom: 12px; color: var(--primary-light);">V3 Upgrade Ready</h4>
-                                    <p style="color: var(--text-secondary); font-size: 13px;">The highly anticipated V3 update brings powerful new tools to manage your operations at scale.</p>
+                                    <h4 style="font-size: 18px; margin-bottom: 12px; color: var(--primary-light);">Advanced Stock Management</h4>
+                                    <p style="color: var(--text-secondary); font-size: 13px;">Manage your supplies seamlessly with automated recipe costings and consumption tracking.</p>
                                     <div style="margin-top: 20px; display: inline-block; padding: 8px 16px; background: var(--primary-grad); border-radius: 20px; font-weight: 600; font-size: 12px;">Coming Soon</div>
                                 </div>
                             </div>
