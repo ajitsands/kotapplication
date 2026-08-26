@@ -821,6 +821,7 @@
             else if (id === 'customers' && typeof fetchAdminCustomers === 'function') fetchAdminCustomers();
             else if (id === 'tax_reports' && typeof loadTaxReport === 'function') loadTaxReport();
             else if (id === 'analytics' && typeof loadAnalyticsReport === 'function') loadAnalyticsReport();
+            else if (id === 'item_insights' && typeof loadItemInsights === 'function') loadItemInsights();
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
             else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
             else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
@@ -845,6 +846,7 @@
             customers:   { icon: '🎁', label: 'Customers (Loyalty)' },
             tax_reports: { icon: '🧾', label: 'VAT/Tax Reports' },
             analytics:   { icon: '📊', label: 'Sales & Product Analytics' },
+            item_insights: { icon: '💡', label: 'Item Insights' },
             waiter_report: { icon: '🤵', label: 'Waiter Performance' },
             inventory:   { icon: '📦', label: 'Inventory Stock' },
             suppliers:   { icon: '🚚', label: 'Suppliers Mgmt' },
@@ -898,6 +900,9 @@
                     </button>
                     <button class="nav-dropdown-item" id="item-analytics" onclick="selectSection('analytics','📊','Sales &amp; Product Analytics')">
                         <span class="item-icon">📊</span> Sales &amp; Product Analytics
+                    </button>
+                    <button class="nav-dropdown-item" id="item-item_insights" onclick="selectSection('item_insights','💡','Item Insights')">
+                        <span class="item-icon">💡</span> Item Insights
                     </button>
                     <button class="nav-dropdown-item" id="item-waiter_report" onclick="selectSection('waiter_report','🤵','Waiter Performance')">
                         <span class="item-icon">🤵</span> Waiter Performance
@@ -1484,6 +1489,41 @@
                         </tfoot>
                     </table>
                 </div>
+            </div>
+        </div>
+        <!-- Item Insights Tab -->
+        <div id="item_insights" class="tab-content">
+            <div class="panel-card">
+                <h2 class="panel-title">Item Insights & Consumption Report</h2>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">From Date</label>
+                        <input type="date" id="insights-from" class="form-input" style="width: auto;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">To Date</label>
+                        <input type="date" id="insights-to" class="form-input" style="width: auto;">
+                    </div>
+                    <button class="btn-primary" onclick="loadItemInsights()">Filter</button>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">Fast/Slow Moving & Profitability Table</h3>
+                <table id="insights-table" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Qty Sold</th>
+                            <th>Sales Revenue</th>
+                            <th>Recipe/Consumption Cost</th>
+                            <th>Net Profit</th>
+                            <th>Margin %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated via AJAX -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -2567,6 +2607,51 @@
         let fastMovingTable = null;
         let highRevenueTable = null;
         let analyticsDataGlobal = null;
+
+        let itemInsightsTable = null;
+
+        function loadItemInsights() {
+            const startDate = document.getElementById('insights-from').value || '';
+            const endDate = document.getElementById('insights-to').value || '';
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            
+            fetch(basePath + `/reports/item-insights?startDate=${startDate}&endDate=${endDate}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (itemInsightsTable) itemInsightsTable.destroy();
+                    const tbody = document.querySelector('#insights-table tbody');
+                    tbody.innerHTML = '';
+                    
+                    if (data.status === 'success') {
+                        data.data.forEach(item => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${item.product_name}</td>
+                                    <td>${item.total_sold}</td>
+                                    <td>${_cur} ${parseFloat(item.total_revenue).toFixed(window.PRICE_DECIMALS)}</td>
+                                    <td>${_cur} ${parseFloat(item.total_expense).toFixed(window.PRICE_DECIMALS)}</td>
+                                    <td style="color: ${item.total_profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight: bold;">
+                                        ${item.total_profit >= 0 ? '+' : ''}${_cur} ${parseFloat(item.total_profit).toFixed(window.PRICE_DECIMALS)}
+                                    </td>
+                                    <td>
+                                        <span class="table-status" style="background: ${item.margin_percent >= 30 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${item.margin_percent >= 30 ? 'var(--accent-green)' : 'var(--accent-red)'}; border-color: transparent;">
+                                            ${item.margin_percent}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    
+                    itemInsightsTable = $('#insights-table').DataTable({
+                        "pageLength": 25,
+                        "order": [[1, "desc"]]
+                    });
+                })
+                .catch(err => {
+                    console.error("Error loading item insights:", err);
+                });
+        }
 
         function loadAnalyticsReport() {
             const startDate = document.getElementById('analytics-start-date').value;
