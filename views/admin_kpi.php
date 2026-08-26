@@ -18,7 +18,25 @@
     </div>
 
     <div class="panel-card" style="margin-bottom: 20px;">
-        <div class="panel-title">Item Profitability & Margins</div>
+        <div class="panel-title">Product-wise Sales Report</div>
+        <table class="dataTable" id="productSalesTable">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Items Sold (Qty)</th>
+                    <th>Menu Price</th>
+                    <th>Recipe Cost</th>
+                    <th>Total Revenue</th>
+                    <th>Total Expense</th>
+                    <th>Total Profit</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="panel-card" style="margin-bottom: 20px;">
+        <div class="panel-title">Item Profitability & Margins (Static Potential)</div>
         <table class="dataTable" id="profitabilityTable">
             <thead>
                 <tr>
@@ -95,7 +113,7 @@
 </div>
 
 <script>
-let profitTable, chefTable, supplierTable, chefDetailsTable;
+let productSalesTable, profitTable, chefTable, supplierTable, chefDetailsTable;
 
 function loadKPIs() {
     const today = new Date().toISOString().split('T')[0];
@@ -103,11 +121,37 @@ function loadKPIs() {
     if (!$('#kpiEndDate').val()) $('#kpiEndDate').val(today);
 
     if ($.fn.DataTable.isDataTable('#profitabilityTable')) {
+        $('#productSalesTable').DataTable().ajax.reload();
         $('#profitabilityTable').DataTable().ajax.reload();
         $('#chefKpiTable').DataTable().ajax.reload();
         $('#supplierKpiTable').DataTable().ajax.reload();
         return;
     }
+
+    productSalesTable = $('#productSalesTable').DataTable({
+        ajax: {
+            url: '/admin/reports/kpi/product-sales',
+            data: function(d) {
+                d.startDate = $('#kpiStartDate').val();
+                d.endDate = $('#kpiEndDate').val();
+            }
+        },
+        columns: [
+            { data: 'product_name' },
+            { data: 'total_sold' },
+            { data: 'menu_price', render: data => parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) },
+            { data: 'recipe_cost', render: data => parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) },
+            { data: 'total_revenue', render: data => parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) },
+            { data: 'total_expense', render: data => parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) },
+            { 
+                data: 'total_profit', 
+                render: function(data) {
+                    let val = parseFloat(data);
+                    return `<strong style="color:${val >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${val.toFixed(window.PRICE_DECIMALS || 3)}</strong>`;
+                }
+            }
+        ]
+    });
 
     profitTable = $('#profitabilityTable').DataTable({
         ajax: {

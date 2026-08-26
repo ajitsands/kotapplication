@@ -96,6 +96,59 @@ class ReportsController extends Controller {
         $this->json(['status' => 'success', 'data' => $data]);
     }
 
+    public function productSalesKpiJson() {
+        $this->requireAuth('admin');
+        $db = Database::getInstance()->getConnection();
+        
+        $startDate = $_GET['startDate'] ?? date('Y-m-d');
+        $endDate = $_GET['endDate'] ?? date('Y-m-d');
+        $endDate = $endDate . ' 23:59:59';
+        $startDate = $startDate . ' 00:00:00';
+
+        $sql = "SELECT p.name as product_name, 
+                       SUM(ki.quantity) as total_sold,
+                       p.price as menu_price,
+                       COALESCE((SELECT SUM(pr.quantity_required * i.selling_price) 
+                                 FROM product_recipes pr 
+                                 JOIN inventory_items i ON pr.inventory_item_id = i.id 
+                                 WHERE pr.product_id = p.id), 0) as recipe_cost
+                FROM products p
+                JOIN kot_items ki ON ki.product_id = p.id
+                JOIN kots k ON ki.kot_id = k.id
+                JOIN orders o ON k.order_id = o.id
+                WHERE o.status = 'completed'
+                AND o.created_at >= ? AND o.created_at <= ?
+                GROUP BY p.id, p.name, p.price
+                ORDER BY total_sold DESC";
+                
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
+        $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $reportData = [];
+        foreach ($sales as $sale) {
+            $qty = (float)$sale['total_sold'];
+            $menuPrice = (float)$sale['menu_price'];
+            $recipeCost = (float)$sale['recipe_cost'];
+            
+            $totalRevenue = $qty * $menuPrice;
+            $totalExpense = $qty * $recipeCost;
+            $totalProfit = $totalRevenue - $totalExpense;
+            
+            $reportData[] = [
+                'product_name' => $sale['product_name'],
+                'total_sold' => $qty,
+                'menu_price' => $menuPrice,
+                'recipe_cost' => $recipeCost,
+                'total_revenue' => $totalRevenue,
+                'total_expense' => $totalExpense,
+                'total_profit' => $totalProfit
+            ];
+        }
+        
+        $this->json(['status' => 'success', 'data' => $reportData]);
+    }
+
     public function profitabilityJson() {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();

@@ -71,6 +71,7 @@ $router->add('GET', '/admin/reports/kpi/chef', 'ReportsController@chefKpiJson');
 $router->add('GET', '/admin/reports/kpi/chef/details/:id', 'ReportsController@chefDetailsJson');
 $router->add('GET', '/admin/reports/kpi/supplier', 'ReportsController@supplierKpiJson');
 $router->add('GET', '/admin/reports/profitability', 'ReportsController@profitabilityJson');
+$router->add('GET', '/admin/reports/kpi/product-sales', 'ReportsController@productSalesKpiJson');
 
 
 // KOT Operations Routes
