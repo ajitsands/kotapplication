@@ -17,7 +17,15 @@
         </div>
     </div>
 
-    <div class="panel-card" style="margin-bottom: 20px;">
+    <!-- Inner Tabs Navigation -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px; width: fit-content;">
+        <button id="kpi-tab-btn-sales" type="button" onclick="switchInnerKpiTab('sales')" style="background: var(--primary-grad); border: none; padding: 8px 16px; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(139,92,246,0.3);">Product Sales Report</button>
+        <button id="kpi-tab-btn-consumption" type="button" onclick="switchInnerKpiTab('consumption')" style="background: transparent; border: none; padding: 8px 16px; border-radius: 8px; color: var(--text-muted); font-weight: 600; cursor: pointer; transition: 0.3s;">Internal KPIs & Margins</button>
+    </div>
+
+    <!-- Tab 1: Sales Report -->
+    <div id="kpi-inner-sales" style="display: block;">
+        <div class="panel-card" style="margin-bottom: 20px;">
         <div class="panel-title">Product-wise Sales Report</div>
         <table class="dataTable" id="productSalesTable">
             <thead>
@@ -34,7 +42,10 @@
             <tbody></tbody>
         </table>
     </div>
+    </div> <!-- End Tab 1 -->
 
+    <!-- Tab 2: Consumption and Margins -->
+    <div id="kpi-inner-consumption" style="display: none;">
     <div class="panel-card" style="margin-bottom: 20px;">
         <div class="panel-title">Item Profitability & Margins (Static Potential)</div>
         <table class="dataTable" id="profitabilityTable">
@@ -83,6 +94,7 @@
             </table>
         </div>
     </div>
+    </div> <!-- End Tab 2 -->
 </div>
 
 <!-- Chef Details Modal -->
@@ -114,6 +126,32 @@
 
 <script>
 let productSalesTable, profitTable, chefTable, supplierTable, chefDetailsTable;
+
+function switchInnerKpiTab(tabId) {
+    if (tabId === 'sales') {
+        document.getElementById('kpi-inner-sales').style.display = 'block';
+        document.getElementById('kpi-inner-consumption').style.display = 'none';
+        
+        document.getElementById('kpi-tab-btn-sales').style.background = 'var(--primary-grad)';
+        document.getElementById('kpi-tab-btn-sales').style.color = 'white';
+        document.getElementById('kpi-tab-btn-sales').style.boxShadow = '0 4px 10px rgba(139,92,246,0.3)';
+        
+        document.getElementById('kpi-tab-btn-consumption').style.background = 'transparent';
+        document.getElementById('kpi-tab-btn-consumption').style.color = 'var(--text-muted)';
+        document.getElementById('kpi-tab-btn-consumption').style.boxShadow = 'none';
+    } else {
+        document.getElementById('kpi-inner-sales').style.display = 'none';
+        document.getElementById('kpi-inner-consumption').style.display = 'block';
+        
+        document.getElementById('kpi-tab-btn-consumption').style.background = 'var(--primary-grad)';
+        document.getElementById('kpi-tab-btn-consumption').style.color = 'white';
+        document.getElementById('kpi-tab-btn-consumption').style.boxShadow = '0 4px 10px rgba(139,92,246,0.3)';
+        
+        document.getElementById('kpi-tab-btn-sales').style.background = 'transparent';
+        document.getElementById('kpi-tab-btn-sales').style.color = 'var(--text-muted)';
+        document.getElementById('kpi-tab-btn-sales').style.boxShadow = 'none';
+    }
+}
 
 function loadKPIs() {
     const today = new Date().toISOString().split('T')[0];
