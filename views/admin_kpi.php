@@ -1,4 +1,22 @@
 <div id="kpi" class="tab-content">
+    <div style="background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--card-border); display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <h3 style="margin: 0; font-size: 16px; color: var(--text-color);">KPI Date Filter</h3>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Filter all KPI tables by date range</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">From Date</label>
+                <input type="date" id="kpiStartDate" class="form-input" style="padding: 8px 12px; height: auto; background: white; border-color: var(--card-border);">
+            </div>
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">To Date</label>
+                <input type="date" id="kpiEndDate" class="form-input" style="padding: 8px 12px; height: auto; background: white; border-color: var(--card-border);">
+            </div>
+            <button type="button" class="btn-primary" onclick="loadKPIs()" style="padding: 8px 20px; height: auto;">Filter Data</button>
+        </div>
+    </div>
+
     <div class="panel-card" style="margin-bottom: 20px;">
         <div class="panel-title">Item Profitability & Margins</div>
         <table class="dataTable" id="profitabilityTable">
@@ -80,6 +98,10 @@
 let profitTable, chefTable, supplierTable, chefDetailsTable;
 
 function loadKPIs() {
+    const today = new Date().toISOString().split('T')[0];
+    if (!$('#kpiStartDate').val()) $('#kpiStartDate').val(today);
+    if (!$('#kpiEndDate').val()) $('#kpiEndDate').val(today);
+
     if ($.fn.DataTable.isDataTable('#profitabilityTable')) {
         $('#profitabilityTable').DataTable().ajax.reload();
         $('#chefKpiTable').DataTable().ajax.reload();
@@ -88,7 +110,13 @@ function loadKPIs() {
     }
 
     profitTable = $('#profitabilityTable').DataTable({
-        ajax: '/admin/reports/profitability',
+        ajax: {
+            url: '/admin/reports/profitability',
+            data: function(d) {
+                d.startDate = $('#kpiStartDate').val();
+                d.endDate = $('#kpiEndDate').val();
+            }
+        },
         columns: [
             { data: 'product_name' },
             { data: 'selling_price', render: data => parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) },
@@ -111,7 +139,13 @@ function loadKPIs() {
     });
 
     chefTable = $('#chefKpiTable').DataTable({
-        ajax: '/admin/reports/kpi/chef',
+        ajax: {
+            url: '/admin/reports/kpi/chef',
+            data: function(d) {
+                d.startDate = $('#kpiStartDate').val();
+                d.endDate = $('#kpiEndDate').val();
+            }
+        },
         columns: [
             { data: 'chef_name' },
             { data: 'total_transactions' },
@@ -130,7 +164,13 @@ function loadKPIs() {
     });
 
     supplierTable = $('#supplierKpiTable').DataTable({
-        ajax: '/admin/reports/kpi/supplier',
+        ajax: {
+            url: '/admin/reports/kpi/supplier',
+            data: function(d) {
+                d.startDate = $('#kpiStartDate').val();
+                d.endDate = $('#kpiEndDate').val();
+            }
+        },
         columns: [
             { data: 'item_name' },
             { data: 'supplier_name' },
@@ -148,7 +188,13 @@ function viewChefDetails(chefId, chefName) {
     }
     
     chefDetailsTable = $('#chefDetailsTable').DataTable({
-        ajax: '/admin/reports/kpi/chef/details/' + chefId,
+        ajax: {
+            url: '/admin/reports/kpi/chef/details/' + chefId,
+            data: function(d) {
+                d.startDate = $('#kpiStartDate').val();
+                d.endDate = $('#kpiEndDate').val();
+            }
+        },
         columns: [
             { 
                 data: null,

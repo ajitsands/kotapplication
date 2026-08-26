@@ -8,6 +8,11 @@ class ReportsController extends Controller {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
+        $startDate = $_GET['startDate'] ?? date('Y-m-d');
+        $endDate = $_GET['endDate'] ?? date('Y-m-d');
+        $endDate = $endDate . ' 23:59:59';
+        $startDate = $startDate . ' 00:00:00';
+
         // Group by chef and summarize how many total items (or total value) they consumed
         // The value of consumed items = quantity * current selling_price of the inventory item
         $sql = "SELECT u.id as chef_id, u.name as chef_name, 
@@ -17,11 +22,13 @@ class ReportsController extends Controller {
                 FROM inventory_transactions t
                 JOIN users u ON t.chef_id = u.id
                 JOIN inventory_items i ON t.inventory_item_id = i.id
-                WHERE t.transaction_type = 'consume_kot'
+                WHERE t.transaction_type = 'consume_kot' 
+                AND t.created_at >= ? AND t.created_at <= ?
                 GROUP BY t.chef_id
                 ORDER BY total_items_consumed DESC";
                 
-        $stmt = $db->query($sql);
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $this->json(['status' => 'success', 'data' => $data]);
@@ -36,6 +43,11 @@ class ReportsController extends Controller {
             $this->json(['status' => 'error', 'message' => 'Chef ID required']);
             return;
         }
+
+        $startDate = $_GET['startDate'] ?? date('Y-m-d');
+        $endDate = $_GET['endDate'] ?? date('Y-m-d');
+        $endDate = $endDate . ' 23:59:59';
+        $startDate = $startDate . ' 00:00:00';
         
         try {
             $sql = "SELECT DISTINCT k.kot_number, o.id as order_number, p.name as item_name, ki.quantity, p.price as selling_price, (ki.quantity * p.price) as total_revenue, t.created_at as time
@@ -45,10 +57,11 @@ class ReportsController extends Controller {
                     JOIN products p ON ki.product_id = p.id
                     JOIN inventory_transactions t ON t.reference_id = k.kot_number
                     WHERE t.chef_id = ? AND t.transaction_type = 'consume_kot'
+                    AND t.created_at >= ? AND t.created_at <= ?
                     ORDER BY t.created_at DESC";
                     
             $stmt = $db->prepare($sql);
-            $stmt->execute([$chefId]);
+            $stmt->execute([$chefId, $startDate, $endDate]);
             $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $this->json(['status' => 'success', 'data' => $data]);
@@ -61,16 +74,23 @@ class ReportsController extends Controller {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
+        $startDate = $_GET['startDate'] ?? date('Y-m-d');
+        $endDate = $_GET['endDate'] ?? date('Y-m-d');
+        $endDate = $endDate . ' 23:59:59';
+        $startDate = $startDate . ' 00:00:00';
+
         // Get the average unit price for items supplied by different suppliers
         $sql = "SELECT s.name as supplier_name, i.name as item_name, AVG(t.unit_price) as avg_price, SUM(t.quantity) as total_supplied
                 FROM inventory_transactions t
                 JOIN suppliers s ON t.supplier_id = s.id
                 JOIN inventory_items i ON t.inventory_item_id = i.id
                 WHERE t.transaction_type = 'add_stock'
+                AND t.created_at >= ? AND t.created_at <= ?
                 GROUP BY t.supplier_id, t.inventory_item_id
                 ORDER BY i.name ASC, avg_price ASC";
                 
-        $stmt = $db->query($sql);
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $this->json(['status' => 'success', 'data' => $data]);
