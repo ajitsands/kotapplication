@@ -84,9 +84,19 @@ class Kot extends Model {
     public function markItemReady($kotItemId) {
         $this->db->beginTransaction();
         try {
-            // Update item status
-            $stmt = $this->db->prepare("UPDATE kot_items SET status = 'ready' WHERE id = ?");
-            $stmt->execute([$kotItemId]);
+            $chefId = $_SESSION['user_id'] ?? null;
+
+            $stmtCheckStatus = $this->db->prepare("SELECT status FROM kot_items WHERE id = ?");
+            $stmtCheckStatus->execute([$kotItemId]);
+            $status = $stmtCheckStatus->fetchColumn();
+
+            if ($status !== 'ready') {
+                // Update item status
+                $stmt = $this->db->prepare("UPDATE kot_items SET status = 'ready' WHERE id = ?");
+                $stmt->execute([$kotItemId]);
+                
+                $this->deductInventoryForKotItem($kotItemId, $chefId);
+            }
 
             // Get KOT id
             $stmtKotId = $this->db->prepare("SELECT kot_id FROM kot_items WHERE id = ?");
@@ -115,17 +125,58 @@ class Kot extends Model {
     public function markKotReady($kotId) {
         $this->db->beginTransaction();
         try {
+            $chefId = $_SESSION['user_id'] ?? null;
+
+            // Find all pending items first
+            $stmtFind = $this->db->prepare("SELECT id FROM kot_items WHERE kot_id = ? AND status = 'pending'");
+            $stmtFind->execute([$kotId]);
+            $pendingItems = $stmtFind->fetchAll(PDO::FETCH_COLUMN);
+
             $stmt = $this->db->prepare("UPDATE kots SET status = 'ready' WHERE id = ?");
             $stmt->execute([$kotId]);
 
             $stmtItems = $this->db->prepare("UPDATE kot_items SET status = 'ready' WHERE kot_id = ? AND status = 'pending'");
             $stmtItems->execute([$kotId]);
 
+            foreach ($pendingItems as $itemId) {
+                $this->deductInventoryForKotItem($itemId, $chefId);
+            }
+
             $this->db->commit();
             return true;
         } catch (Exception $e) {
             $this->db->rollBack();
             return false;
+        }
+    }
+
+    private function deductInventoryForKotItem($kotItemId, $chefId) {
+        // 1. Get product_id and quantity from kot_items
+        $stmt = $this->db->prepare("SELECT product_id, quantity, kot_id FROM kot_items WHERE id = ?");
+        $stmt->execute([$kotItemId]);
+        $item = $stmt->fetch();
+        if (!$item) return;
+
+        // 2. Get kot_number for reference
+        $stmtKot = $this->db->prepare("SELECT kot_number FROM kots WHERE id = ?");
+        $stmtKot->execute([$item['kot_id']]);
+        $kotNumber = $stmtKot->fetchColumn();
+
+        // 3. Get recipe
+        $stmtRecipe = $this->db->prepare("SELECT inventory_item_id, quantity_required FROM product_recipes WHERE product_id = ?");
+        $stmtRecipe->execute([$item['product_id']]);
+        $recipe = $stmtRecipe->fetchAll();
+
+        foreach ($recipe as $ing) {
+            $consumeQty = $ing['quantity_required'] * $item['quantity'];
+            
+            // Update stock
+            $stmtUpdate = $this->db->prepare("UPDATE inventory_items SET current_stock = current_stock - ? WHERE id = ?");
+            $stmtUpdate->execute([$consumeQty, $ing['inventory_item_id']]);
+
+            // Insert transaction
+            $stmtTrans = $this->db->prepare("INSERT INTO inventory_transactions (inventory_item_id, transaction_type, quantity, chef_id, reference_id) VALUES (?, 'consume_kot', ?, ?, ?)");
+            $stmtTrans->execute([$ing['inventory_item_id'], -$consumeQty, $chefId, $kotNumber]);
         }
     }
 

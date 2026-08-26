@@ -13,6 +13,7 @@ require_once 'core/Database.php';
 require_once 'core/Router.php';
 require_once 'core/Controller.php';
 require_once 'core/Model.php';
+require_once 'core/helpers.php';
 
 // Create directories for uploads if not exists
 if (!file_exists('uploads')) {
@@ -46,6 +47,31 @@ $router->add('POST', '/user/change-password', 'HomeController@changePassword');
 $router->add('GET', '/admin/tax-report/json', 'AdminController@taxReportJson');
 $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
 $router->add('GET', '/admin/waiter-performance/json', 'AdminController@waiterPerformanceJson');
+
+// Inventory & Supplier Routes
+$router->add('GET', '/admin/suppliers/list', 'SupplierController@suppliersListJson');
+$router->add('POST', '/admin/suppliers', 'SupplierController@saveSupplier');
+$router->add('POST', '/admin/suppliers/delete/:id', 'SupplierController@deleteSupplier');
+
+$router->add('GET', '/admin/inventory/items/list', 'InventoryController@itemsListJson');
+$router->add('POST', '/admin/inventory/items', 'InventoryController@saveItem');
+$router->add('POST', '/admin/inventory/items/delete/:id', 'InventoryController@deleteItem');
+$router->add('GET', '/admin/inventory/items/template', 'InventoryController@downloadItemsTemplate');
+$router->add('POST', '/admin/inventory/items/import', 'InventoryController@importItems');
+$router->add('GET', '/admin/inventory/transactions/:item_id', 'InventoryController@transactionsJson');
+
+$router->add('POST', '/admin/inventory/stock/add', 'InventoryController@addStock');
+$router->add('GET', '/admin/inventory/stock/template', 'InventoryController@downloadStockTemplate');
+$router->add('POST', '/admin/inventory/stock/import', 'InventoryController@importStock');
+
+$router->add('GET', '/admin/inventory/recipes/:product_id', 'InventoryController@getRecipe');
+$router->add('POST', '/admin/inventory/recipes', 'InventoryController@saveRecipe');
+
+$router->add('GET', '/admin/reports/kpi/chef', 'ReportsController@chefKpiJson');
+$router->add('GET', '/admin/reports/kpi/chef/details/:id', 'ReportsController@chefDetailsJson');
+$router->add('GET', '/admin/reports/kpi/supplier', 'ReportsController@supplierKpiJson');
+$router->add('GET', '/admin/reports/profitability', 'ReportsController@profitabilityJson');
+
 
 // KOT Operations Routes
 $router->add('GET', '/kot', 'KotController@index');

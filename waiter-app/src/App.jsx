@@ -14,6 +14,13 @@ function App() {
 
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState(null);
+  const formatPrice = (amount) => {
+    let curr = settings?.currency_code || 'BHD';
+    let three_decimals = ['BHD', 'KWD', 'OMR', 'IQD', 'JOD', 'TND', 'LYD'];
+    let decimals = three_decimals.includes(curr.toUpperCase().trim()) ? 3 : 2;
+    return parseFloat(amount || 0).toFixed(decimals);
+  };
+
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [tables, setTables] = useState([]);
@@ -411,7 +418,7 @@ function App() {
 
   // Total calculations
   const getBasketTotal = () => {
-    return Object.values(basket).reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(3);
+    return formatPrice(Object.values(basket).reduce((total, item) => total + (item.price * item.quantity), 0));
   };
 
   const getBasketCount = () => {
@@ -568,7 +575,7 @@ function App() {
                   activeOrder.items.map((item, idx) => (
                     <div className="order-item-row" key={idx}>
                       <span><b>{item.total_quantity}</b> × {item.name}</span>
-                      <span className="price-text" style={{ fontStyle: 'monospace' }}>{(item.price * item.total_quantity).toFixed(3)} {currency}</span>
+                      <span className="price-text" style={{ fontStyle: 'monospace' }}>{formatPrice(item.price * item.total_quantity)} {currency}</span>
                     </div>
                   ))
                 ) : (
@@ -629,7 +636,7 @@ function App() {
                   <div className="product-row-card" key={prod.id} onClick={() => addToBasket(prod)}>
                     <div>
                       <div className="product-row-name">{prod.name}</div>
-                      <div className="product-row-price">{parseFloat(prod.price).toFixed(3)} {currency}</div>
+                      <div className="product-row-price">{formatPrice(prod.price)} {currency}</div>
                     </div>
                     <button className="btn-qty-mini">+</button>
                   </div>
@@ -678,7 +685,7 @@ function App() {
                     </button>
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontWeight: 700, fontSize: 15, textAlign: 'left' }}>{item.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 600, textAlign: 'left' }}>{(item.price * item.quantity).toFixed(3)} {currency}</div>
+                      <div style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 600, textAlign: 'left' }}>{formatPrice(item.price * item.quantity)} {currency}</div>
                     </div>
                   </div>
                   <div className="cart-qty-control">

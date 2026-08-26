@@ -433,7 +433,7 @@ class Bill extends Model {
         $grouped = [];
         foreach ($items as $item) {
             $itemTotal = (float)$item['base_price'] * (int)$item['quantity'];
-            $item['refund_amount'] = number_format($itemTotal * $taxMultiplier, 3, '.', '');
+            $item['refund_amount'] = format_price($itemTotal * $taxMultiplier, null, true);
             
             $orderId = $item['order_id'];
             if (!isset($grouped[$orderId])) {
@@ -452,7 +452,7 @@ class Bill extends Model {
 
         $result = [];
         foreach ($grouped as $order) {
-            $order['total_refund_amount'] = number_format($order['total_refund_amount'], 3, '.', '');
+            $order['total_refund_amount'] = format_price($order['total_refund_amount'], null, true);
             $result[] = $order;
         }
 
@@ -493,7 +493,7 @@ class Bill extends Model {
         $grouped = [];
         foreach ($items as $item) {
             $itemTotal = (float)$item['base_price'] * (int)$item['quantity'];
-            $item['refund_amount'] = number_format($itemTotal * $taxMultiplier, 3, '.', '');
+            $item['refund_amount'] = format_price($itemTotal * $taxMultiplier, null, true);
             
             $orderId = $item['order_id'];
             if (!isset($grouped[$orderId])) {
@@ -512,7 +512,7 @@ class Bill extends Model {
 
         $result = [];
         foreach ($grouped as $order) {
-            $order['total_refund_amount'] = number_format($order['total_refund_amount'], 3, '.', '');
+            $order['total_refund_amount'] = format_price($order['total_refund_amount'], null, true);
             $result[] = $order;
         }
 

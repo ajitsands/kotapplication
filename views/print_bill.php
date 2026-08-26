@@ -129,10 +129,10 @@
                 <tr>
                     <td>
                         <?= htmlspecialchars($item['product_name']) ?><br>
-                        <small style="color:#555; font-size:10px;"><?= number_format($item['price'], 3) ?></small>
+                        <small style="color:#555; font-size:10px;"><?= format_price($item['price']) ?></small>
                     </td>
                     <td class="text-center"><?= $item['total_quantity'] ?></td>
-                    <td class="text-right"><?= number_format($item['subtotal_price'], 3) ?></td>
+                    <td class="text-right"><?= format_price($item['subtotal_price']) ?></td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
@@ -141,13 +141,13 @@
     <div class="totals-section">
         <div class="totals-row">
             <span>Subtotal:</span>
-            <span><?= number_format($bill['subtotal'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+            <span><?= format_price($bill['subtotal']) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
         </div>
 
         <?php if ($settings['tax_type'] === 'VAT'): ?>
             <div class="totals-row">
                 <span>VAT (<?= htmlspecialchars($settings['vat_percent']) ?>%):</span>
-                <span><?= number_format($bill['tax_amount'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+                <span><?= format_price($bill['tax_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
             </div>
         <?php else: // GST India ?>
             <?php 
@@ -156,24 +156,24 @@
             ?>
             <div class="totals-row">
                 <span>CGST (<?= htmlspecialchars($settings['cgst_percent']) ?>%):</span>
-                <span><?= number_format($halfTax, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+                <span><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
             </div>
             <div class="totals-row">
                 <span>SGST (<?= htmlspecialchars($settings['sgst_percent']) ?>%):</span>
-                <span><?= number_format($halfTax, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+                <span><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
             </div>
         <?php endif; ?>
 
         <?php if (isset($bill['discount_amount']) && (float)$bill['discount_amount'] > 0): ?>
             <div class="totals-row">
                 <span>Discount (<?= htmlspecialchars($bill['discount_percent']) ?>%):</span>
-                <span>-<?= number_format($bill['discount_amount'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+                <span>-<?= format_price($bill['discount_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
             </div>
         <?php endif; ?>
 
         <div class="grand-total-row">
             <span>GRAND TOTAL:</span>
-            <span><?= number_format($bill['grand_total'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+            <span><?= format_price($bill['grand_total']) ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
         </div>
     </div>
 

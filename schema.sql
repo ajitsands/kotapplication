@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
     `restaurant_name` VARCHAR(100) NOT NULL DEFAULT 'Gourmet Restaurant',
     `currency_code` VARCHAR(10) NOT NULL DEFAULT 'BHD',
     `time_zone` VARCHAR(50) NOT NULL DEFAULT 'Asia/Bahrain',
+    `custom_units` VARCHAR(255) DEFAULT 'Nos, Box, Packet, Gram, KG, Litre, ML',
     `tax_type` ENUM('VAT', 'GST') NOT NULL DEFAULT 'VAT',
     `vat_percent` DECIMAL(5,2) NOT NULL DEFAULT 10.00,
     `cgst_percent` DECIMAL(5,2) NOT NULL DEFAULT 2.50,
@@ -158,10 +159,60 @@ INSERT IGNORE INTO `users` (`id`, `username`, `password`, `name`, `role`) VALUES
 (6, 'superadmin', '$2y$10$GIlyTrYJ3QAvz5vzgYjh2.QZV5HJYep7yvez8ay5dgyYs5HXoa3Nq', 'SaNDS Lab Super Admin', 'admin');
 
 -- Default Setting
-INSERT IGNORE INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`, `software_expiry_date`) VALUES
-(1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'VAT', 10.00, 2.50, 2.50, 80, NULL, '2027-12-31');
+INSERT IGNORE INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `custom_units`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`, `software_expiry_date`) VALUES
+(1, 'Gourmet Express', 'BHD', 'Asia/Bahrain', 'Nos, Box, Packet, Gram, KG, Litre, ML', 'VAT', 10.00, 2.50, 2.50, 80, NULL, '2027-12-31');
 
 -- Default Dining Tables (1 to 20)
 INSERT IGNORE INTO `dining_tables` (`table_number`) VALUES
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+
+-- Suppliers Table (For Inventory Purchases)
+CREATE TABLE IF NOT EXISTS `suppliers` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL,
+    `contact_person` VARCHAR(100) DEFAULT NULL,
+    `phone` VARCHAR(20) DEFAULT NULL,
+    `email` VARCHAR(100) DEFAULT NULL,
+    `address` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Inventory Items Table (Raw Materials)
+CREATE TABLE IF NOT EXISTS `inventory_items` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL UNIQUE,
+    `unit` VARCHAR(50) NOT NULL DEFAULT 'Nos',
+    `current_stock` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+    `buying_price_per_unit` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+    `selling_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Product Recipes Table (BOM)
+CREATE TABLE IF NOT EXISTS `product_recipes` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `product_id` INT NOT NULL,
+    `inventory_item_id` INT NOT NULL,
+    `quantity_required` DECIMAL(10,3) NOT NULL,
+    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`inventory_item_id`) REFERENCES `inventory_items`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Inventory Transactions Table
+CREATE TABLE IF NOT EXISTS `inventory_transactions` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `inventory_item_id` INT NOT NULL,
+    `transaction_type` ENUM('add_stock', 'consume_kot', 'adjustment', 'damage') NOT NULL,
+    `quantity` DECIMAL(10,3) NOT NULL, -- Positive for add, negative for consume/damage
+    `unit_price` DECIMAL(10,3) DEFAULT NULL, -- Captured at time of transaction
+    `supplier_id` INT DEFAULT NULL, -- If added from a supplier
+    `chef_id` INT DEFAULT NULL, -- Chef who marked KOT as ready (caused consumption)
+    `reference_id` VARCHAR(50) DEFAULT NULL, -- e.g., KOT Number or Invoice Number
+    `notes` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`inventory_item_id`) REFERENCES `inventory_items`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`chef_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB;
+

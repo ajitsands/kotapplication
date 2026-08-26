@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const _cur = '<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>'.toUpperCase().trim();
+        window.PRICE_DECIMALS = ['BHD', 'KWD', 'OMR', 'IQD', 'JOD', 'TND', 'LYD'].includes(_cur) ? 3 : 2;
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | <?= htmlspecialchars($settings['restaurant_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -9,6 +13,32 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+    if (typeof $.fn.dataTable !== 'undefined') {
+        $.extend(true, $.fn.dataTable.defaults, {
+            headerCallback: function(thead) {
+                $(thead).find('th').each(function() {
+                    let text = $(this).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => text.includes(k))) {
+                        $(this).css('text-align', 'right');
+                    }
+                });
+            },
+            rowCallback: function(row) {
+                let api = this.api();
+                api.columns().every(function() {
+                    let headerText = $(this.header()).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => headerText.includes(k))) {
+                        let cellNode = api.cell(row, this.index()).node();
+                        if (cellNode) $(cellNode).css('text-align', 'right');
+                    }
+                });
+            }
+        });
+    }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda-themeless.min.css">
@@ -167,7 +197,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 40px auto;
             padding: 0 20px;
         }
@@ -178,6 +208,12 @@
             margin-top: 15px;
         }
         
+        .dataTables_wrapper .dataTables_length label {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        
         .dataTables_wrapper .dataTables_length select,
         .dataTables_wrapper .dataTables_filter input {
             background: rgba(255, 255, 255, 0.04);
@@ -186,6 +222,9 @@
             border-radius: 8px;
             color: var(--text-color);
             outline: none;
+            display: inline-block !important;
+            width: auto !important;
+            margin: 0 !important;
         }
 
         body.light-theme .dataTables_wrapper .dataTables_length select,
@@ -783,6 +822,9 @@
             else if (id === 'tax_reports' && typeof loadTaxReport === 'function') loadTaxReport();
             else if (id === 'analytics' && typeof loadAnalyticsReport === 'function') loadAnalyticsReport();
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
+            else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
+            else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
+            else if (id === 'kpi' && typeof loadKPIs === 'function') loadKPIs();
         }
 
         // Close dropdown on outside click
@@ -803,7 +845,10 @@
             customers:   { icon: '🎁', label: 'Customers (Loyalty)' },
             tax_reports: { icon: '🧾', label: 'VAT/Tax Reports' },
             analytics:   { icon: '📊', label: 'Sales & Product Analytics' },
-            waiter_report: { icon: '🤵', label: 'Waiter Performance' }
+            waiter_report: { icon: '🤵', label: 'Waiter Performance' },
+            inventory:   { icon: '📦', label: 'Inventory Stock' },
+            suppliers:   { icon: '🚚', label: 'Suppliers Mgmt' },
+            kpi:         { icon: '📈', label: 'Profit & KPI' }
         };
 
         // Restore active tab from localStorage
@@ -856,6 +901,15 @@
                     </button>
                     <button class="nav-dropdown-item" id="item-waiter_report" onclick="selectSection('waiter_report','🤵','Waiter Performance')">
                         <span class="item-icon">🤵</span> Waiter Performance
+                    </button>
+                    <button class="nav-dropdown-item" id="item-inventory" onclick="selectSection('inventory','📦','Inventory Stock')">
+                        <span class="item-icon">📦</span> Inventory Stock
+                    </button>
+                    <button class="nav-dropdown-item" id="item-suppliers" onclick="selectSection('suppliers','🚚','Suppliers Mgmt')">
+                        <span class="item-icon">🚚</span> Suppliers Mgmt
+                    </button>
+                    <button class="nav-dropdown-item" id="item-kpi" onclick="selectSection('kpi','📈','Profit &amp; KPI')">
+                        <span class="item-icon">📈</span> Profit &amp; KPI
                     </button>
                 </div>
             </div>
@@ -1045,7 +1099,7 @@
                                         <small style="color: var(--text-muted); font-size: 11px;"><?= htmlspecialchars(substr($prod['description'] ?? '', 0, 50)) ?></small>
                                     </td>
                                     <td><?= htmlspecialchars($prod['category_name']) ?></td>
-                                    <td style="font-family: monospace; font-weight: 600;"><?= number_format($prod['price'], 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                                    <td style="font-family: monospace; font-weight: 600;"><?= format_price($prod['price']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
                                     <td>
                                         <div style="display: flex; gap: 8px; align-items: center;">
                                             <button class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" 
@@ -1053,6 +1107,14 @@
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                     <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                </svg>
+                                            </button>
+                                            <button class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" 
+                                                    onclick='manageRecipe(<?= json_encode($prod) ?>)' title="Manage Recipe">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                                 </svg>
                                             </button>
                                             <form action="admin/products/delete/<?= $prod['id'] ?>" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
@@ -1117,6 +1179,12 @@
                                 <option value="58" <?= (int)$settings['printer_size'] === 58 ? 'selected' : '' ?>>58 MM Compact Width</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label class="form-label">Custom Inventory Units (Comma Separated)</label>
+                        <input class="form-input" type="text" name="custom_units" value="<?= htmlspecialchars($settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML') ?>" placeholder="e.g. Nos, Box, Packet, Gram, KG, Litre, ML" required>
+                        <small style="color: var(--text-muted); display: block; margin-top: 5px;">These units will appear in the Add Inventory dropdown.</small>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -1558,6 +1626,11 @@
             </div>
         </div>
         
+        <?php include 'admin_suppliers.php'; ?>
+        <?php include 'admin_inventory.php'; ?>
+        <?php include 'admin_kpi.php'; ?>
+        <?php include 'admin_recipe.php'; ?>
+
         <!-- Footer -->
         <div class="admin-footer" style="padding: 18px 20px; text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 30px; width: 100%;">
             Powered By <a href="javascript:void(0)" onclick="openSandsModal()" style="color: #818cf8; text-decoration: none; font-weight: 600;">SaNDS Lab</a>. All rights reserved to <?= htmlspecialchars($settings['restaurant_name']) ?>
@@ -1715,8 +1788,8 @@
                         let html = '';
                         data.customers.forEach(c => {
                             const dateStr = new Date(c.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-                            const spent = parseFloat(c.total_spent).toFixed(3);
-                            const discount = parseFloat(c.total_discount || 0).toFixed(3);
+                            const spent = parseFloat(c.total_spent).toFixed(window.PRICE_DECIMALS || 3);
+                            const discount = parseFloat(c.total_discount || 0).toFixed(window.PRICE_DECIMALS || 3);
                             const genderLabel = c.gender ? c.gender : '<span style="color:var(--text-muted); font-style:italic;">Not Specified</span>';
                             
                             html += `
@@ -1830,16 +1903,16 @@
                             <div style="margin-top: 4px;">🏁 <strong>End:</strong> ${formatDateTime(row.close_requested_at)}</div>
                         </td>
                         <td style="padding: 16px 12px; text-align: right; font-size: 13px; font-family: monospace;">
-                            <div>💵 Cash: ${sysCash.toFixed(3)}</div>
-                            <div>💳 Card: ${sysCard.toFixed(3)}</div>
-                            <div>📱 QR: ${sysQr.toFixed(3)}</div>
-                            <div style="border-top:1px dashed var(--card-border); margin-top:4px; padding-top:4px; font-weight:700;">Total: ${sysTotal.toFixed(3)}</div>
+                            <div>💵 Cash: ${sysCash.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div>💳 Card: ${sysCard.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div>📱 QR: ${sysQr.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div style="border-top:1px dashed var(--card-border); margin-top:4px; padding-top:4px; font-weight:700;">Total: ${sysTotal.toFixed(window.PRICE_DECIMALS || 3)}</div>
                         </td>
                         <td style="padding: 16px 12px; text-align: right; font-size: 13px; font-family: monospace;">
-                            <div>💵 Cash: ${colCash.toFixed(3)}</div>
-                            <div>💳 Card: ${colCard.toFixed(3)}</div>
-                            <div>📱 QR: ${colQr.toFixed(3)}</div>
-                            <div style="border-top:1px dashed var(--card-border); margin-top:4px; padding-top:4px; font-weight:700;">Total: ${colTotal.toFixed(3)}</div>
+                            <div>💵 Cash: ${colCash.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div>💳 Card: ${colCard.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div>📱 QR: ${colQr.toFixed(window.PRICE_DECIMALS || 3)}</div>
+                            <div style="border-top:1px dashed var(--card-border); margin-top:4px; padding-top:4px; font-weight:700;">Total: ${colTotal.toFixed(window.PRICE_DECIMALS || 3)}</div>
                         </td>
                         <td style="padding: 16px 12px; text-align: right; font-size: 13px; font-family: monospace;">
                             <div>Cash: ${formatDiscrepancy(diffCash, '')}</div>
@@ -1851,7 +1924,7 @@
                             ${row.cashier_notes ? htmlspecialchars(row.cashier_notes) : '<i>No notes</i>'}
                         </td>
                         <td style="padding: 16px 12px; text-align: center;">
-                            <button onclick="approveClosure(${row.id}, '${row.cashier_name}', ${colTotal.toFixed(3)}, '${cur}', '${rootPath}')" class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--accent-green); box-shadow: none; margin-bottom: 6px; width: 110px; cursor:pointer;">
+                            <button onclick="approveClosure(${row.id}, '${row.cashier_name}', ${colTotal.toFixed(window.PRICE_DECIMALS || 3)}, '${cur}', '${rootPath}')" class="btn-primary" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--accent-green); box-shadow: none; margin-bottom: 6px; width: 110px; cursor:pointer;">
                                 Confirm & Close
                             </button>
                             <button onclick="rejectClosure(${row.id}, '${row.cashier_name}', '${rootPath}')" class="btn-delete" style="padding: 6px 12px; font-size: 12px; width: 110px; cursor:pointer;">
@@ -1906,8 +1979,8 @@
                         <td style="padding: 14px 12px; font-weight: 600; font-size:13px; text-align:left;">${row.cashier_name}</td>
                         <td style="padding: 14px 12px; font-size:13px; text-align:left;">${formatDateTime(row.opened_at)}</td>
                         <td style="padding: 14px 12px; font-size:13px; text-align:left;">${formatDateTime(row.closed_at)}</td>
-                        <td style="padding: 14px 12px; text-align: right; font-family: monospace; font-size:13px;">${sysTotal.toFixed(3)} ${cur}</td>
-                        <td style="padding: 14px 12px; text-align: right; font-family: monospace; font-size:13px;">${colTotal.toFixed(3)} ${cur}</td>
+                        <td style="padding: 14px 12px; text-align: right; font-family: monospace; font-size:13px;">${sysTotal.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                        <td style="padding: 14px 12px; text-align: right; font-family: monospace; font-size:13px;">${colTotal.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                         <td style="padding: 14px 12px; text-align: right; font-family: monospace; font-size:13px;">${formatDiscrepancy(diffTotal, cur)}</td>
                         <td style="padding: 14px 12px; font-size:13px; color: var(--text-muted); text-align:left;">
                             👤 ${row.approved_by_name || 'System Admin'}
@@ -1930,7 +2003,7 @@
         }
 
         function formatDiscrepancy(diff, cur) {
-            const fd = parseFloat(diff).toFixed(3);
+            const fd = parseFloat(diff).toFixed(window.PRICE_DECIMALS || 3);
             if (diff < 0) {
                 return `<span style="color: var(--accent-red); font-weight: 700;">${fd} ${cur}</span>`;
             } else if (diff > 0) {
@@ -2305,7 +2378,7 @@
                             ? `<img src="${prod.image_url}" class="img-preview-mini">`
                             : `<div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted);">None</div>`;
                         
-                        const price = parseFloat(prod.price).toFixed(3);
+                        const price = parseFloat(prod.price).toFixed(window.PRICE_DECIMALS || 3);
                         
                         html += `
                             <tr>
@@ -2323,6 +2396,14 @@
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                            </svg>
+                                        </button>
+                                        <button class="btn-primary" style="padding: 6px 10px; font-size: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981; box-shadow: none; display: inline-flex; align-items: center; justify-content: center;" 
+                                                onclick='manageRecipe(${JSON.stringify(prod)})' title="Manage Recipe">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                             </svg>
                                         </button>
                                         <form action="admin/products/delete/${prod.id}" method="POST" style="display:inline;" class="confirm-delete" data-message="Delete this product?">
@@ -2396,10 +2477,10 @@
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                     <td style="padding: 12px; font-weight:600;">#INV-${b.id}</td>
                                     <td style="padding: 12px;">${dateStr}</td>
-                                    <td style="padding: 12px; text-align:right;">${sub.toFixed(3)} ${cur}</td>
-                                    <td style="padding: 12px; text-align:right; color:var(--accent-orange);">${tax.toFixed(3)} ${cur}</td>
-                                    <td style="padding: 12px; text-align:right; color:var(--accent-red);">${disc.toFixed(3)} ${cur}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${grand.toFixed(3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right;">${sub.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; color:var(--accent-orange);">${tax.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; color:var(--accent-red);">${disc.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${grand.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                     <td style="padding: 12px;">${payLabel}</td>
                                     <td style="padding: 12px;">${b.cashier_name || 'System / Auto'}</td>
                                 </tr>
@@ -2414,10 +2495,10 @@
                     }
 
                     // Populate summary footer fields
-                    document.getElementById('tax-total-subtotal').innerText = totalSubtotal.toFixed(3) + ' ' + cur;
-                    document.getElementById('tax-total-tax').innerText = totalTax.toFixed(3) + ' ' + cur;
-                    document.getElementById('tax-total-discount').innerText = totalDiscount.toFixed(3) + ' ' + cur;
-                    document.getElementById('tax-total-grand').innerText = totalGrand.toFixed(3) + ' ' + cur;
+                    document.getElementById('tax-total-subtotal').innerText = totalSubtotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('tax-total-tax').innerText = totalTax.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('tax-total-discount').innerText = totalDiscount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('tax-total-grand').innerText = totalGrand.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
 
                     // Initialize DataTable
                     taxReportsTable = $('#tax-report-table').DataTable({
@@ -2550,7 +2631,7 @@
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                     <td style="padding: 12px; font-weight:600; text-align:left;">${htmlspecialchars(item.product_name)}</td>
                                     <td style="padding: 12px; color: var(--text-muted); text-align:left;">${htmlspecialchars(item.category_name)}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700; color: var(--accent-green); font-family: monospace;">${parseFloat(item.total_revenue).toFixed(3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color: var(--accent-green); font-family: monospace;">${parseFloat(item.total_revenue).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                 </tr>
                             `;
                         });
@@ -2560,7 +2641,7 @@
                     }
 
                     document.getElementById('kpi-total-qty').innerText = totalQty;
-                    document.getElementById('kpi-total-revenue').innerText = totalRevenue.toFixed(3) + ' ' + cur;
+                    document.getElementById('kpi-total-revenue').innerText = totalRevenue.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('kpi-top-product').innerText = totalQty > 0 ? `${topQtyProduct} (${maxQty} sold)` : 'None';
 
                     fastMovingTable = $('#fast-moving-table').DataTable({
@@ -2602,7 +2683,7 @@
             analyticsDataGlobal.forEach(item => {
                 const name = item.product_name.replace(/"/g, '""');
                 const cat = item.category_name.replace(/"/g, '""');
-                csvContent += `"${item.id}","${name}","${cat}","${parseFloat(item.price).toFixed(3)}","${item.total_qty_sold}","${parseFloat(item.total_revenue).toFixed(3)}"\n`;
+                csvContent += `"${item.id}","${name}","${cat}","${parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3)}","${item.total_qty_sold}","${parseFloat(item.total_revenue).toFixed(window.PRICE_DECIMALS || 3)}"\n`;
             });
 
             const start = document.getElementById('analytics-start-date').value || 'report';
@@ -2658,7 +2739,7 @@
                                     <td style="padding: 12px; text-align:center;">${statusLabel}</td>
                                     <td style="padding: 12px; text-align:right; font-weight:700;">${row.total_orders}</td>
                                     <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-orange);">${row.paid_orders}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${parseFloat(row.total_revenue).toFixed(3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${parseFloat(row.total_revenue).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                 </tr>
                             `;
                         });
@@ -2705,7 +2786,7 @@
                 const statusText = parseInt(row.is_active) === 1 ? "Active" : "Deactivated";
                 const wName = row.waiter_name.replace(/"/g, '""');
                 const uName = row.username.replace(/"/g, '""');
-                csvContent += `"${row.waiter_id}","${wName}","${uName}","${statusText}","${row.total_orders}","${row.paid_orders}","${parseFloat(row.total_revenue).toFixed(3)}"\n`;
+                csvContent += `"${row.waiter_id}","${wName}","${uName}","${statusText}","${row.total_orders}","${row.paid_orders}","${parseFloat(row.total_revenue).toFixed(window.PRICE_DECIMALS || 3)}"\n`;
             });
 
             const start = document.getElementById('waiter-start-date').value || 'report';

@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const _cur = '<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>'.toUpperCase().trim();
+        window.PRICE_DECIMALS = ['BHD', 'KWD', 'OMR', 'IQD', 'JOD', 'TND', 'LYD'].includes(_cur) ? 3 : 2;
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kitchen Display (KOT) | <?= htmlspecialchars($settings['restaurant_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -9,6 +13,32 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+    if (typeof $.fn.dataTable !== 'undefined') {
+        $.extend(true, $.fn.dataTable.defaults, {
+            headerCallback: function(thead) {
+                $(thead).find('th').each(function() {
+                    let text = $(this).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => text.includes(k))) {
+                        $(this).css('text-align', 'right');
+                    }
+                });
+            },
+            rowCallback: function(row) {
+                let api = this.api();
+                api.columns().every(function() {
+                    let headerText = $(this.header()).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => headerText.includes(k))) {
+                        let cellNode = api.cell(row, this.index()).node();
+                        if (cellNode) $(cellNode).css('text-align', 'right');
+                    }
+                });
+            }
+        });
+    }
+    </script>
     <style>
         :root {
             --bg-color: #080b11;
@@ -1343,7 +1373,7 @@
                             <td style="padding: 10px 8px; vertical-align:middle;">${imgCol}</td>
                             <td style="padding: 10px 8px; vertical-align:middle; font-weight:600;">${escapeHtml(prod.name)}</td>
                             <td style="padding: 10px 8px; vertical-align:middle; color:var(--text-muted);">${escapeHtml(prod.category_name)}</td>
-                            <td style="padding: 10px 8px; vertical-align:middle; font-family:monospace; font-weight:600;">${parseFloat(prod.price).toFixed(3)} ${cur}</td>
+                            <td style="padding: 10px 8px; vertical-align:middle; font-family:monospace; font-weight:600;">${parseFloat(prod.price).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                             <td style="padding: 10px 8px; vertical-align:middle;">${availabilityCol}</td>
                         </tr>
                     `;

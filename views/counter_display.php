@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const _cur = '<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>'.toUpperCase().trim();
+        window.PRICE_DECIMALS = ['BHD', 'KWD', 'OMR', 'IQD', 'JOD', 'TND', 'LYD'].includes(_cur) ? 3 : 2;
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billing Counter | <?= htmlspecialchars($settings['restaurant_name']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -9,6 +13,32 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+    if (typeof $.fn.dataTable !== 'undefined') {
+        $.extend(true, $.fn.dataTable.defaults, {
+            headerCallback: function(thead) {
+                $(thead).find('th').each(function() {
+                    let text = $(this).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => text.includes(k))) {
+                        $(this).css('text-align', 'right');
+                    }
+                });
+            },
+            rowCallback: function(row) {
+                let api = this.api();
+                api.columns().every(function() {
+                    let headerText = $(this.header()).text().toLowerCase().trim();
+                    let keywords = ['price', 'cost', 'amount', 'profit', 'revenue', 'spent', 'balance', 'total'];
+                    if (keywords.some(k => headerText.includes(k))) {
+                        let cellNode = api.cell(row, this.index()).node();
+                        if (cellNode) $(cellNode).css('text-align', 'right');
+                    }
+                });
+            }
+        });
+    }
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
@@ -822,10 +852,10 @@
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; text-align: left; margin-bottom: 30px;">
                     <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 10px; border-bottom: 1px solid var(--card-border); padding-bottom: 5px;">Submitted Details</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-                        <div>💵 Cash: <strong style="color:var(--accent-green);"><?= number_format($activeSession['collected_cash'] ?? 0, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
-                        <div>💳 Card: <strong style="color:#60a5fa;"><?= number_format($activeSession['collected_card'] ?? 0, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
-                        <div>📱 QR: <strong style="color:var(--accent-orange);"><?= number_format($activeSession['collected_qr'] ?? 0, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
-                        <div>💰 Total: <strong style="color:#c084fc;"><?= number_format($activeSession['collected_total'] ?? 0, 3) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
+                        <div>💵 Cash: <strong style="color:var(--accent-green);"><?= format_price($activeSession['collected_cash'] ?? 0) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
+                        <div>💳 Card: <strong style="color:#60a5fa;"><?= format_price($activeSession['collected_card'] ?? 0) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
+                        <div>📱 QR: <strong style="color:var(--accent-orange);"><?= format_price($activeSession['collected_qr'] ?? 0) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
+                        <div>💰 Total: <strong style="color:#c084fc;"><?= format_price($activeSession['collected_total'] ?? 0) ?> <?= htmlspecialchars($settings['currency_code']) ?></strong></div>
                     </div>
                     <?php if (!empty($activeSession['cashier_notes'])): ?>
                         <div style="margin-top: 15px; font-size: 13px; color: var(--text-muted); border-top: 1px dashed var(--card-border); padding-top: 10px;">
@@ -1433,9 +1463,9 @@
                 `;
 
                 tableBills.forEach(bill => {
-                    const sub = parseFloat(bill.subtotal).toFixed(3);
-                    const tax = parseFloat(bill.tax_amount).toFixed(3);
-                    const grand = parseFloat(bill.grand_total).toFixed(3);
+                    const sub = parseFloat(bill.subtotal).toFixed(window.PRICE_DECIMALS || 3);
+                    const tax = parseFloat(bill.tax_amount).toFixed(window.PRICE_DECIMALS || 3);
+                    const grand = parseFloat(bill.grand_total).toFixed(window.PRICE_DECIMALS || 3);
                     const date = new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     
                     let infoCol = `#${bill.id}`;
@@ -1507,8 +1537,8 @@
                     let itemsHtml = '';
                     if (order.items && order.items.length > 0) {
                         order.items.forEach(item => {
-                            const price = parseFloat(item.price).toFixed(3);
-                            const total = parseFloat(item.subtotal_price).toFixed(3);
+                            const price = parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3);
+                            const total = parseFloat(item.subtotal_price).toFixed(window.PRICE_DECIMALS || 3);
                             itemsHtml += `
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                     <td style="padding: 10px 5px; font-weight: 500; font-size: 14px; text-align: left;">${item.name}</td>
@@ -1527,13 +1557,13 @@
                     }
                     
                     document.getElementById('view-modal-items-body').innerHTML = itemsHtml;
-                    document.getElementById('view-modal-subtotal').innerText = parseFloat(order.subtotal || 0).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-subtotal').innerText = parseFloat(order.subtotal || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
                     
                     const taxLabel = order.tax_amount > 0 ? 'Tax Amount:' : 'Tax:';
                     document.getElementById('view-modal-tax-type').innerText = taxLabel;
-                    document.getElementById('view-modal-tax').innerText = parseFloat(order.tax_amount || 0).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-tax').innerText = parseFloat(order.tax_amount || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
                     
-                    document.getElementById('view-modal-grand-total').innerText = parseFloat(order.grand_total || 0).toFixed(3) + ' ' + currencyCode;
+                    document.getElementById('view-modal-grand-total').innerText = parseFloat(order.grand_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
 
                     // Action buttons in details modal
                     let actionsHtml = `<button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 30px; display: inline-block;">Close</button>`;
@@ -1575,7 +1605,7 @@
                         if (select) {
                             select.innerHTML = '<option value="">Choose an item...</option>';
                             counterProducts.forEach(item => {
-                                select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(3)} ${currencyCode})</option>`;
+                                select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode})</option>`;
                             });
                             // Initialize Select2 search dropdown
                             $('#counter-item-select').select2({
@@ -1662,12 +1692,12 @@
             } else {
                 document.getElementById('modal-table-label').innerText = 'Complete payment for Table ' + bill.table_number;
             }
-            document.getElementById('modal-amount-label').innerText = parseFloat(bill.grand_total).toFixed(3) + ' ' + currencyCode;
+            document.getElementById('modal-amount-label').innerText = parseFloat(bill.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
             
             // Reset discount fields
             document.getElementById('modal-discount-input').value = 0;
             document.getElementById('modal-discount-amount-label').innerText = '0.000 ' + currencyCode;
-            document.getElementById('modal-net-payable-label').innerText = parseFloat(bill.grand_total).toFixed(3) + ' ' + currencyCode;
+            document.getElementById('modal-net-payable-label').innerText = parseFloat(bill.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
 
             // Reset customer loyalty fields
             document.getElementById('modal-cust-mobile').value = '';
@@ -1704,8 +1734,8 @@
             const discountAmount = grandTotal * (discountPercent / 100);
             const netPayable = grandTotal - discountAmount;
 
-            document.getElementById('modal-discount-amount-label').innerText = discountAmount.toFixed(3) + ' ' + currencyCode;
-            document.getElementById('modal-net-payable-label').innerText = netPayable.toFixed(3) + ' ' + currencyCode;
+            document.getElementById('modal-discount-amount-label').innerText = discountAmount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+            document.getElementById('modal-net-payable-label').innerText = netPayable.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
         }
 
         function closePaymentModal() {
@@ -1769,8 +1799,8 @@
                         
                         loyaltyInfoDiv.innerHTML = `
                             ⭐ <strong>Loyalty Member</strong><br>
-                            Total Spent: <strong>${parseFloat(data.total_spent).toFixed(3)} ${currencyCode}</strong><br>
-                            Total Discount: <strong>${parseFloat(data.total_discount).toFixed(3)} ${currencyCode}</strong><br>
+                            Total Spent: <strong>${parseFloat(data.total_spent).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong><br>
+                            Total Discount: <strong>${parseFloat(data.total_discount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong><br>
                             Visits: <strong>${data.visit_count} visit${data.visit_count > 1 ? 's' : ''}</strong><br>
                             <span style="font-size:10px; color:#818cf8; text-decoration:underline; font-weight:600; display:inline-block; margin-top:4px;">👁️ Click to view visit history</span>
                         `;
@@ -1802,8 +1832,8 @@
             
             customerLoyaltyData.visits.forEach(v => {
                 const dateStr = new Date(v.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const amount = parseFloat(v.grand_total).toFixed(3);
-                const discount = parseFloat(v.discount_amount || 0).toFixed(3);
+                const amount = parseFloat(v.grand_total).toFixed(window.PRICE_DECIMALS || 3);
+                const discount = parseFloat(v.discount_amount || 0).toFixed(window.PRICE_DECIMALS || 3);
                 const payLabel = v.payment_method === 'cash' ? '💵 Cash' : (v.payment_method === 'card' ? '💳 Card' : '📱 QR Pay');
                 tableHtml += `
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
@@ -1925,12 +1955,12 @@
                     const sum = data.summary;
                     const cur = currencyCode;
                     
-                    document.getElementById('summary-cash-total').innerText = parseFloat(sum.cash_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(3) + ' ' + cur;
-                    document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(3) + ' ' + cur;
+                    document.getElementById('summary-cash-total').innerText = parseFloat(sum.cash_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     
                     const badge = document.getElementById('summary-user-badge');
                     const breakdownContainer = document.getElementById('admin-breakdown-container');
@@ -1951,10 +1981,10 @@
                                 rows += `
                                     <tr style="border-bottom: 1px solid var(--card-border);">
                                         <td style="padding: 12px 10px; font-weight:600; text-align:left;">${row.cashier_name}</td>
-                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.cash_total).toFixed(3)} ${cur}</td>
-                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.card_total).toFixed(3)} ${cur}</td>
-                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.qr_total).toFixed(3)} ${cur}</td>
-                                        <td style="padding: 12px 10px; text-align:right; font-weight:700; color:var(--accent-green);" class="price-text">${parseFloat(row.grand_total).toFixed(3)} ${cur}</td>
+                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.cash_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.card_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                        <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.qr_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                        <td style="padding: 12px 10px; text-align:right; font-weight:700; color:var(--accent-green);" class="price-text">${parseFloat(row.grand_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                     </tr>
                                 `;
                             });
@@ -2002,8 +2032,8 @@
                         let html = '';
                         data.customers.forEach(c => {
                             const dateStr = new Date(c.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-                            const spent = parseFloat(c.total_spent).toFixed(3);
-                            const discount = parseFloat(c.total_discount || 0).toFixed(3);
+                            const spent = parseFloat(c.total_spent).toFixed(window.PRICE_DECIMALS || 3);
+                            const discount = parseFloat(c.total_discount || 0).toFixed(window.PRICE_DECIMALS || 3);
                             const genderLabel = c.gender ? c.gender : '<span style="color:var(--text-muted); font-style:italic;">Not Specified</span>';
                             
                             html += `
@@ -2124,7 +2154,7 @@
                             <div style="font-weight:600; font-size:15px;">${escapeHtml(item.product_name)} x ${item.quantity}</div>
                             <div style="font-size:12px; color:var(--text-muted);">KOT: ${escapeHtml(item.kot_number)}</div>
                         </td>
-                        <td style="padding:10px; text-align:right; font-weight:700; color:#ef4444;">${parseFloat(item.refund_amount).toFixed(3)} ${currencyCode}</td>
+                        <td style="padding:10px; text-align:right; font-weight:700; color:#ef4444;">${parseFloat(item.refund_amount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
                     </tr>
                 `;
             });
@@ -2246,10 +2276,10 @@
                     
                     if (summary) {
                         document.getElementById('takeaway-summary-container').innerHTML = `
-                            <div><strong style="color:var(--text-muted);">Total Takeaway:</strong> <span style="font-weight:700; color:var(--accent-green); font-size:15px;">${parseFloat(summary.total_amount).toFixed(3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
-                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💵 Cash:</strong> <span style="font-weight:600;">${parseFloat(summary.cash_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.cash_count})</span></div>
-                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💳 Card:</strong> <span style="font-weight:600;">${parseFloat(summary.card_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.card_count})</span></div>
-                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">📱 QR:</strong> <span style="font-weight:600;">${parseFloat(summary.qr_amount).toFixed(3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.qr_count})</span></div>
+                            <div><strong style="color:var(--text-muted);">Total Takeaway:</strong> <span style="font-weight:700; color:var(--accent-green); font-size:15px;">${parseFloat(summary.total_amount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💵 Cash:</strong> <span style="font-weight:600;">${parseFloat(summary.cash_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.cash_count})</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💳 Card:</strong> <span style="font-weight:600;">${parseFloat(summary.card_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.card_count})</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">📱 QR:</strong> <span style="font-weight:600;">${parseFloat(summary.qr_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.qr_count})</span></div>
                         `;
                     }
                     
@@ -2267,7 +2297,7 @@
                                 <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.token_number || '-')}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
-                                <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(3)} ${currencyCode}</td>
+                                <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
                                 <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method)}</td>
                             </tr>
                         `;
@@ -2346,15 +2376,15 @@
                     }
                     
                     const cur = currencyCode;
-                    document.getElementById('sys-cash-total').innerText = parseFloat(session.cash_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-card-total').innerText = parseFloat(session.card_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-qr-total').innerText = parseFloat(session.qr_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-grand-total').innerText = parseFloat(session.system_total).toFixed(3) + ' ' + cur;
+                    document.getElementById('sys-cash-total').innerText = parseFloat(session.cash_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-card-total').innerText = parseFloat(session.card_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-qr-total').innerText = parseFloat(session.qr_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-grand-total').innerText = parseFloat(session.system_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     
                     // pre-populate inputs with system calculations so cashier can adjust them
-                    document.getElementById('close-cash').value = parseFloat(session.cash_total).toFixed(3);
-                    document.getElementById('close-card').value = parseFloat(session.card_total).toFixed(3);
-                    document.getElementById('close-qr').value = parseFloat(session.qr_total).toFixed(3);
+                    document.getElementById('close-cash').value = parseFloat(session.cash_total).toFixed(window.PRICE_DECIMALS || 3);
+                    document.getElementById('close-card').value = parseFloat(session.card_total).toFixed(window.PRICE_DECIMALS || 3);
+                    document.getElementById('close-qr').value = parseFloat(session.qr_total).toFixed(window.PRICE_DECIMALS || 3);
                     document.getElementById('close-notes').value = '';
 
                     // set start and end time inputs
@@ -2392,14 +2422,14 @@
                     const totals = data.totals;
                     if (!session || !totals) return;
                     
-                    document.getElementById('sys-cash-total').innerText = parseFloat(totals.cash_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-card-total').innerText = parseFloat(totals.card_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-qr-total').innerText = parseFloat(totals.qr_total).toFixed(3) + ' ' + cur;
-                    document.getElementById('sys-grand-total').innerText = parseFloat(totals.system_total).toFixed(3) + ' ' + cur;
+                    document.getElementById('sys-cash-total').innerText = parseFloat(totals.cash_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-card-total').innerText = parseFloat(totals.card_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-qr-total').innerText = parseFloat(totals.qr_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('sys-grand-total').innerText = parseFloat(totals.system_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     
-                    document.getElementById('close-cash').value = parseFloat(totals.cash_total).toFixed(3);
-                    document.getElementById('close-card').value = parseFloat(totals.card_total).toFixed(3);
-                    document.getElementById('close-qr').value = parseFloat(totals.qr_total).toFixed(3);
+                    document.getElementById('close-cash').value = parseFloat(totals.cash_total).toFixed(window.PRICE_DECIMALS || 3);
+                    document.getElementById('close-card').value = parseFloat(totals.card_total).toFixed(window.PRICE_DECIMALS || 3);
+                    document.getElementById('close-qr').value = parseFloat(totals.qr_total).toFixed(window.PRICE_DECIMALS || 3);
                 })
                 .catch(err => console.error('Error refreshing session totals:', err));
         }
@@ -2690,7 +2720,7 @@
                     
                     if (tableOrders.length === 1) {
                         const order = tableOrders[0];
-                        const grand = parseFloat(order.grand_total).toFixed(3);
+                        const grand = parseFloat(order.grand_total).toFixed(window.PRICE_DECIMALS || 3);
                         const badgeBg = order.order_status === 'active' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)';
                         const badgeColor = order.order_status === 'active' ? '#818cf8' : 'var(--accent-green)';
                         const badgeText = order.order_status === 'active' ? 'Ordering' : 'Billing';
@@ -2713,7 +2743,7 @@
                         
                         let billsListHtml = '';
                         tableOrders.forEach(o => {
-                            const grand = parseFloat(o.grand_total).toFixed(3);
+                            const grand = parseFloat(o.grand_total).toFixed(window.PRICE_DECIMALS || 3);
                             const label = o.bill_id ? `Receipt #${o.bill_id}` : `Active Order`;
                             billsListHtml += `
                                 <div onclick="event.stopPropagation(); selectEngagedTable(${o.order_id})" class="engaged-table-subbill">
@@ -2731,7 +2761,7 @@
                                 </div>
                                 <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 4px; margin-top: 2px;">
                                     <span>Total Engaged:</span>
-                                    <strong style="color: var(--accent-green);">${sumGrand.toFixed(3)} ${currencyCode}</strong>
+                                    <strong style="color: var(--accent-green);">${sumGrand.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong>
                                 </div>
                                 ${billsListHtml}
                             </div>
@@ -2892,7 +2922,7 @@
                     if (data.summary) {
                         const summary = data.summary;
                         document.getElementById('refunded-summary-container').innerHTML = `
-                            <div><strong style="color:var(--text-muted);">Total Refunds:</strong> <span style="font-weight:700; color:#ef4444; font-size:15px;">${parseFloat(summary.total_refund_amount).toFixed(3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
+                            <div><strong style="color:var(--text-muted);">Total Refunds:</strong> <span style="font-weight:700; color:#ef4444; font-size:15px;">${parseFloat(summary.total_refund_amount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
                         `;
                     }
                     if (data.refunds) {

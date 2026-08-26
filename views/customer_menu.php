@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const _cur = '<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>'.toUpperCase().trim();
+        window.PRICE_DECIMALS = ['BHD', 'KWD', 'OMR', 'IQD', 'JOD', 'TND', 'LYD'].includes(_cur) ? 3 : 2;
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Menu | <?php echo $isTakeaway ? 'Take Away' : 'Table ' . htmlspecialchars($tableNumber); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -960,7 +964,7 @@
 
             // Populate fields
             document.getElementById('detail-modal-name').innerText = prod.name;
-            document.getElementById('detail-modal-price').innerText = parseFloat(prod.price).toFixed(3) + ' ' + currencyCode;
+            document.getElementById('detail-modal-price').innerText = parseFloat(prod.price).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
             document.getElementById('detail-modal-desc').innerText = prod.description || 'No description available for this item.';
 
             const imgEl = document.getElementById('detail-modal-img');
@@ -1081,7 +1085,7 @@
             const cartBar = document.getElementById('cart-drawer-bar');
             if (totalQty > 0) {
                 document.getElementById('cart-qty-label').innerText = totalQty + (totalQty === 1 ? ' Item' : ' Items');
-                document.getElementById('cart-total-label').innerText = totalPrice.toFixed(3) + ' ' + currencyCode;
+                document.getElementById('cart-total-label').innerText = totalPrice.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
                 cartBar.classList.add('visible');
             } else {
                 cartBar.classList.remove('visible');
@@ -1100,13 +1104,13 @@
             let total = 0.0;
 
             Object.values(cart).forEach(item => {
-                const sub = (item.price * item.quantity).toFixed(3);
+                const sub = (item.price * item.quantity).toFixed(window.PRICE_DECIMALS || 3);
                 total += item.price * item.quantity;
                 html += `
                     <div class="cart-item">
                         <div style="flex-grow:1; margin-right:15px;">
                             <div class="cart-item-name">${escapeHtml(item.name)}</div>
-                            <div class="cart-item-price">${item.quantity} × ${item.price.toFixed(3)} = ${sub} ${currencyCode}</div>
+                            <div class="cart-item-price">${item.quantity} × ${item.price.toFixed(window.PRICE_DECIMALS || 3)} = ${sub} ${currencyCode}</div>
                             <input class="item-notes-input" type="text" placeholder="Cooking notes (e.g. no spice, extra sauce)" value="${escapeHtml(item.notes)}" oninput="updateItemNotes(${item.product_id}, this)">
                         </div>
                         <div class="cart-control">
@@ -1119,7 +1123,7 @@
             });
 
             container.innerHTML = html;
-            document.getElementById('modal-total-price').innerText = total.toFixed(3) + ' ' + currencyCode;
+            document.getElementById('modal-total-price').innerText = total.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
             document.getElementById('review-modal').style.display = 'flex';
         }
 
@@ -1205,7 +1209,7 @@
                 `;
 
                 catProds.forEach(prod => {
-                    const price = parseFloat(prod.price).toFixed(3);
+                    const price = parseFloat(prod.price).toFixed(window.PRICE_DECIMALS || 3);
                     const imgHtml = prod.image_url 
                         ? `<img src="/${prod.image_url.replace(/^\/+/, '')}" class="product-img" alt="Img">`
                         : `<div class="product-img" style="background: rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; color:rgba(255,255,255,0.08);">${escapeHtml(prod.name.substring(0, 1))}</div>`;
@@ -1594,15 +1598,15 @@
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; color:var(--text-muted);">
                         <span>Subtotal:</span>
-                        <span>${subtotal.toFixed(3)} ${currencyCode}</span>
+                        <span>${subtotal.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; color:var(--text-muted);">
                         <span>${taxLabel}:</span>
-                        <span style="color:var(--accent-orange);">${taxAmount.toFixed(3)} ${currencyCode}</span>
+                        <span style="color:var(--accent-orange);">${taxAmount.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:800; border-top:1px dashed var(--card-border); margin-top:8px; padding-top:8px; color:var(--text-color);">
                         <span>Grand Total:</span>
-                        <span style="color:var(--accent-green);">${grandTotal.toFixed(3)} ${currencyCode}</span>
+                        <span style="color:var(--accent-green);">${grandTotal.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
                     </div>
                 </div>
             `;
