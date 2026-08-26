@@ -1525,7 +1525,8 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th style="text-align:right" colspan="2">Total:</th>
+                            <th style="text-align:right">Total:</th>
+                            <th id="insights-total-qty" style="text-align: center;">0</th>
                             <th id="insights-total-rev" style="text-align: right;">0</th>
                             <th id="insights-total-cost" style="text-align: right;">0</th>
                             <th id="insights-total-profit" style="text-align: right;">0</th>
