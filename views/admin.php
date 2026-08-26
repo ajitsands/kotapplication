@@ -1523,6 +1523,16 @@
                     <tbody>
                         <!-- Populated via AJAX -->
                     </tbody>
+                    <tfoot>
+                        <tr>
+                            <th style="text-align:right">Total:</th>
+                            <th id="insights-total-qty">0</th>
+                            <th id="insights-total-rev">0</th>
+                            <th id="insights-total-cost">0</th>
+                            <th id="insights-total-profit">0</th>
+                            <th id="insights-total-margin">0%</th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -2622,8 +2632,18 @@
                     const tbody = document.querySelector('#insights-table tbody');
                     tbody.innerHTML = '';
                     
+                    let totalQty = 0;
+                    let totalRev = 0;
+                    let totalCost = 0;
+                    let totalProfit = 0;
+                    
                     if (data.status === 'success') {
                         data.data.forEach(item => {
+                            totalQty += parseFloat(item.total_sold) || 0;
+                            totalRev += parseFloat(item.total_revenue) || 0;
+                            totalCost += parseFloat(item.total_expense) || 0;
+                            totalProfit += parseFloat(item.total_profit) || 0;
+                            
                             tbody.innerHTML += `
                                 <tr>
                                     <td>${item.product_name}</td>
@@ -2641,6 +2661,17 @@
                                 </tr>
                             `;
                         });
+                        
+                        document.getElementById('insights-total-qty').textContent = totalQty;
+                        document.getElementById('insights-total-rev').textContent = _cur + ' ' + totalRev.toFixed(window.PRICE_DECIMALS);
+                        document.getElementById('insights-total-cost').textContent = _cur + ' ' + totalCost.toFixed(window.PRICE_DECIMALS);
+                        
+                        document.getElementById('insights-total-profit').textContent = (totalProfit >= 0 ? '+' : '') + _cur + ' ' + totalProfit.toFixed(window.PRICE_DECIMALS);
+                        document.getElementById('insights-total-profit').style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                        
+                        let totalMargin = totalRev > 0 ? (totalProfit / totalRev) * 100 : 0;
+                        document.getElementById('insights-total-margin').textContent = totalMargin.toFixed(2) + '%';
+                        document.getElementById('insights-total-margin').style.color = totalMargin >= 30 ? 'var(--accent-green)' : 'var(--accent-red)';
                     }
                     
                     itemInsightsTable = $('#insights-table').DataTable({
