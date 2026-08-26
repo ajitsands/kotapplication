@@ -99,12 +99,12 @@ function App() {
     // Load Categories
     fetch(rootPath + '/api/categories')
       .then(res => res.json())
-      .then(data => setCategories(data));
+      .then(data => setCategories(Array.isArray(data) ? data : []));
 
     // Load Products
     fetch(rootPath + '/api/products')
       .then(res => res.json())
-      .then(data => setProducts(data));
+      .then(data => setProducts(Array.isArray(data) ? data : []));
 
     loadTablesState();
     loadNotifications();
@@ -114,7 +114,7 @@ function App() {
     fetch(rootPath + '/api/tables')
       .then(res => res.json())
       .then(data => {
-        setTables(data);
+        setTables(Array.isArray(data) ? data : []);
         if (activeView === 'order' && selectedTable) {
           fetch(rootPath + `/api/orders/active/${selectedTable}`)
             .then(res => res.json())
@@ -135,7 +135,7 @@ function App() {
     fetch(rootPath + '/api/notifications')
       .then(res => res.json())
       .then(data => {
-        setNotifications(data.notifications || []);
+        setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
       })
       .catch(err => console.error("Error loading notifications", err));
   };
