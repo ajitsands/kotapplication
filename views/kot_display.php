@@ -946,14 +946,14 @@
         // Fetch active KOT list
         function fetchKots() {
             fetch('kot/items')
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
-                    renderKots(data.kots);
+                    renderKots(data.kots, data.server_time);
                 })
                 .catch(err => console.error('Error fetching KOTs:', err));
         }
 
-        function renderKots(kots) {
+        function renderKots(kots, serverTimeStr) {
             const container = document.getElementById('kot-display-container');
             if (!kots || kots.length === 0) {
                 container.innerHTML = `
@@ -968,12 +968,17 @@
                 return;
             }
 
+            // Create a Date object from the server time string
+            // We append UTC to both so that JS calculates the strict absolute difference
+            // between the two strings, completely bypassing the browser's timezone setting.
+            const serverTime = serverTimeStr ? new Date(serverTimeStr.replace(/-/g, '/') + ' UTC').getTime() : new Date().getTime();
+
             let html = '';
             kots.forEach(kot => {
-                // Check if urgent (older than 10 mins = 600000 ms)
-                const createdTime = new Date(kot.created_at).getTime();
-                const now = new Date().getTime();
-                const timeDiffMins = Math.floor((now - createdTime) / 60000);
+                // Parse created_at with same UTC trick to calculate true elapsed time
+                const createdTime = new Date(kot.created_at.replace(/-/g, '/') + ' UTC').getTime();
+                let timeDiffMins = Math.floor((serverTime - createdTime) / 60000);
+                if (timeDiffMins < 0) timeDiffMins = 0; // Prevent negative if clocks slightly off
                 const isUrgent = timeDiffMins >= 10;
                 
                 // Format relative time label

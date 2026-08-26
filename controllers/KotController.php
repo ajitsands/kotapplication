@@ -22,7 +22,10 @@ class KotController extends Controller {
     public function itemsList() {
         $kotModel = new Kot();
         $activeKots = $kotModel->getActiveKots();
-        $this->json(['kots' => $activeKots]);
+        $this->json([
+            'kots' => $activeKots,
+            'server_time' => date('Y-m-d H:i:s')
+        ]);
     }
 
     // Ajax endpoint to fetch completed/dispatched KOTs list
