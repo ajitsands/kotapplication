@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS `inventory_items` (
     `name` VARCHAR(100) NOT NULL UNIQUE,
     `unit` VARCHAR(50) NOT NULL DEFAULT 'Nos',
     `current_stock` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+    `min_stock_level` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
     `buying_price_per_unit` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
     `selling_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP

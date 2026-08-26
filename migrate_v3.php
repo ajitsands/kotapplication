@@ -21,6 +21,7 @@ try {
             `name` VARCHAR(100) NOT NULL UNIQUE,
             `unit` VARCHAR(50) NOT NULL DEFAULT 'Nos',
             `current_stock` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
+            `min_stock_level` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
             `buying_price_per_unit` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
             `selling_price` DECIMAL(10,3) NOT NULL DEFAULT 0.000,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -55,6 +56,14 @@ try {
     foreach ($queries as $query) {
         $db->exec($query);
     }
+    
+    // Add missing column if it doesn't exist
+    try {
+        $db->exec("ALTER TABLE `inventory_items` ADD COLUMN `min_stock_level` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `current_stock`");
+    } catch (Exception $e) {
+        // Ignore error if column already exists
+    }
+
     echo "<h1>Migration completed successfully.</h1>";
     echo "<p>The V3 inventory tables have been created.</p>";
     echo "<a href='/admin/inventory'>Return to Inventory</a>";
