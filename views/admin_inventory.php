@@ -631,8 +631,10 @@ function viewHistory(id, name) {
                 data: 'expiry_date',
                 render: function(data) {
                     if(!data) return '-';
-                    // Format date optionally
-                    return `<span style="font-size: 13px;">${data}</span>`;
+                    // Format date as dd-mm-yyyy
+                    let parts = data.split('-');
+                    let formatted = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : data;
+                    return `<span style="font-size: 13px;">${formatted}</span>`;
                 }
             },
             { 
