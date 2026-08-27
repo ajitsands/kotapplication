@@ -355,7 +355,7 @@
 
 <!-- Exp History Modal -->
 <div class="modal" id="expHistoryModal">
-    <div class="modal-content" style="width: 90%; max-width: 800px; padding: 0; overflow: hidden;">
+    <div class="modal-content" style="width: 90%; max-width: 1100px; padding: 0; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
             <div>
                 <h3 style="margin: 0 0 5px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
@@ -379,6 +379,7 @@
                         <th>Expiry Date</th>
                         <th>Days to Expire</th>
                         <th>Notes</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -883,9 +884,71 @@ function viewExpHistory(id, name) {
                     }
                 }
             },
-            { data: 'notes', defaultContent: '-' }
+            { data: 'notes', defaultContent: '-' },
+            {
+                data: null,
+                render: function(data, type, row) {
+                    let qty = parseFloat(row.quantity);
+                    let expDate = row.expiry_date || '';
+                    return `<button class="btn-delete" style="background:#ef4444; color:white; border:none; padding: 4px 10px; font-size: 12px;" onclick="moveToDamage(${row.inventory_item_id}, ${qty}, '${expDate}')">Move to Damage</button>`;
+                }
+            }
         ]
     });
     $('#expHistoryModal').css('display', 'flex').hide().fadeIn();
+}
+
+function moveToDamage(itemId, maxQty, expiryDate) {
+    Swal.fire({
+        title: 'Move to Damage',
+        html: `
+            <div style="text-align: left; margin-top: 10px;">
+                <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Quantity to mark as damaged/wasted (Max: ${maxQty})</label>
+                <input type="number" id="damageQty" class="swal2-input" placeholder="Quantity" max="${maxQty}" step="0.001" style="width: 100%; margin: 0 0 15px 0;">
+                
+                <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Reason</label>
+                <input type="text" id="damageReason" class="swal2-input" placeholder="e.g. Expired, Spoiled, Broken" style="width: 100%; margin: 0;">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Confirm Damage',
+        confirmButtonColor: '#ef4444',
+        preConfirm: () => {
+            const qty = document.getElementById('damageQty').value;
+            const reason = document.getElementById('damageReason').value;
+            if (!qty || parseFloat(qty) <= 0 || parseFloat(qty) > maxQty) {
+                Swal.showValidationMessage('Please enter a valid quantity up to ' + maxQty);
+            }
+            if (!reason.trim()) {
+                Swal.showValidationMessage('Please provide a reason');
+            }
+            return { qty: parseFloat(qty), reason: reason.trim() }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let LaddaBtn = typeof Ladda !== 'undefined' ? Ladda.create(document.querySelector('.swal2-confirm')) : null;
+            if(LaddaBtn) LaddaBtn.start();
+            
+            $.post('/admin/inventory/damage', {
+                item_id: itemId,
+                quantity: result.value.qty,
+                reason: result.value.reason,
+                expiry_date: expiryDate
+            }, function(res) {
+                if(LaddaBtn) LaddaBtn.stop();
+                let response = typeof res === 'string' ? JSON.parse(res) : res;
+                if (response.status === 'success') {
+                    Swal.fire('Success', response.message, 'success');
+                    if (expHistoryTable) expHistoryTable.ajax.reload();
+                    if (inventoryTable) inventoryTable.ajax.reload();
+                } else {
+                    Swal.fire('Error', response.message, 'error');
+                }
+            }).fail(function() {
+                if(LaddaBtn) LaddaBtn.stop();
+                Swal.fire('Error', 'Server communication failed', 'error');
+            });
+        }
+    });
 }
 </script>

@@ -157,6 +157,59 @@ class InventoryController extends Controller {
             $this->json(['status' => 'success', 'message' => 'Item added successfully']);
         }
     }
+    public function markDamage() {
+        $this->requireAuth('admin');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $item_id = $_POST['item_id'] ?? null;
+            $quantity = floatval($_POST['quantity'] ?? 0);
+            $reason = $_POST['reason'] ?? '';
+            $expiry_date = $_POST['expiry_date'] ?? null;
+            if (empty($expiry_date)) $expiry_date = null;
+
+            if (!$item_id || $quantity <= 0) {
+                $this->json(['status' => 'error', 'message' => 'Invalid item or quantity']);
+                return;
+            }
+
+            $db = Database::getInstance()->getConnection();
+            try {
+                $db->beginTransaction();
+
+                // Get current stock
+                $stmt = $db->prepare("SELECT current_stock FROM inventory_items WHERE id = ? FOR UPDATE");
+                $stmt->execute([$item_id]);
+                $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$item || $item['current_stock'] < $quantity) {
+                    throw new Exception('Not enough stock available to mark as damaged');
+                }
+
+                $new_stock = $item['current_stock'] - $quantity;
+                
+                // Update stock
+                $updateStmt = $db->prepare("UPDATE inventory_items SET current_stock = ? WHERE id = ?");
+                $updateStmt->execute([$new_stock, $item_id]);
+
+                // Log damage transaction
+                $logStmt = $db->prepare("INSERT INTO inventory_transactions 
+                    (inventory_item_id, transaction_type, quantity, notes, expiry_date, created_at) 
+                    VALUES (?, 'damage', ?, ?, ?, NOW())");
+                
+                $logStmt->execute([
+                    $item_id,
+                    -$quantity,
+                    "Damage/Waste: " . $reason,
+                    $expiry_date
+                ]);
+
+                $db->commit();
+                $this->json(['status' => 'success', 'message' => 'Item moved to damaged stock successfully']);
+            } catch (Exception $e) {
+                $db->rollBack();
+                $this->json(['status' => 'error', 'message' => $e->getMessage()]);
+            }
+        }
+    }
 
     public function deleteItem($params) {
         $this->requireAuth('admin');
