@@ -247,7 +247,77 @@
                 </div>
                 <div style="align-self: flex-end;">
                     <button type="button" class="btn-primary" onclick="reloadHistoryTable()" style="padding: 6px 16px; height: auto; background: #8b5cf6; box-shadow: 0 4px 10px rgba(139,92,246,0.2);">Filter</button>
-                    <button type="button" class="btn-secondary" onclick="$('#historyStartDate').val(''); $('#historyEndDate').val(''); reloadHistoryTable();" style="padding: 6px 16px; height: auto; margin-left: 5px; background: rgba(0,0,0,0.05); color: var(--text-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Clear</button>
+                    <button type="button" class="btn-secondary" onclick="$('#historyStartDate').val(''); $('#historyEndDate').val(''); reloadHistoryTable();" style="padding: 6px 16px; height: auto;    .btn-secondary:hover { background: rgba(0,0,0,0.1) !important; }
+
+    /* Custom Tooltip */
+    .custom-tooltip {
+        position: relative;
+        display: inline-flex;
+        cursor: pointer;
+    }
+
+    .custom-tooltip .custom-tooltip-content {
+        visibility: hidden;
+        opacity: 0;
+        width: max-content;
+        min-width: 150px;
+        background: #1e293b;
+        color: #fff;
+        text-align: left;
+        border-radius: 8px;
+        padding: 12px 14px;
+        position: absolute;
+        z-index: 99999;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .custom-tooltip .custom-tooltip-content::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -6px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+
+    .custom-tooltip:hover .custom-tooltip-content {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .tooltip-header {
+        font-weight: 700;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tooltip-body {
+        color: #cbd5e1;
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .tooltip-body strong {
+        color: #fff;
+    }
+</style>xt-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Clear</button>
                 </div>
                 <div style="flex-grow: 1; display: flex; justify-content: flex-end; gap: 20px;">
                     <div style="background: white; padding: 8px 15px; border-radius: 8px; text-align: right; border: 1px solid var(--card-border); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
@@ -391,21 +461,47 @@ function loadInventory() {
                     let unitStr = row.unit || '';
                     
                     if (diffDays < 0) {
-                        let tooltip = `🚨 EXPIRED BATCH!\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}\nExpired ${Math.abs(diffDays)} days ago`;
-                        return `<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(239, 68, 68, 0.2);" title="${tooltip}">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                    ${formatted}${qtyStr}
-                                </span>`;
+                        return `<div class="custom-tooltip">
+                                    <span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                        ${formatted}${qtyStr}
+                                    </span>
+                                    <div class="custom-tooltip-content" style="border-top: 3px solid #ef4444;">
+                                        <div class="tooltip-header" style="color: #fca5a5;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> EXPIRED BATCH</div>
+                                        <div class="tooltip-body">
+                                            <div>Date: <strong>${formatted}</strong></div>
+                                            <div>Quantity: <strong>${parseFloat(row.expiring_qty || 0)} ${unitStr}</strong></div>
+                                            <div style="color: #ef4444; font-weight: 600; margin-top: 4px;">Expired ${Math.abs(diffDays)} days ago</div>
+                                        </div>
+                                    </div>
+                                </div>`;
                     } else if (diffDays <= 7) {
-                        let tooltip = `⚠️ EXPIRING SOON!\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}\nTime left: ${diffDays} Days`;
-                        return `<span style="background: rgba(249, 115, 22, 0.1); color: #f97316; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(249, 115, 22, 0.2);" title="${tooltip}">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                                    ${formatted}${qtyStr}
-                                </span>`;
+                        return `<div class="custom-tooltip">
+                                    <span style="background: rgba(249, 115, 22, 0.1); color: #f97316; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(249, 115, 22, 0.2);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                        ${formatted}${qtyStr}
+                                    </span>
+                                    <div class="custom-tooltip-content" style="border-top: 3px solid #f97316;">
+                                        <div class="tooltip-header" style="color: #fdba74;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> EXPIRING SOON</div>
+                                        <div class="tooltip-body">
+                                            <div>Date: <strong>${formatted}</strong></div>
+                                            <div>Quantity: <strong>${parseFloat(row.expiring_qty || 0)} ${unitStr}</strong></div>
+                                            <div style="color: #f97316; font-weight: 600; margin-top: 4px;">Time left: ${diffDays} Days</div>
+                                        </div>
+                                    </div>
+                                </div>`;
                     }
                     
-                    let tooltip = `✅ Good Condition\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}`;
-                    return `<span style="color: var(--text-muted); font-size: 13px; cursor: help;" title="${tooltip}">${formatted}${qtyStr}</span>`;
+                    return `<div class="custom-tooltip">
+                                <span style="color: var(--text-muted); font-size: 13px;">${formatted}${qtyStr}</span>
+                                <div class="custom-tooltip-content" style="border-top: 3px solid #10b981;">
+                                    <div class="tooltip-header" style="color: #6ee7b7;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Good Condition</div>
+                                    <div class="tooltip-body">
+                                        <div>Date: <strong>${formatted}</strong></div>
+                                        <div>Quantity: <strong>${parseFloat(row.expiring_qty || 0)} ${unitStr}</strong></div>
+                                    </div>
+                                </div>
+                            </div>`;
                 }
             },
             {
