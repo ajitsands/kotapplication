@@ -267,16 +267,18 @@ class Bill extends Model {
         }
         // Query to get overall summary totals in date range
         $sql = "SELECT 
-                    COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN grand_total ELSE 0 END), 0) as cash_total,
-                    COALESCE(SUM(CASE WHEN payment_method = 'card' THEN grand_total ELSE 0 END), 0) as card_total,
-                    COALESCE(SUM(CASE WHEN payment_method = 'qr_pay' THEN grand_total ELSE 0 END), 0) as qr_total,
-                    COALESCE(SUM(grand_total), 0) as grand_total
-                FROM bills 
-                WHERE status = 'paid' AND DATE(created_at) BETWEEN ? AND ?";
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                    COALESCE(SUM(b.grand_total), 0) as grand_total,
+                    COALESCE(SUM(CASE WHEN o.order_type = 'take_away' THEN b.grand_total ELSE 0 END), 0) as takeaway_total
+                FROM bills b
+                JOIN orders o ON b.order_id = o.id
+                WHERE b.status = 'paid' AND DATE(b.created_at) BETWEEN ? AND ?";
                 
         $params = [$startDate, $endDate];
         if ($userId !== null) {
-            $sql .= " AND cashier_id = ?";
+            $sql .= " AND b.cashier_id = ?";
             $params[] = $userId;
         }
 
@@ -527,5 +529,46 @@ class Bill extends Model {
     public function processRefundOrder($orderId) {
         $stmt = $this->db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.refund_status = 'refunded' WHERE k.order_id = ? AND ki.refund_status = 'pending'");
         return $stmt->execute([$orderId]);
+    }
+
+    public function getOnlineOrdersBreakdown($startDate, $endDate = null) {
+        if ($endDate === null) {
+            $endDate = $startDate;
+        }
+        
+        $sql = "SELECT 
+                    COALESCE(op.name, 'Unknown Platform') as platform_name,
+                    COUNT(DISTINCT o.id) as order_count,
+                    COALESCE(SUM(p.price * ki.quantity), 0) as subtotal
+                FROM orders o
+                LEFT JOIN online_platforms op ON o.platform_id = op.id
+                JOIN kots k ON k.order_id = o.id
+                JOIN kot_items ki ON ki.kot_id = k.id
+                JOIN products p ON ki.product_id = p.id
+                WHERE o.order_type = 'online' AND o.status = 'completed' AND ki.status != 'cancelled'
+                AND DATE(o.created_at) BETWEEN ? AND ?
+                GROUP BY o.platform_id";
+                
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
+        $rows = $stmt->fetchAll();
+        
+        $breakdown = [];
+        $total = 0;
+        
+        foreach ($rows as $row) {
+            $sub = (float)$row['subtotal'];
+            $tax = $sub * 0.10; // 10% tax to match active orders logic
+            $grand = $sub + $tax;
+            
+            $breakdown[] = [
+                'platform_name' => $row['platform_name'],
+                'order_count' => $row['order_count'],
+                'total' => $grand
+            ];
+            $total += $grand;
+        }
+        
+        return ['total' => $total, 'breakdown' => $breakdown];
     }
 }

@@ -252,6 +252,9 @@ class CounterController extends Controller {
         $userRole = $_SESSION['user_role'] ?? 'counter';
         $userId = $_SESSION['user_id'] ?? 0;
         $billModel = new Bill();
+        
+        $onlineData = $billModel->getOnlineOrdersBreakdown($startDate, $endDate);
+        
         if ($userRole === 'admin') {
             $summary   = $billModel->getCollectionSummary($startDate, $endDate, null);
             $breakdown = $billModel->getCashiersBreakdown($startDate, $endDate);
@@ -259,6 +262,8 @@ class CounterController extends Controller {
             
             $summary['refund_total'] = $refundTotal;
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
+            $summary['online_total'] = $onlineData['total'];
+            $summary['online_breakdown'] = $onlineData['breakdown'];
             
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
         } else {
@@ -285,14 +290,16 @@ class CounterController extends Controller {
                         'cash_total' => $totals['cash_total'],
                         'card_total' => $totals['card_total'],
                         'qr_total' => $totals['qr_total'],
-                        'grand_total' => $totals['system_total']
+                        'grand_total' => $totals['system_total'],
+                        'takeaway_total' => 0.000 // We don't track session-level takeaway yet
                     ];
                 } else {
                     $summary = [
                         'cash_total' => 0.000,
                         'card_total' => 0.000,
                         'qr_total' => 0.000,
-                        'grand_total' => 0.000
+                        'grand_total' => 0.000,
+                        'takeaway_total' => 0.000
                     ];
                 }
             } else {
@@ -302,6 +309,9 @@ class CounterController extends Controller {
             $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
             $summary['refund_total'] = $refundTotal;
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
+            
+            $summary['online_total'] = $onlineData['total'];
+            $summary['online_breakdown'] = $onlineData['breakdown'];
             
             $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);
         }

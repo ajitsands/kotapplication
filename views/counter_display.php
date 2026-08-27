@@ -920,6 +920,24 @@
                         </div>
                     </div>
                     
+                    <!-- Takeaway Total Card -->
+                    <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(99, 102, 241, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">🛍️</div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Takeaway (in Total)</div>
+                            <div id="summary-takeaway-total" style="font-size: 18px; font-weight: 800; color: #818cf8; margin-top: 4px;">0.000 BHD</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Online Orders Total Card -->
+                    <div style="background: rgba(236, 72, 153, 0.05); border: 1px solid rgba(236, 72, 153, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(236, 72, 153, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">🛵</div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Online Orders (Separate)</div>
+                            <div id="summary-online-total" style="font-size: 18px; font-weight: 800; color: #f472b6; margin-top: 4px;">0.000 BHD</div>
+                        </div>
+                    </div>
+                    
                     <!-- Total Refunded Card -->
                     <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
                         <div style="font-size: 24px; background: rgba(239, 68, 68, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">❌</div>
@@ -954,6 +972,25 @@
                                 </tr>
                             </thead>
                             <tbody id="breakdown-table-body">
+                                <!-- Loaded Dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Online Platforms Breakdown Section -->
+                <div id="online-breakdown-container" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text-color);">Online Platforms Breakdown:</h3>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <th style="text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Platform</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Total Orders</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Total Value (inc. 10% tax)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="online-breakdown-table-body">
                                 <!-- Loaded Dynamically -->
                             </tbody>
                         </table>
@@ -2095,8 +2132,12 @@
                     document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     
+                    document.getElementById('summary-takeaway-total').innerText = parseFloat(sum.takeaway_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-online-total').innerText = parseFloat(sum.online_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    
                     const badge = document.getElementById('summary-user-badge');
                     const breakdownContainer = document.getElementById('admin-breakdown-container');
+                    const onlineBreakdownContainer = document.getElementById('online-breakdown-container');
                     
                     if (data.role === 'admin') {
                         badge.innerText = 'Admin View (All Cashiers)';
@@ -2136,6 +2177,25 @@
                         badge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
                         
                         breakdownContainer.style.display = 'none';
+                    }
+
+                    // Always show online breakdown if there is data, or show empty state if requested
+                    if (sum.online_breakdown && sum.online_breakdown.length > 0) {
+                        onlineBreakdownContainer.style.display = 'block';
+                        const onlineTbody = document.getElementById('online-breakdown-table-body');
+                        let rows = '';
+                        sum.online_breakdown.forEach(row => {
+                            rows += `
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <td style="padding: 12px 10px; font-weight:600; text-align:left; color: #f472b6;">${row.platform_name}</td>
+                                    <td style="padding: 12px 10px; text-align:right; font-weight:600;">${row.order_count}</td>
+                                    <td style="padding: 12px 10px; font-weight:700; text-align:right; color:var(--text-color);">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                </tr>
+                            `;
+                        });
+                        onlineTbody.innerHTML = rows;
+                    } else {
+                        onlineBreakdownContainer.style.display = 'none';
                     }
                 })
                 .catch(err => console.error('Error fetching summary:', err));
