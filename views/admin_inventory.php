@@ -97,6 +97,7 @@
                     <th>Unit</th>
                     <th>Buying Price</th>
                     <th>Selling Price</th>
+                    <th>Total Value</th>
                     <th>Next Expiry</th>
                     <th>Actions</th>
                 </tr>
@@ -448,6 +449,15 @@ function loadInventory() {
             { data: 'unit' },
             { data: 'buying_price_per_unit' },
             { data: 'selling_price' },
+            {
+                data: null,
+                render: function(data, type, row) {
+                    let stock = parseFloat(row.current_stock || 0);
+                    let sellPrice = parseFloat(row.selling_price || 0);
+                    let totalValue = stock * sellPrice;
+                    return `<span style="font-weight: 600; color: #3b82f6;">${totalValue.toFixed(3)}</span>`;
+                }
+            },
             {
                 data: 'nearest_expiry',
                 render: function(data, type, row) {
