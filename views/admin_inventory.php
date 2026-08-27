@@ -85,7 +85,7 @@
                 </button>
                 <button class="btn-primary" onclick="fetchSuppliersForSelect(); $('#inventoryForm')[0].reset(); $('#inv_id').val(''); $('#inventoryModalTitle').html('<svg width=\'22\' height=\'22\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z\'></path><line x1=\'7\' y1=\'7\' x2=\'7.01\' y2=\'7\'></line></svg> Add Inventory Item'); $('#inventoryModal').css('display', 'flex').hide().fadeIn();" style="margin-left: 10px;">Add New Item</button>
                 <button class="btn-primary" style="background:#10b981;" onclick="fetchSuppliersForSelect(); $('#stock_items_container').empty(); addStockItemRow(); $('#stockModal').css('display', 'flex').hide().fadeIn();">Add Stock (Purchase)</button>
-                <button class="btn-primary" style="background:#ef4444; margin-left: 10px;" onclick="$('#damageReportModal').css('display', 'flex').hide().fadeIn(); reloadDamageReportTable();">Damage Report</button>
+                <button class="btn-primary" style="background:#ef4444; margin-left: 10px;" onclick="openDamageReportModal();">Damage Report</button>
             </div>
         </div>
         <table class="dataTable" id="inventoryTable">
@@ -1038,5 +1038,64 @@ function moveToDamage(itemId, maxQty, expiryDate) {
             });
         }
     });
+let damageReportTable;
+function reloadDamageReportTable() {
+    if ($.fn.DataTable.isDataTable('#damageReportTable')) {
+        $('#damageReportTable').DataTable().destroy();
+    }
+    
+    let start = $('#damageStartDate').val();
+    let end = $('#damageEndDate').val();
+    let url = '/admin/inventory/damage/report';
+    if(start || end) {
+        url += `?start_date=${start}&end_date=${end}`;
+    }
+
+    damageReportTable = $('#damageReportTable').DataTable({
+        ajax: url,
+        columns: [
+            { 
+                data: 'item_name',
+                render: function(data) { return `<span style="font-weight: 600;">${data}</span>`; }
+            },
+            { data: 'unit' },
+            { 
+                data: 'buying_price_per_unit',
+                render: function(data) { return `<div style="text-align: right;">${parseFloat(data||0).toFixed(3)}</div>`; }
+            },
+            { 
+                data: 'total_damaged_qty',
+                render: function(data) { return `<div style="text-align: right; color: #ef4444; font-weight: 600;">${parseFloat(data||0).toFixed(3)}</div>`; }
+            },
+            { 
+                data: 'total_value',
+                render: function(data) { return `<div style="text-align: right; color: #ef4444; font-weight: 600;">${parseFloat(data||0).toFixed(3)}</div>`; }
+            }
+        ],
+        order: [[4, 'desc']], // Order by Total Value descending
+        pageLength: 10,
+        footerCallback: function (row, data, start, end, display) {
+            let api = this.api();
+            let total = api.data().reduce(function (a, b) {
+                return a + parseFloat(b.total_value || 0);
+            }, 0);
+            
+            $(api.column(4).footer()).html(
+                total.toFixed(3)
+            );
+        }
+    });
+}
+
+function openDamageReportModal() {
+    let today = new Date().toISOString().split('T')[0];
+    if (!$('#damageStartDate').val()) {
+        $('#damageStartDate').val(today);
+    }
+    if (!$('#damageEndDate').val()) {
+        $('#damageEndDate').val(today);
+    }
+    $('#damageReportModal').css('display', 'flex').hide().fadeIn();
+    reloadDamageReportTable();
 }
 </script>
