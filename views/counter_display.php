@@ -1281,7 +1281,7 @@
 
     <!-- View Bill Items Modal -->
     <div id="bill-items-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <div class="modal-content" style="max-width: 700px; text-align: left;">
             <h3 style="text-align: center; margin-bottom: 5px;">Bill Details</h3>
             <p style="color: var(--text-muted); font-size:14px; text-align: center; margin-bottom: 20px;" id="view-modal-table-label">Table 0</p>
             
