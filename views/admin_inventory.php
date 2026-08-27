@@ -280,6 +280,40 @@
     </div>
 </div>
 
+<!-- Exp History Modal -->
+<div class="modal" id="expHistoryModal">
+    <div class="modal-content" style="width: 90%; max-width: 800px; padding: 0; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 5px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Expiry History
+                </h3>
+                <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 13px;">Item: <strong id="expHistoryItemName" style="color: white; font-weight: 700;"></strong></p>
+            </div>
+            <button type="button" onclick="$('#expHistoryModal').fadeOut();" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <div style="padding: 20px;">
+            <table class="dataTable" id="expHistoryTable" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Purchase Date</th>
+                        <th>Supplier</th>
+                        <th>Qty</th>
+                        <th>Expiry Date</th>
+                        <th>Days to Expire</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <script>
 let inventoryTable;
 function loadInventory() {
@@ -343,7 +377,8 @@ function loadInventory() {
             {
                 data: null,
                 render: function(data, type, row) {
-                    return `<button class="btn-delete" style="background:#8b5cf6; color:white; border:none;" onclick="viewHistory(${row.id}, '${row.name.replace(/'/g, "\\'")}')">History</button>
+                    return `<button class="btn-delete" style="background:#0ea5e9; color:white; border:none;" onclick="viewExpHistory(${row.id}, '${row.name.replace(/'/g, "\\'")}')">Exp History</button>
+                            <button class="btn-delete" style="background:#8b5cf6; color:white; border:none;" onclick="viewHistory(${row.id}, '${row.name.replace(/'/g, "\\'")}')">History</button>
                             <button class="btn-delete" style="background:var(--primary-grad); color:white; border:none;" onclick="editInventoryItem(${row.id})">Edit</button>
                             <button class="btn-delete" onclick="deleteInventoryItem(${row.id})">Delete</button>`;
                 }
@@ -653,5 +688,72 @@ function reloadHistoryTable() {
     if (historyTable) {
         historyTable.ajax.reload();
     }
+}
+
+let expHistoryTable;
+function viewExpHistory(id, name) {
+    $('#expHistoryItemName').text(name);
+    
+    if ($.fn.DataTable.isDataTable('#expHistoryTable')) {
+        $('#expHistoryTable').DataTable().destroy();
+    }
+    
+    expHistoryTable = $('#expHistoryTable').DataTable({
+        ajax: {
+            url: '/admin/inventory/exp-history/' + id,
+            dataSrc: 'data'
+        },
+        order: [[3, 'asc']], // order by expiry date ascending
+        pageLength: 5,
+        lengthMenu: [5, 10, 25],
+        columns: [
+            { 
+                data: 'created_at',
+                render: function(data) {
+                    if(!data) return '-';
+                    return new Date(data).toLocaleString();
+                }
+            },
+            { data: 'supplier_name', defaultContent: '-' },
+            { 
+                data: 'quantity',
+                render: function(data) {
+                    return `<strong style="color:var(--accent-green)">+${data}</strong>`;
+                }
+            },
+            { 
+                data: 'expiry_date',
+                render: function(data) {
+                    if(!data) return '-';
+                    let parts = data.split('-');
+                    let formatted = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : data;
+                    return `<span style="font-weight: 600;">${formatted}</span>`;
+                }
+            },
+            {
+                data: 'expiry_date',
+                render: function(data) {
+                    if (!data) return '-';
+                    let expDate = new Date(data);
+                    let today = new Date();
+                    today.setHours(0,0,0,0);
+                    let diffTime = expDate - today;
+                    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays < 0) {
+                        return `<span style="color: #ef4444; font-weight: bold;">Expired (${Math.abs(diffDays)} days ago)</span>`;
+                    } else if (diffDays === 0) {
+                        return `<span style="color: #ef4444; font-weight: bold;">Expires Today</span>`;
+                    } else if (diffDays <= 7) {
+                        return `<span style="color: #f97316; font-weight: bold;">${diffDays} Days</span>`;
+                    } else {
+                        return `<span style="color: var(--accent-green); font-weight: 600;">${diffDays} Days</span>`;
+                    }
+                }
+            },
+            { data: 'notes', defaultContent: '-' }
+        ]
+    });
+    $('#expHistoryModal').css('display', 'flex').hide().fadeIn();
 }
 </script>

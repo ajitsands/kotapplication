@@ -59,6 +59,7 @@ $router->add('POST', '/admin/inventory/items/delete/:id', 'InventoryController@d
 $router->add('GET', '/admin/inventory/items/template', 'InventoryController@downloadItemsTemplate');
 $router->add('POST', '/admin/inventory/items/import', 'InventoryController@importItems');
 $router->add('GET', '/admin/inventory/transactions/:item_id', 'InventoryController@transactionsJson');
+$router->add('GET', '/admin/inventory/exp-history/:item_id', 'InventoryController@expHistoryJson');
 
 $router->add('POST', '/admin/inventory/stock/add', 'InventoryController@addStock');
 $router->add('GET', '/admin/inventory/stock/template', 'InventoryController@downloadStockTemplate');

@@ -81,6 +81,30 @@ class InventoryController extends Controller {
             'data' => $transactions
         ]);
     }
+    public function expHistoryJson($params) {
+        $this->requireAuth('admin');
+        $item_id = $params['item_id'] ?? null;
+        if (!$item_id) {
+            $this->json(['status' => 'error', 'message' => 'Item ID required']);
+            return;
+        }
+
+        $db = Database::getInstance()->getConnection();
+        
+        $query = "
+            SELECT t.*, s.name as supplier_name
+            FROM inventory_transactions t
+            LEFT JOIN suppliers s ON t.supplier_id = s.id
+            WHERE t.inventory_item_id = ? AND t.transaction_type = 'add_stock' AND t.expiry_date IS NOT NULL
+            ORDER BY t.expiry_date ASC
+        ";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([$item_id]);
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $this->json(['status' => 'success', 'data' => $data]);
+    }
 
     public function saveItem() {
         $this->requireAuth('admin');
