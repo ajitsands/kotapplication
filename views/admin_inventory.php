@@ -103,6 +103,13 @@
                 </tr>
             </thead>
             <tbody></tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="7" style="text-align: right; font-weight: bold;">Grand Total Value:</th>
+                    <th id="grandTotalValue" style="font-weight: bold; color: #3b82f6;">0.000</th>
+                    <th colspan="2"></th>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </div>
@@ -399,6 +406,20 @@ function loadInventory() {
     }
     inventoryTable = $('#inventoryTable').DataTable({
         ajax: '/admin/inventory/items/list',
+        footerCallback: function (row, data, start, end, display) {
+            let api = this.api();
+            // Calculate total for all pages
+            let total = api.data().reduce(function (a, b) {
+                let stock = parseFloat(b.current_stock || 0);
+                let price = parseFloat(b.selling_price || 0);
+                return a + (stock * price);
+            }, 0);
+            
+            // Update footer
+            $(api.column(7).footer()).html(
+                total.toFixed(3)
+            );
+        },
         columns: [
             { data: 'id' },
             { data: 'name' },

@@ -15,29 +15,35 @@ class InventoryController extends Controller {
         $query = "
             SELECT i.*, 
             (
-                SELECT MIN(expiry_date)
-                FROM (
-                    SELECT expiry_date, SUM(quantity) as net_qty
-                    FROM inventory_transactions
-                    WHERE inventory_item_id = i.id AND expiry_date IS NOT NULL AND expiry_date >= CURDATE()
-                    GROUP BY expiry_date
-                    HAVING net_qty > 0
-                ) as valid_batches
+                SELECT MIN(t2.expiry_date)
+                FROM inventory_transactions t2
+                WHERE t2.inventory_item_id = i.id
+                  AND t2.expiry_date IS NOT NULL
+                  AND t2.expiry_date >= CURDATE()
+                  AND (
+                      SELECT SUM(t3.quantity)
+                      FROM inventory_transactions t3
+                      WHERE t3.inventory_item_id = i.id
+                        AND t3.expiry_date = t2.expiry_date
+                  ) > 0
             ) as nearest_expiry,
             (
-                SELECT SUM(quantity)
-                FROM inventory_transactions
-                WHERE inventory_item_id = i.id
-                AND expiry_date = (
-                    SELECT MIN(expiry_date)
-                    FROM (
-                        SELECT expiry_date, SUM(quantity) as net_qty
-                        FROM inventory_transactions
-                        WHERE inventory_item_id = i.id AND expiry_date IS NOT NULL AND expiry_date >= CURDATE()
-                        GROUP BY expiry_date
-                        HAVING net_qty > 0
-                    ) as valid_batches
-                )
+                SELECT SUM(t4.quantity)
+                FROM inventory_transactions t4
+                WHERE t4.inventory_item_id = i.id
+                  AND t4.expiry_date = (
+                      SELECT MIN(t5.expiry_date)
+                      FROM inventory_transactions t5
+                      WHERE t5.inventory_item_id = i.id
+                        AND t5.expiry_date IS NOT NULL
+                        AND t5.expiry_date >= CURDATE()
+                        AND (
+                            SELECT SUM(t6.quantity)
+                            FROM inventory_transactions t6
+                            WHERE t6.inventory_item_id = i.id
+                              AND t6.expiry_date = t5.expiry_date
+                        ) > 0
+                  )
             ) as expiring_qty
             FROM inventory_items i 
             ORDER BY name ASC
