@@ -15,23 +15,28 @@ class InventoryController extends Controller {
         $query = "
             SELECT i.*, 
             (
-                SELECT MIN(expiry_date) 
-                FROM inventory_transactions 
-                WHERE inventory_item_id = i.id 
-                AND transaction_type = 'add_stock' 
-                AND expiry_date >= CURDATE()
+                SELECT MIN(expiry_date)
+                FROM (
+                    SELECT expiry_date, SUM(quantity) as net_qty
+                    FROM inventory_transactions
+                    WHERE inventory_item_id = i.id AND expiry_date IS NOT NULL AND expiry_date >= CURDATE()
+                    GROUP BY expiry_date
+                    HAVING net_qty > 0
+                ) as valid_batches
             ) as nearest_expiry,
             (
                 SELECT SUM(quantity)
                 FROM inventory_transactions
                 WHERE inventory_item_id = i.id
-                AND transaction_type = 'add_stock'
                 AND expiry_date = (
-                    SELECT MIN(expiry_date) 
-                    FROM inventory_transactions 
-                    WHERE inventory_item_id = i.id 
-                    AND transaction_type = 'add_stock' 
-                    AND expiry_date >= CURDATE()
+                    SELECT MIN(expiry_date)
+                    FROM (
+                        SELECT expiry_date, SUM(quantity) as net_qty
+                        FROM inventory_transactions
+                        WHERE inventory_item_id = i.id AND expiry_date IS NOT NULL AND expiry_date >= CURDATE()
+                        GROUP BY expiry_date
+                        HAVING net_qty > 0
+                    ) as valid_batches
                 )
             ) as expiring_qty
             FROM inventory_items i 
@@ -118,10 +123,18 @@ class InventoryController extends Controller {
         $db = Database::getInstance()->getConnection();
         
         $query = "
-            SELECT t.*, s.name as supplier_name
+            SELECT 
+                MAX(t.created_at) as created_at,
+                MAX(s.name) as supplier_name,
+                t.expiry_date,
+                SUM(t.quantity) as quantity,
+                MAX(t.notes) as notes,
+                MAX(t.inventory_item_id) as inventory_item_id
             FROM inventory_transactions t
             LEFT JOIN suppliers s ON t.supplier_id = s.id
-            WHERE t.inventory_item_id = ? AND t.transaction_type = 'add_stock' AND t.expiry_date IS NOT NULL
+            WHERE t.inventory_item_id = ? AND t.expiry_date IS NOT NULL
+            GROUP BY t.expiry_date
+            HAVING quantity > 0
             ORDER BY t.expiry_date ASC
         ";
         
