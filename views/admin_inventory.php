@@ -1038,6 +1038,8 @@ function moveToDamage(itemId, maxQty, expiryDate) {
             });
         }
     });
+}
+
 let damageReportTable;
 function reloadDamageReportTable() {
     if ($.fn.DataTable.isDataTable('#damageReportTable')) {
