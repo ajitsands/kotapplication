@@ -25,6 +25,7 @@
                     <th>Unit</th>
                     <th>Buying Price</th>
                     <th>Selling Price</th>
+                    <th>Next Expiry</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -374,6 +375,33 @@ function loadInventory() {
             { data: 'unit' },
             { data: 'buying_price_per_unit' },
             { data: 'selling_price' },
+            {
+                data: 'nearest_expiry',
+                render: function(data) {
+                    if (!data) return '-';
+                    let expDate = new Date(data);
+                    let today = new Date();
+                    today.setHours(0,0,0,0);
+                    let diffTime = expDate - today;
+                    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    let parts = data.split('-');
+                    let formatted = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : data;
+                    
+                    if (diffDays < 0) {
+                        return `<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;" title="Expired ${Math.abs(diffDays)} days ago">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                    ${formatted}
+                                </span>`;
+                    } else if (diffDays <= 7) {
+                        return `<span style="background: rgba(249, 115, 22, 0.1); color: #f97316; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;" title="Expires in ${diffDays} Days!">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                    ${formatted}
+                                </span>`;
+                    }
+                    return `<span style="color: var(--text-muted); font-size: 13px;">${formatted}</span>`;
+                }
+            },
             {
                 data: null,
                 render: function(data, type, row) {

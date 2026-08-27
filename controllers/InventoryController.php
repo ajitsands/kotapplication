@@ -11,7 +11,20 @@ class InventoryController extends Controller {
     public function itemsListJson() {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
-        $stmt = $db->query("SELECT * FROM inventory_items ORDER BY name ASC");
+        
+        $query = "
+            SELECT i.*, 
+            (
+                SELECT MIN(expiry_date) 
+                FROM inventory_transactions 
+                WHERE inventory_item_id = i.id 
+                AND transaction_type = 'add_stock' 
+                AND expiry_date >= CURDATE()
+            ) as nearest_expiry
+            FROM inventory_items i 
+            ORDER BY name ASC
+        ";
+        $stmt = $db->query($query);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->json(['status' => 'success', 'data' => $items]);
     }
