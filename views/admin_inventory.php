@@ -85,6 +85,7 @@
                 </button>
                 <button class="btn-primary" onclick="fetchSuppliersForSelect(); $('#inventoryForm')[0].reset(); $('#inv_id').val(''); $('#inventoryModalTitle').html('<svg width=\'22\' height=\'22\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z\'></path><line x1=\'7\' y1=\'7\' x2=\'7.01\' y2=\'7\'></line></svg> Add Inventory Item'); $('#inventoryModal').css('display', 'flex').hide().fadeIn();" style="margin-left: 10px;">Add New Item</button>
                 <button class="btn-primary" style="background:#10b981;" onclick="fetchSuppliersForSelect(); $('#stock_items_container').empty(); addStockItemRow(); $('#stockModal').css('display', 'flex').hide().fadeIn();">Add Stock (Purchase)</button>
+                <button class="btn-primary" style="background:#ef4444; margin-left: 10px;" onclick="$('#damageReportModal').css('display', 'flex').hide().fadeIn(); reloadDamageReportTable();">Damage Report</button>
             </div>
         </div>
         <table class="dataTable" id="inventoryTable">
@@ -296,6 +297,62 @@
                 <button type="submit" class="btn-primary" style="background:#10b981; margin: 0; padding: 12px 30px; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: 0 10px 25px rgba(16,185,129,0.3);">Upload & Import</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Damaged Stock Report Modal -->
+<div class="modal" id="damageReportModal">
+    <div class="modal-content" style="width: 90%; max-width: 1000px; padding: 0; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 5px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    Damaged Stock Report
+                </h3>
+                <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 13px;">Item Wise Grouped Value</p>
+            </div>
+            <button type="button" onclick="$('#damageReportModal').fadeOut();" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <div style="padding: 20px; background: rgba(239, 68, 68, 0.05); border-bottom: 1px solid var(--card-border);">
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">From Date</label>
+                    <input type="date" id="damageStartDate" class="form-input" style="padding: 6px 12px; height: auto; background: white; border-color: var(--card-border);">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">To Date</label>
+                    <input type="date" id="damageEndDate" class="form-input" style="padding: 6px 12px; height: auto; background: white; border-color: var(--card-border);">
+                </div>
+                <div style="align-self: flex-end;">
+                    <button type="button" class="btn-primary" onclick="reloadDamageReportTable()" style="padding: 6px 16px; height: auto; background: #ef4444; box-shadow: 0 4px 10px rgba(239,68,68,0.2);">Filter</button>
+                    <button type="button" class="btn-secondary" onclick="$('#damageStartDate').val(''); $('#damageEndDate').val(''); reloadDamageReportTable();" style="padding: 6px 16px; height: auto; margin-left: 5px; background: rgba(0,0,0,0.05); color: var(--text-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px;">
+            <table class="dataTable" id="damageReportTable" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Unit</th>
+                        <th>Buying Price / Unit</th>
+                        <th>Total Qty Damaged</th>
+                        <th>Total Value Damaged</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" style="text-align: right; font-weight: bold;">Grand Total Damaged Value:</th>
+                        <th id="grandTotalDamageValue" style="text-align: right; font-weight: bold; color: #ef4444;">0.000</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
 </div>
 

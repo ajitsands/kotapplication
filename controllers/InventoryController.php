@@ -487,4 +487,46 @@ class InventoryController extends Controller {
             $this->json(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
+    public function damageReportJson() {
+        $this->requireAuth('admin');
+        $db = Database::getInstance()->getConnection();
+        
+        $start_date = $_GET['start_date'] ?? null;
+        $end_date = $_GET['end_date'] ?? null;
+        
+        $where = "t.transaction_type = 'damage'";
+        $params = [];
+        
+        if ($start_date && $end_date) {
+            $where .= " AND DATE(t.created_at) BETWEEN ? AND ?";
+            $params[] = $start_date;
+            $params[] = $end_date;
+        } elseif ($start_date) {
+            $where .= " AND DATE(t.created_at) >= ?";
+            $params[] = $start_date;
+        } elseif ($end_date) {
+            $where .= " AND DATE(t.created_at) <= ?";
+            $params[] = $end_date;
+        }
+
+        $query = "
+            SELECT 
+                i.name as item_name, 
+                i.unit,
+                i.buying_price_per_unit, 
+                SUM(ABS(t.quantity)) as total_damaged_qty, 
+                (SUM(ABS(t.quantity)) * i.buying_price_per_unit) as total_value
+            FROM inventory_transactions t
+            JOIN inventory_items i ON t.inventory_item_id = i.id
+            WHERE $where
+            GROUP BY t.inventory_item_id
+            ORDER BY total_value DESC
+        ";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute($params);
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $this->json(['data' => $data]);
+    }
 }
