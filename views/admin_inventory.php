@@ -106,7 +106,7 @@
             <tfoot>
                 <tr>
                     <th colspan="7" style="text-align: right; font-weight: bold;">Grand Total Value:</th>
-                    <th id="grandTotalValue" style="font-weight: bold; color: #3b82f6;">0.000</th>
+                    <th id="grandTotalValue" style="text-align: right; font-weight: bold; color: #3b82f6;">0.000</th>
                     <th colspan="2"></th>
                 </tr>
             </tfoot>
@@ -476,7 +476,7 @@ function loadInventory() {
                     let stock = parseFloat(row.current_stock || 0);
                     let sellPrice = parseFloat(row.selling_price || 0);
                     let totalValue = stock * sellPrice;
-                    return `<span style="font-weight: 600; color: #3b82f6;">${totalValue.toFixed(3)}</span>`;
+                    return `<div style="text-align: right; font-weight: 600; color: #3b82f6;">${totalValue.toFixed(3)}</div>`;
                 }
             },
             {
