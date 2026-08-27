@@ -261,9 +261,9 @@ class CounterController extends Controller {
             $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
             
             $summary['refund_total'] = $refundTotal;
-            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
+            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
         } else {
@@ -308,10 +308,9 @@ class CounterController extends Controller {
             
             $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
             $summary['refund_total'] = $refundTotal;
-            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal);
-            
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
+            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);
         }
