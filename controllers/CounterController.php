@@ -34,11 +34,16 @@ class CounterController extends Controller {
             }
         }
 
+        require_once __DIR__ . '/../models/OnlinePlatform.php';
+        $platformModel = new OnlinePlatform();
+        $platforms = $platformModel->getAllActive();
+
         $this->render('counter_display', [
             'settings'  => $settings,
             'sessionId' => $sessionId,
             'pendingApproval' => $pendingApproval,
             'activeSession' => $activeSession,
+            'platforms' => $platforms
         ]);
     }
 
@@ -63,6 +68,31 @@ class CounterController extends Controller {
         $orderModel = new Order();
         $orders = $orderModel->getReadyTakeawayOrders();
         $this->json(['orders' => $orders]);
+    }
+
+    public function getActiveOnlineOrders() {
+        $db = Database::getInstance()->getConnection();
+        
+        $sql = "SELECT o.id, o.token_number, o.status, o.platform_name, o.platform_order_number, 
+                       (SELECT COUNT(*) FROM kots k JOIN kot_items ki ON k.id = ki.kot_id WHERE k.order_id = o.id AND ki.status = 'pending') as pending_items_count,
+                       (SELECT COUNT(*) FROM kots k WHERE k.order_id = o.id) as kot_exists
+                FROM orders o
+                WHERE o.order_type = 'online' AND o.status IN ('active', 'closed')
+                ORDER BY o.created_at DESC";
+                
+        $stmt = $db->query($sql);
+        $orders = $stmt->fetchAll();
+        $this->json(['success' => true, 'orders' => $orders]);
+    }
+    
+    public function completeOnlineOrder($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $db = Database::getInstance()->getConnection();
+        
+        $stmt = $db->prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND order_type = 'online'");
+        $success = $stmt->execute([$orderId]);
+        
+        $this->json(['success' => $success]);
     }
     
     public function getCompletedTakeaways() {
@@ -374,6 +404,35 @@ class CounterController extends Controller {
         }
     }
 
+    public function confirmOnlineOrder($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $db = Database::getInstance()->getConnection();
+        
+        // Just mark it as 'closed' so it's considered confirmed by the cashier
+        $stmt = $db->prepare("UPDATE orders SET status = 'closed' WHERE id = ? AND order_type = 'online'");
+        $stmt->execute([$orderId]);
+        
+        $this->json(['success' => true]);
+    }
+
+    public function cancelOrder($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $db = Database::getInstance()->getConnection();
+        
+        // Mark order as cancelled
+        $stmt = $db->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?");
+        $stmt->execute([$orderId]);
+        
+        // Also cancel any KOTs and KOT items
+        $stmtKot = $db->prepare("UPDATE kots SET status = 'cancelled' WHERE order_id = ?");
+        $stmtKot->execute([$orderId]);
+        
+        $stmtKotItems = $db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.status = 'cancelled' WHERE k.order_id = ?");
+        $stmtKotItems->execute([$orderId]);
+        
+        $this->json(['success' => true]);
+    }
+
     // AJAX: Cashier closes an active order session and generates a pending bill
     public function closeActiveOrder($params) {
         $orderId = (int)($params['id'] ?? 0);
@@ -388,6 +447,35 @@ class CounterController extends Controller {
         $stmt = $db->query("SELECT id, name, price FROM products WHERE is_counter_item = 1 ORDER BY name ASC");
         $items = $stmt->fetchAll();
         $this->json(['success' => true, 'items' => $items]);
+    }
+
+    public function getAllAvailableProducts() {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->query("SELECT id, name, price FROM products WHERE is_available = 1 ORDER BY name ASC");
+        $items = $stmt->fetchAll();
+        $this->json(['success' => true, 'items' => $items]);
+    }
+
+    // AJAX: Add counter items directly to an order/bill
+    public function createOnlineOrder() {
+        $data = $this->getJsonInput();
+        $platformId = (int)($data['platform_id'] ?? 0);
+        $platformOrderNumber = trim($data['platform_order_number'] ?? '');
+        $customerName = trim($data['customer_name'] ?? '');
+        $customerMobile = trim($data['customer_mobile'] ?? '');
+
+        if ($platformId <= 0 || $platformOrderNumber === '') {
+            $this->json(['success' => false, 'error' => 'Platform and Order Number are required.']);
+            return;
+        }
+
+        $orderModel = new Order();
+        try {
+            $orderId = $orderModel->createOnlineOrder($platformId, $platformOrderNumber, $customerName, $customerMobile);
+            $this->json(['success' => true, 'order_id' => $orderId]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     // AJAX: Add counter items directly to an order/bill
@@ -425,15 +513,16 @@ class CounterController extends Controller {
 
         $db->beginTransaction();
         try {
-            // 2. Create a "Counter" KOT for this item.
-            // Since this is added at the counter, status of KOT and item is 'dispatched' so it does not go to the kitchen screen.
+            $isOnline = ($order['order_type'] === 'online');
+            $status = $isOnline ? 'pending' : 'dispatched';
             $kotNumber = 'KOT-CNTR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
-            $stmtKot = $db->prepare("INSERT INTO kots (order_id, waiter_id, kot_number, status) VALUES (?, NULL, ?, 'dispatched')");
-            $stmtKot->execute([$orderId, $kotNumber]);
+            $stmtKot = $db->prepare("INSERT INTO kots (order_id, waiter_id, kot_number, status) VALUES (?, NULL, ?, ?)");
+            $stmtKot->execute([$orderId, $kotNumber, $status]);
             $kotId = $db->lastInsertId();
 
-            $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, 'dispatched', 'Counter Sale')");
-            $stmtItem->execute([$kotId, $productId, $quantity]);
+            $notes = $isOnline ? 'Online Order' : 'Counter Sale';
+            $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, ?, ?)");
+            $stmtItem->execute([$kotId, $productId, $quantity, $status, $notes]);
 
             // 3. Recalculate totals
             $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal

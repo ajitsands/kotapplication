@@ -30,6 +30,13 @@ class Order extends Model {
         return $this->db->lastInsertId();
     }
 
+    public function createOnlineOrder($platformId, $platformOrderNumber, $customerName = null, $customerMobile = null) {
+        $tokenNumber = 'OL-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+        $stmt = $this->db->prepare("INSERT INTO orders (status, order_type, platform_id, platform_order_number, customer_name, customer_mobile, token_number) VALUES ('active', 'online', ?, ?, ?, ?, ?)");
+        $stmt->execute([$platformId, $platformOrderNumber, $customerName, $customerMobile, $tokenNumber]);
+        return $this->db->lastInsertId();
+    }
+
     public function getOrderItemsSummary($orderId) {
         $sql = "SELECT p.name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price 
                 FROM kot_items ki 
@@ -168,15 +175,16 @@ class Order extends Model {
 
     public function getEngagedTables() {
         $sql = "SELECT o.id as order_id, o.table_number, o.status as order_status, 
-                       o.order_type, o.customer_name, o.customer_mobile, o.token_number,
+                       o.order_type, o.customer_name, o.customer_mobile, o.token_number, o.platform_order_number, p.name as platform_name,
                        IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name,
                        b.id as bill_id, b.status as bill_status,
                        b.subtotal as bill_subtotal, b.tax_amount as bill_tax_amount, b.grand_total as bill_grand_total
                   FROM orders o
+                  LEFT JOIN online_platforms p ON o.platform_id = p.id
                   LEFT JOIN users u ON o.waiter_id = u.id
                   LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'pending'
-                  WHERE o.status IN ('active', 'closed') AND o.order_type = 'dine_in'
-                  ORDER BY o.table_number ASC, o.id ASC";
+                  WHERE o.status IN ('active', 'closed') AND o.order_type IN ('dine_in')
+                  ORDER BY o.order_type ASC, o.table_number ASC, o.id ASC";
         $stmt = $this->db->query($sql);
         $orders = $stmt->fetchAll();
 
@@ -243,13 +251,14 @@ class Order extends Model {
     }
 
     public function getReadyTakeawayOrders() {
-        // Find takeaway orders that are paid but not 'completed'
+        // Find takeaway and online orders that are paid but not 'completed'
         // They will appear in the Live Takeaway queue as soon as they are paid and sent to KOT.
-        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status,
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status, o.order_type, o.platform_order_number, p.name as platform_name,
                        (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing')) as pending_items_count
                   FROM orders o
                   JOIN bills b ON b.order_id = o.id
-                  WHERE o.order_type = 'take_away' AND o.status = 'closed' AND b.status = 'paid'
+                  LEFT JOIN online_platforms p ON o.platform_id = p.id
+                  WHERE o.order_type IN ('take_away') AND o.status = 'closed' AND b.status = 'paid'
                   AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0
                   ORDER BY o.id ASC";
         $stmt = $this->db->query($sql);
@@ -261,12 +270,13 @@ class Order extends Model {
         $endDate = $endDate ?? date('Y-m-d');
         $endDateTime = $endDate . ' 23:59:59';
         
-        // Find takeaway orders that are 'completed'
-        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, 
+        // Find takeaway and online orders that are 'completed'
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.order_type, o.platform_order_number, p.name as platform_name,
                        b.grand_total, b.payment_method, o.updated_at, o.created_at
                 FROM orders o
                 LEFT JOIN bills b ON b.order_id = o.id
-                WHERE o.order_type = 'take_away' AND o.status = 'completed'
+                LEFT JOIN online_platforms p ON o.platform_id = p.id
+                WHERE o.order_type IN ('take_away') AND o.status = 'completed'
                 AND o.updated_at >= ? AND o.updated_at <= ?
                 ORDER BY o.updated_at DESC";
         $stmt = $this->db->prepare($sql);

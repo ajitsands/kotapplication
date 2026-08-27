@@ -14,6 +14,7 @@ require_once 'core/Router.php';
 require_once 'core/Controller.php';
 require_once 'core/Model.php';
 require_once 'core/helpers.php';
+require_once 'models/OnlinePlatform.php';
 
 // Create directories for uploads if not exists
 if (!file_exists('uploads')) {
@@ -43,6 +44,9 @@ $router->add('POST', '/admin/users', 'AdminController@addUser');
 $router->add('POST', '/admin/users/delete/:id', 'AdminController@deleteUser');
 $router->add('POST', '/admin/users/status/:id', 'AdminController@toggleUserStatus');
 $router->add('POST', '/admin/users/reset-password/:id', 'AdminController@resetUserPassword');
+$router->add('POST', '/admin/platforms', 'AdminController@savePlatform');
+$router->add('POST', '/admin/platforms/delete/:id', 'AdminController@deletePlatform');
+$router->add('POST', '/admin/platforms/status/:id', 'AdminController@togglePlatformStatus');
 $router->add('POST', '/user/change-password', 'HomeController@changePassword');
 $router->add('GET', '/admin/tax-report/json', 'AdminController@taxReportJson');
 $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
@@ -108,11 +112,17 @@ $router->add('POST', '/counter/session/approve/:id', 'CounterController@approveC
 $router->add('POST', '/counter/session/reject/:id', 'CounterController@rejectClose');
 $router->add('GET', '/counter/engaged-tables', 'CounterController@engagedTablesList');
 $router->add('GET', '/counter/order/:id', 'CounterController@orderDetails');
+$router->add('POST', '/order/online/confirm/:id', 'CounterController@confirmOnlineOrder');
+$router->add('POST', '/order/cancel/:id', 'CounterController@cancelOrder');
 $router->add('POST', '/counter/order/close/:id', 'CounterController@closeActiveOrder');
 $router->add('GET', '/counter/products/counter-items', 'CounterController@getCounterItems');
+$router->add('GET', '/counter/products/all-available', 'CounterController@getAllAvailableProducts');
 $router->add('POST', '/counter/order/add-counter-items/:id', 'CounterController@addCounterItems');
 $router->add('GET', '/counter/delivery-queue', 'CounterController@getDeliveryQueue');
 $router->add('GET', '/counter/completed-takeaways', 'CounterController@getCompletedTakeaways');
+$router->add('GET', '/online-orders/active', 'CounterController@getActiveOnlineOrders');
+$router->add('POST', '/order/online/complete/:id', 'CounterController@completeOnlineOrder');
+$router->add('POST', '/counter/order/online/create', 'CounterController@createOnlineOrder');
 $router->add('POST', '/counter/delivery-queue/deliver/:id', 'CounterController@markDelivered');
 $router->add('GET', '/counter/refunds/pending', 'CounterController@pendingRefunds');
 $router->add('GET', '/counter/refunds/completed', 'CounterController@completedRefunds');

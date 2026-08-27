@@ -25,13 +25,17 @@ class AdminController extends Controller {
 
         $userModel = new User();
         $users = $userModel->getAll();
+        
+        $platformModel = new OnlinePlatform();
+        $platforms = $platformModel->getAll();
 
         $this->render('admin', [
             'settings' => $settings,
             'categories' => $categories,
             'products' => $products,
             'tables' => $tables,
-            'users' => $users
+            'users' => $users,
+            'platforms' => $platforms
         ]);
     }
 
@@ -258,5 +262,42 @@ class AdminController extends Controller {
         $report = $billModel->getWaiterPerformance($startDate, $endDate);
 
         $this->json(['success' => true, 'report' => $report]);
+    }
+
+    public function savePlatform() {
+        $name = $_POST['name'] ?? '';
+        if (!empty($name)) {
+            $platformModel = new OnlinePlatform();
+            $platformModel->add($name);
+        }
+        $this->redirect('/admin#platforms');
+    }
+
+    public function deletePlatform($params) {
+        $id = (int)($params['id'] ?? 0);
+        if ($id > 0) {
+            $platformModel = new OnlinePlatform();
+            $platformModel->delete($id);
+        }
+        $this->redirect('/admin#platforms');
+    }
+
+    public function togglePlatformStatus($params) {
+        $id = (int)($params['id'] ?? 0);
+        $newStatus = null;
+        if ($id > 0) {
+            $platformModel = new OnlinePlatform();
+            $platformModel->toggleStatus($id);
+            // Fetch updated to return new status
+            $p = $platformModel->getAll();
+            foreach($p as $pl) { if($pl['id'] == $id) $newStatus = $pl['status']; }
+        }
+        
+        $wantsJson = isset($_GET['ajax']) && $_GET['ajax'] == 1;
+        if ($wantsJson) {
+            $this->json(['success' => true, 'new_status' => $newStatus]);
+            return;
+        }
+        $this->redirect('/admin#platforms');
     }
 }

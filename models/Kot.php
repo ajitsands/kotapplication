@@ -51,15 +51,18 @@ class Kot extends Model {
 
     public function getActiveKots() {
         // Fetch KOTs that are not fully dispatched
-        $stmt = $this->db->query("SELECT k.*, o.table_number, o.order_type, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+        $stmt = $this->db->query("SELECT k.*, o.table_number, o.order_type, o.token_number, o.platform_order_number, p.name as platform_name, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                                   FROM kots k 
                                   JOIN orders o ON k.order_id = o.id 
+                                  LEFT JOIN online_platforms p ON o.platform_id = p.id
                                   LEFT JOIN users u ON k.waiter_id = u.id 
                                   WHERE k.status NOT IN ('dispatched', 'cancelled')
                                   AND (
                                       (o.order_type = 'dine_in' AND o.status = 'active') 
                                       OR 
                                       (o.order_type = 'take_away' AND o.status != 'completed' AND EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid'))
+                                      OR
+                                      (o.order_type = 'online' AND o.status != 'cancelled')
                                   )
                                   ORDER BY k.created_at ASC");
         $kots = $stmt->fetchAll();
@@ -339,9 +342,10 @@ class Kot extends Model {
             $date = date('Y-m-d');
         }
 
-        $sql = "SELECT k.*, o.table_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+        $sql = "SELECT k.*, o.table_number, o.order_type, o.token_number, o.platform_order_number, p.name as platform_name, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                 FROM kots k 
                 JOIN orders o ON k.order_id = o.id 
+                LEFT JOIN online_platforms p ON o.platform_id = p.id
                 LEFT JOIN users u ON k.waiter_id = u.id 
                 WHERE k.status = 'dispatched'";
         

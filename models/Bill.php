@@ -6,7 +6,7 @@ class Bill extends Model {
                                   FROM bills b
                                   JOIN orders o ON b.order_id = o.id
                                   LEFT JOIN users u ON o.waiter_id = u.id
-                                  WHERE b.status = 'pending'
+                                  WHERE b.status = 'pending' AND o.order_type != 'online'
                                   ORDER BY b.created_at DESC");
         return $stmt->fetchAll();
     }

@@ -776,6 +776,7 @@
             <a href="javascript:void(0)" onclick="showEngagedTablesModal()" class="nav-link">🍽️ Table Status</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
             <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link" style="color: #f59e0b;">🛍️ Take Away QR</a>
+            <a href="javascript:void(0)" onclick="showOnlineOrderModal()" class="nav-link" style="color: #10b981;">🌐 Online Order</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
@@ -976,12 +977,18 @@
                 </div>
             </div>
 
-            <!-- Takeaway Delivery Tabs Section -->
-            <div style="display: flex; gap: 10px; margin-top: 45px; margin-bottom: 20px; border-bottom: 2px solid var(--card-border); padding-bottom: 10px;">
+            <!-- Takeaway Delivery & Online Tabs Section -->
+            <div style="display: flex; gap: 10px; margin-top: 45px; margin-bottom: 20px; border-bottom: 2px solid var(--card-border); padding-bottom: 10px; overflow-x: auto; white-space: nowrap;">
                 <button id="tab-btn-live" onclick="switchTakeawayTab('live')" style="background: transparent; border: none; color: var(--text-color); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; display: flex; align-items: center; gap: 10px;" class="active-tab">
                     🛍️ Takeaway Orders (Live)
                     <div class="live-indicator" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-green); position: relative; top: 0; transform: none; margin-left: 5px;">
                         <span class="live-dot" style="background: var(--accent-green);"></span>
+                    </div>
+                </button>
+                <button id="tab-btn-online-active" onclick="switchTakeawayTab('online-active')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; display: flex; align-items: center; gap: 10px;">
+                    🌐 Active Online Orders
+                    <div class="live-indicator" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; position: relative; top: 0; transform: none; margin-left: 5px;">
+                        <span class="live-dot" style="background: #3b82f6;"></span>
                     </div>
                 </button>
                 <button id="tab-btn-completed" onclick="switchTakeawayTab('completed')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s;">
@@ -1008,15 +1015,18 @@
             <script>
                 function switchTakeawayTab(tab) {
                     document.getElementById('tab-btn-live').classList.remove('active-tab');
+                    document.getElementById('tab-btn-online-active').classList.remove('active-tab');
                     document.getElementById('tab-btn-completed').classList.remove('active-tab');
                     document.getElementById('tab-btn-refunds').classList.remove('active-tab');
                     document.getElementById('tab-btn-refunded-list').classList.remove('active-tab');
                     document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
+                    document.getElementById('tab-btn-online-active').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-refunds').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-refunded-list').style.color = 'var(--text-muted)';
                     
                     document.getElementById('takeaway-live-section').style.display = 'none';
+                    document.getElementById('online-active-section').style.display = 'none';
                     document.getElementById('takeaway-completed-section').style.display = 'none';
                     document.getElementById('takeaway-refunds-section').style.display = 'none';
                     document.getElementById('takeaway-refunded-list-section').style.display = 'none';
@@ -1026,6 +1036,9 @@
 
                     if (tab === 'live') {
                         document.getElementById('takeaway-live-section').style.display = 'block';
+                    } else if (tab === 'online-active') {
+                        document.getElementById('online-active-section').style.display = 'block';
+                        fetchActiveOnlineOrders();
                     } else if (tab === 'completed') {
                         document.getElementById('takeaway-completed-section').style.display = 'block';
                         fetchCompletedTakeaways();
@@ -1052,6 +1065,25 @@
                             </tr>
                         </thead>
                         <tbody id="takeaway-ready-body">
+                            <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="online-active-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="overflow-x: auto;">
+                    <table id="online-active-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token No / Platform ID</th>
+                                <th style="text-align: left; padding: 12px 10px;">Platform</th>
+                                <th style="text-align: left; padding: 12px 10px;">Status</th>
+                                <th style="text-align: left; padding: 12px 10px;">KOT Status</th>
+                                <th style="text-align: right; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="online-active-body">
                             <!-- Populated dynamically via AJAX -->
                         </tbody>
                     </table>
@@ -1286,7 +1318,7 @@
 
             <!-- Add Counter Items Section -->
             <div id="counter-items-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--card-border); display: none;">
-                <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-color); display: flex; align-items: center; gap: 6px;">🛒 Add Counter Items (Cookies, Chocolates, Cold Drinks, etc.)</h4>
+                <h4 id="counter-item-add-label" style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-color); display: flex; align-items: center; gap: 6px;">🛒 Add Counter Items (Cookies, Chocolates, Cold Drinks, etc.)</h4>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <select id="counter-item-select" style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); font-size: 13px;">
                         <option value="">Choose an item...</option>
@@ -1385,11 +1417,11 @@
                 return;
             }
 
-            // Group bills by table_number, or by token if it's a takeaway
+            // Group bills by table_number, or by token if it's a takeaway or online
             const groups = {};
             bills.forEach(bill => {
                 let tbl = bill.table_number;
-                if (bill.order_type === 'take_away') {
+                if (bill.order_type === 'take_away' || bill.order_type === 'online') {
                     tbl = 'TW-' + (bill.token_number || bill.id);
                 } else if (tbl === null || tbl === 'null') {
                     tbl = '0';
@@ -1418,10 +1450,15 @@
             sortedTables.forEach(tableNum => {
                 const tableBills = groups[tableNum];
                 const isGrouped = tableBills.length > 1;
+                const sampleBill = tableBills[0];
                 
                 let groupLabel = '';
                 if (String(tableNum).startsWith('TW-')) {
-                    groupLabel = 'Take Away (TW) • Token ' + String(tableNum).replace('TW-', '');
+                    if (sampleBill.order_type === 'online') {
+                        groupLabel = '🌐 ' + (sampleBill.platform_name || 'Online') + ' • Order ' + (sampleBill.platform_order_number || sampleBill.token_number);
+                    } else {
+                        groupLabel = 'Take Away (TW) • Token ' + String(tableNum).replace('TW-', '');
+                    }
                 } else if (tableNum === '0' || tableNum === 0 || tableNum === 'null' || tableNum === null) {
                     groupLabel = 'Take Away Orders';
                 } else {
@@ -1432,7 +1469,7 @@
                     <div class="table-group-card" style="margin-bottom: 25px; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.01);">
                         <div class="table-group-header" style="background: rgba(255,255,255,0.03); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border);">
                             <div style="display:flex; align-items:center; gap: 10px;">
-                                <span class="table-badge" style="font-size:14px; padding:6px 12px;">
+                                <span class="table-badge" style="font-size:14px; padding:6px 12px; ${sampleBill.order_type === 'online' ? 'background:var(--accent-green);' : ''}">
                                     ${groupLabel}
                                 </span>
                                 <span style="font-size:13px; color:var(--text-muted); font-weight:600;">(${tableBills.length} pending bill${tableBills.length > 1 ? 's' : ''})</span>
@@ -1469,12 +1506,17 @@
                     const date = new Date(bill.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     
                     let infoCol = `#${bill.id}`;
-                    if (bill.order_type === 'take_away') {
+                    if (bill.order_type === 'take_away' || bill.order_type === 'online') {
                         let customerInfo = bill.customer_name || '';
                         if (bill.customer_mobile) {
                             customerInfo += customerInfo ? ` - ${bill.customer_mobile}` : bill.customer_mobile;
                         }
-                        infoCol += `<br><span style="font-size:14px; font-weight:800; color:var(--accent-orange);">Token: ${bill.token_number}</span><br><span style="font-size:11px;">${customerInfo}</span>`;
+                        
+                        if (bill.order_type === 'online') {
+                            infoCol += `<br><span style="font-size:14px; font-weight:800; color:var(--accent-green);">🌐 ${bill.platform_name || 'Online'}<br>Order: ${bill.platform_order_number || bill.token_number}</span><br><span style="font-size:11px;">${customerInfo}</span>`;
+                        } else {
+                            infoCol += `<br><span style="font-size:14px; font-weight:800; color:var(--accent-orange);">Token: ${bill.token_number}</span><br><span style="font-size:11px;">${customerInfo}</span>`;
+                        }
                     }
 
                     html += `
@@ -1530,6 +1572,10 @@
 
                     if (order.order_type === 'take_away') {
                         document.getElementById('view-modal-table-label').innerText = 'Take Away • Token: ' + order.token_number + ' • ' + (order.customer_name || 'Walk-in');
+                    } else if (order.order_type === 'online') {
+                        // We might not have platform_name in this specific API endpoint if it only fetches order by ID without join. 
+                        // Let's just use token or platform_order_number if available.
+                        document.getElementById('view-modal-table-label').innerText = '🌐 Online Order • ' + (order.platform_order_number || order.token_number) + ' • ' + (order.customer_name || 'Walk-in');
                     } else {
                         document.getElementById('view-modal-table-label').innerText = 'Table T' + order.table_number + ' • ' + (order.waiter_name || 'Self-Order');
                     }
@@ -1566,25 +1612,45 @@
                     document.getElementById('view-modal-grand-total').innerText = parseFloat(order.grand_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
 
                     // Action buttons in details modal
+                    // Action buttons in details modal
                     let actionsHtml = `<button onclick="closeBillItemsModal()" class="btn-pay-confirm" style="width: auto; padding: 10px 30px; display: inline-block;">Close</button>`;
-                    if (!order.items || order.items.length === 0) {
-                        actionsHtml = `
-                            <button onclick="releaseTable(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-red); border: 1px solid var(--accent-red);">🔓 Release Table & Make Available</button>
-                            ${actionsHtml}
-                        `;
-                    } else if (order.status === 'active') {
-                        actionsHtml = `
-                            <button onclick="closeTableAndGenerateBill(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-orange); border: 1px solid var(--accent-orange);">🔒 Close Table & Generate Bill</button>
-                            ${actionsHtml}
-                        `;
-                    } else if (order.status === 'closed' && order.bill_id) {
-                        actionsHtml = `
-                            <button onclick="closeBillItemsModal(); openPaymentModal(${order.bill_id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-green); border: 1px solid var(--accent-green);">💳 Proceed to Payment</button>
-                            ${actionsHtml}
-                        `;
+                    
+                    if (order.order_type === 'online') {
+                        if (order.status === 'active') {
+                            if (!order.items || order.items.length === 0) {
+                                actionsHtml = `
+                                    <button onclick="cancelOnlineOrder(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-red); border: 1px solid var(--accent-red);">❌ Cancel Order</button>
+                                    ${actionsHtml}
+                                `;
+                            } else {
+                                actionsHtml = `
+                                    <button onclick="confirmOnlineOrderToKOT(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-green); border: 1px solid var(--accent-green);">✅ Confirm & Send to KOT</button>
+                                    ${actionsHtml}
+                                `;
+                            }
+                        }
+                    } else {
+                        if (!order.items || order.items.length === 0) {
+                            actionsHtml = `
+                                <button onclick="releaseTable(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-red); border: 1px solid var(--accent-red);">🔓 Release Table & Make Available</button>
+                                ${actionsHtml}
+                            `;
+                        } else if (order.status === 'active') {
+                            actionsHtml = `
+                                <button onclick="closeTableAndGenerateBill(${order.id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-orange); border: 1px solid var(--accent-orange);">🔒 Close Table & Generate Bill</button>
+                                ${actionsHtml}
+                            `;
+                        } else if (order.status === 'closed' && order.bill_id) {
+                            actionsHtml = `
+                                <button onclick="closeBillItemsModal(); openPaymentModal(${order.bill_id})" class="btn-pay-confirm" style="width: auto; padding: 10px 20px; display: inline-block; background: var(--accent-green); border: 1px solid var(--accent-green);">💳 Proceed to Payment</button>
+                                ${actionsHtml}
+                            `;
+                        }
                     }
+                    
                     document.getElementById('view-modal-actions-container').innerHTML = actionsHtml;
                     
+                    populateItemsDropdown(order.order_type);
                     document.getElementById('bill-items-modal').style.display = 'flex';
                 })
                 .catch(err => console.error('Error loading order details:', err));
@@ -1595,26 +1661,45 @@
             $('#counter-item-select').val('').trigger('change');
         }
 
+        let allProducts = [];
         function fetchCounterItems() {
+            // Fetch Counter items
             fetch(basePath + '/products/counter-items')
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
                         counterProducts = data.items;
-                        const select = document.getElementById('counter-item-select');
-                        if (select) {
-                            select.innerHTML = '<option value="">Choose an item...</option>';
-                            counterProducts.forEach(item => {
-                                select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode})</option>`;
-                            });
-                            // Initialize Select2 search dropdown
-                            $('#counter-item-select').select2({
-                                dropdownParent: $('#bill-items-modal')
-                            });
-                        }
                     }
                 })
                 .catch(err => console.error('Error fetching counter products:', err));
+                
+            // Fetch All items for Online Orders
+            fetch(basePath + '/products/all-available')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        allProducts = data.items;
+                    }
+                })
+                .catch(err => console.error('Error fetching all products:', err));
+        }
+
+        function populateItemsDropdown(orderType) {
+            const select = document.getElementById('counter-item-select');
+            if (select) {
+                const itemsToUse = (orderType === 'online') ? allProducts : counterProducts;
+                const labelText = (orderType === 'online') ? 'Add Item to Online Order' : 'Add Counter Item (Water, Extra, etc.)';
+                document.getElementById('counter-item-add-label').innerText = labelText;
+                
+                select.innerHTML = '<option value="">Choose an item...</option>';
+                itemsToUse.forEach(item => {
+                    select.innerHTML += `<option value="${item.id}">${item.name} (${parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode})</option>`;
+                });
+                // Initialize Select2 search dropdown
+                $('#counter-item-select').select2({
+                    dropdownParent: $('#bill-items-modal')
+                });
+            }
         }
 
         function addCounterItem() {
@@ -1689,6 +1774,8 @@
 
             if (bill.order_type === 'take_away') {
                 document.getElementById('modal-table-label').innerText = 'Complete payment for Take Away • Token: ' + bill.token_number;
+            } else if (bill.order_type === 'online') {
+                document.getElementById('modal-table-label').innerText = 'Complete payment for Online Order • ' + (bill.platform_order_number || bill.token_number);
             } else {
                 document.getElementById('modal-table-label').innerText = 'Complete payment for Table ' + bill.table_number;
             }
@@ -2076,11 +2163,13 @@
         fetchCustomers();
         fetchCounterItems();
         fetchTakeawayDeliveryQueue();
+        fetchActiveOnlineOrders();
         fetchCompletedTakeaways();
         
         setInterval(fetchBills, 4000);
         setInterval(fetchEngagedTables, 4000);
         setInterval(fetchTakeawayDeliveryQueue, 4000);
+        setInterval(fetchActiveOnlineOrders, 4000);
         setInterval(fetchCompletedTakeaways, 8000);
         setInterval(fetchPendingRefunds, 5000);
         setInterval(fetchSummary, 10000);
@@ -2228,6 +2317,76 @@
         window.closeRefundModal = closeRefundModal;
         window.processRefundOrder = processRefundOrder;
 
+        function fetchActiveOnlineOrders() {
+            fetch(basePath + '/online-orders/active')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.getElementById('online-active-body');
+                        if (!tbody) return;
+                        tbody.innerHTML = '';
+                        if (data.orders.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:var(--text-muted);">No active online orders.</td></tr>';
+                        } else {
+                            data.orders.forEach(o => {
+                                let badgeColor = 'gray';
+                                if (o.status === 'active') badgeColor = 'orange';
+                                else if (o.status === 'closed') badgeColor = '#3b82f6';
+                                else if (o.status === 'completed') badgeColor = '#10b981';
+                                
+                                let kotText = 'No KOT';
+                                if (o.pending_items_count > 0) kotText = `<span style="color:var(--accent-orange); font-weight:bold;">Preparing (${o.pending_items_count} items)</span>`;
+                                else if (o.kot_exists) kotText = `<span style="color:var(--accent-green); font-weight:bold;">Ready</span>`;
+                                
+                                let actionBtn = '';
+                                if (o.status === 'closed') {
+                                    actionBtn = `<button class="btn-pay" onclick="markOnlineOrderCompleted(${o.id})" style="background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>`;
+                                } else {
+                                    actionBtn = `<button class="btn-pay" onclick="openOrderItemsModal(${o.id})" style="background:var(--card-border); border:none; color:var(--text-color); padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View</button>`;
+                                }
+                                
+                                tbody.innerHTML += `
+                                    <tr style="border-bottom: 1px solid var(--card-border);">
+                                        <td style="padding: 12px 10px; font-weight: 700;">${o.token_number} <br><span style="font-size:11px; color:var(--text-muted); font-weight:400;">${o.platform_order_number || ''}</span></td>
+                                        <td style="padding: 12px 10px; color:var(--text-muted);">${o.platform_name || 'N/A'}</td>
+                                        <td style="padding: 12px 10px;"><span style="background:${badgeColor}; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase;">${o.status}</span></td>
+                                        <td style="padding: 12px 10px;">${kotText}</td>
+                                        <td style="padding: 12px 10px; text-align:right;">${actionBtn}</td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    }
+                })
+                .catch(err => console.error('Error fetching online orders:', err));
+        }
+
+        function markOnlineOrderCompleted(orderId) {
+            Swal.fire({
+                title: 'Mark Delivered?',
+                text: "Handed over to delivery driver?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Yes, Delivered',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/order/online/complete/' + orderId, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            fetchActiveOnlineOrders();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+
         function fetchTakeawayDeliveryQueue() {
             fetch(basePath + '/delivery-queue')
                 .then(res => res.json())
@@ -2241,9 +2400,13 @@
                             const statusColor = isReady ? 'var(--accent-green)' : 'var(--accent-orange)';
                             const btnDisplay = 'inline-block';
                             
+                            const tokenDisplay = o.order_type === 'online' 
+                                ? `<div style="font-weight:800; font-size:18px; color:var(--accent-green);"><span style="font-size:14px;">🌐 ${escapeHtml(o.platform_name || 'Online')}</span><br>${escapeHtml(o.platform_order_number || o.token_number)}</div>`
+                                : `<div style="font-weight:800; font-size:18px; color:${statusColor};">${escapeHtml(o.token_number || '-')}</div>`;
+
                             html += `
                                 <tr style="border-bottom: 1px solid var(--card-border); background: ${isReady ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)'};">
-                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:${statusColor};">${escapeHtml(o.token_number || '-')}</td>
+                                    <td style="padding: 12px 10px;">${tokenDisplay}</td>
                                     <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                     <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
                                     <td style="padding: 12px 10px; font-weight:700; color:${statusColor};">${statusLabel}</td>
@@ -2256,7 +2419,7 @@
                         });
                         tbody.innerHTML = html;
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No takeaway orders ready for delivery.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No orders ready for delivery.</td></tr>';
                     }
                 })
                 .catch(err => console.error('Error fetching delivery queue:', err));
@@ -2272,11 +2435,11 @@
                 .then(res => res.json())
                 .then(data => {
                     const orders = data.orders || [];
-                    const summary = data.summary || null;
+                    const summary = data.summary || { total_amount: 0, total_count: 0, qr_amount: 0, qr_count: 0, card_amount: 0, card_count: 0, cash_amount: 0, cash_count: 0 };
                     
-                    if (summary) {
+                    if (document.getElementById('takeaway-summary-container')) {
                         document.getElementById('takeaway-summary-container').innerHTML = `
-                            <div><strong style="color:var(--text-muted);">Total Takeaway:</strong> <span style="font-weight:700; color:var(--accent-green); font-size:15px;">${parseFloat(summary.total_amount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
+                            <div><strong style="color:var(--text-muted);">Total Takeaway/Online:</strong> <span style="font-weight:700; color:var(--accent-green); font-size:15px;">${parseFloat(summary.total_amount).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span> <span style="color:var(--text-muted);">(${summary.total_count} trxn)</span></div>
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💵 Cash:</strong> <span style="font-weight:600;">${parseFloat(summary.cash_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.cash_count})</span></div>
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💳 Card:</strong> <span style="font-weight:600;">${parseFloat(summary.card_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.card_count})</span></div>
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">📱 QR:</strong> <span style="font-weight:600;">${parseFloat(summary.qr_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.qr_count})</span></div>
@@ -2291,10 +2454,13 @@
                     let html = '';
                     orders.forEach(o => {
                         const dateStr = new Date(o.updated_at || o.created_at).toLocaleString();
+                        const tokenDisplay = o.order_type === 'online' 
+                            ? `<span style="color:var(--accent-green);">🌐 ${escapeHtml(o.platform_name || 'Online')}<br>${escapeHtml(o.platform_order_number || o.token_number)}</span>`
+                            : `${escapeHtml(o.token_number || '-')}`;
                         html += `
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 12px 10px;">${dateStr}</td>
-                                <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.token_number || '-')}</td>
+                                <td style="padding: 12px 10px; font-weight:600;">${tokenDisplay}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
                                 <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
@@ -2785,6 +2951,83 @@
             closeEngagedTablesModal();
             openOrderItemsModal(orderId);
         }
+        function confirmOnlineOrderToKOT(orderId) {
+            Swal.fire({
+                title: 'Confirm to KOT?',
+                text: "This will send the online order to the kitchen. It will not enter the billing queue.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, Send to KOT',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/order/online/confirm/' + orderId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: 'Order sent to KOT.',
+                                icon: 'success',
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                            closeBillItemsModal();
+                            if (typeof fetchActiveOnlineOrders === 'function') fetchActiveOnlineOrders();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to confirm order.', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        function cancelOnlineOrder(orderId) {
+            Swal.fire({
+                title: 'Cancel Order?',
+                text: "Are you sure you want to cancel this online order? There are no items added.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, Cancel',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/order/cancel/' + orderId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Cancelled!',
+                                text: 'Order has been cancelled.',
+                                icon: 'success',
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                            closeBillItemsModal();
+                            if (typeof fetchActiveOnlineOrders === 'function') fetchActiveOnlineOrders();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to cancel order.', 'error');
+                        }
+                    });
+                }
+            });
+        }
 
         function closeTableAndGenerateBill(orderId) {
             Swal.fire({
@@ -3033,6 +3276,98 @@
             
             document.getElementById('order-refund-modal').style.display = 'flex';
         }
+
+        function showOnlineOrderModal() {
+            document.getElementById('online-order-modal').style.display = 'flex';
+        }
+
+        function closeOnlineOrderModal() {
+            document.getElementById('online-order-modal').style.display = 'none';
+        }
+
+        function createOnlineOrder() {
+            const platformId = document.getElementById('oo-platform').value;
+            const orderNumber = document.getElementById('oo-number').value.trim();
+            const custName = document.getElementById('oo-cust-name').value.trim();
+            const custMobile = document.getElementById('oo-cust-mobile').value.trim();
+
+            if (!platformId || !orderNumber) {
+                Swal.fire('Error', 'Platform and Order Number are required.', 'error');
+                return;
+            }
+
+            fetch(`${basePath}/order/online/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    platform_id: platformId,
+                    platform_order_number: orderNumber,
+                    customer_name: custName,
+                    customer_mobile: custMobile
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Order Created!',
+                        text: 'You can now add items to this order.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        closeOnlineOrderModal();
+                        document.getElementById('oo-number').value = '';
+                        document.getElementById('oo-cust-name').value = '';
+                        document.getElementById('oo-cust-mobile').value = '';
+                        // Open the add items modal for this order ID
+                        openOrderItemsModal(data.order_id);
+                        fetchTakeawayDeliveryQueue();
+                        fetchEngagedTables();
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to create online order.', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', 'Network error. Please try again.', 'error');
+            });
+        }
     </script>
+
+    <!-- Online Order Modal -->
+    <div id="online-order-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;"><span style="font-size:20px;">🌐</span> New Online Order</h3>
+                <button onclick="closeOnlineOrderModal()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted);">Select Platform</label>
+                    <select id="oo-platform" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); color: var(--text-color);">
+                        <option value="">-- Select Platform --</option>
+                        <?php if(!empty($platforms)): foreach($platforms as $p): ?>
+                            <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
+                        <?php endforeach; endif; ?>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted);">Platform Order Number</label>
+                    <input type="text" id="oo-number" placeholder="e.g. Z-98321" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); color: var(--text-color);">
+                </div>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted);">Customer Name (Optional)</label>
+                    <input type="text" id="oo-cust-name" placeholder="John Doe" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); color: var(--text-color);">
+                </div>
+                <div style="margin-bottom: 25px; text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted);">Customer Mobile (Optional)</label>
+                    <input type="text" id="oo-cust-mobile" placeholder="+973..." style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); color: var(--text-color);">
+                </div>
+                <button onclick="createOnlineOrder()" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(99, 102, 241, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(99, 102, 241, 0.4)';">Create Order & Add Items</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

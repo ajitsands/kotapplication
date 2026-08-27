@@ -992,11 +992,12 @@
                 html += `
                     <div class="${cardClass}" id="kot-${kot.id}">
                         <div class="kot-header">
-                            <span class="table-badge">
-                                ${kot.order_type === 'take_away' ? 'Take Away' : 'T' + kot.table_number}
+                            <span class="table-badge" style="${kot.order_type === 'online' ? 'background: var(--accent-green);' : ''}">
+                                ${kot.order_type === 'take_away' ? 'Take Away' : (kot.order_type === 'online' ? '🌐 ' + (kot.platform_name || 'Online') : 'T' + kot.table_number)}
                             </span>
                             <div class="kot-meta">
                                 ${kot.order_type === 'take_away' ? `<div style="font-size:16px; font-weight:800; color:var(--accent-orange); margin-bottom:4px;">Token: ${kot.token_number}</div>` : ''}
+                                ${kot.order_type === 'online' ? `<div style="font-size:16px; font-weight:800; color:var(--accent-green); margin-bottom:4px;">Order: ${kot.platform_order_number || kot.token_number}</div>` : ''}
                                 <div class="kot-num">${kot.kot_number}</div>
                                 <div class="kot-time">${timeLabel}</div>
                                 <div class="kot-waiter">By: ${kot.waiter_name || 'Self-Order'}</div>

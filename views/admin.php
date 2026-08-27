@@ -43,6 +43,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda-themeless.min.css">
     <style>
+        /* Toggle Switch CSS */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #10b981;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
         :root {
             --bg-color: #0b0f19;
             --card-bg: rgba(255, 255, 255, 0.03);
@@ -916,6 +953,9 @@
                     <button class="nav-dropdown-item" id="item-kpi" onclick="selectSection('kpi','📈','Profit &amp; KPI')">
                         <span class="item-icon">📈</span> Profit &amp; KPI
                     </button>
+                    <button class="nav-dropdown-item" id="item-platforms" onclick="selectSection('platforms','🌐','Online Platforms')">
+                        <span class="item-icon">🌐</span> Online Platforms
+                    </button>
                 </div>
             </div>
         </div>
@@ -1681,6 +1721,63 @@
         <?php include 'admin_kpi.php'; ?>
         <?php include 'admin_recipe.php'; ?>
 
+        <!-- Platforms Tab -->
+        <div id="platforms" class="tab-content">
+            <div class="grid-2">
+                <div class="panel-card">
+                    <h2 class="panel-title">Add Online Platform</h2>
+                    <form action="admin/platforms" method="POST">
+                        <div class="form-group">
+                            <label class="form-label">Platform Name</label>
+                            <input class="form-input" type="text" name="name" placeholder="e.g. Zomato, Swiggy" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Platform</button>
+                    </form>
+                </div>
+
+                <div class="panel-card">
+                    <h2 class="panel-title">Active Platforms</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($platforms)): ?>
+                                <?php foreach ($platforms as $platform): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($platform['name']) ?></td>
+                                        <td>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="platform-status-<?= $platform['id'] ?>" <?= $platform['status'] === 'active' ? 'checked' : '' ?> onchange="togglePlatformAJAX(<?= $platform['id'] ?>, this)">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                            <span id="platform-status-label-<?= $platform['id'] ?>" style="margin-left: 10px; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600; background: <?= $platform['status'] === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' ?>; color: <?= $platform['status'] === 'active' ? '#10b981' : '#ef4444' ?>; vertical-align: middle;">
+                                                <?= ucfirst($platform['status']) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="display:flex; gap:10px;">
+                                                <form action="admin/platforms/delete/<?= $platform['id'] ?>" method="POST" style="display:inline;" class="confirm-delete">
+                                                    <button type="submit" class="btn-delete" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Delete</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="3" class="empty-state">No platforms added yet.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
         <!-- Footer -->
         <div class="admin-footer" style="padding: 18px 20px; text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--card-border); margin-top: 30px; width: 100%;">
             Powered By <a href="javascript:void(0)" onclick="openSandsModal()" style="color: #818cf8; text-decoration: none; font-weight: 600;">SaNDS Lab</a>. All rights reserved to <?= htmlspecialchars($settings['restaurant_name']) ?>
@@ -1789,6 +1886,7 @@
             </div>
         </div>
     </div>
+
 
     <script>
         function switchTab(tabId) {
@@ -2991,6 +3089,41 @@
                         color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                     });
                 }
+            });
+        }
+
+        function togglePlatformAJAX(platformId, checkbox) {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            fetch(basePath + '/platforms/status/' + platformId + '?ajax=1', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Network error");
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const labelSpan = document.getElementById(`platform-status-label-${platformId}`);
+                    if (data.new_status === 'active') {
+                        labelSpan.innerText = 'Active';
+                        labelSpan.style.background = 'rgba(16, 185, 129, 0.1)';
+                        labelSpan.style.color = '#10b981';
+                        checkbox.checked = true;
+                    } else {
+                        labelSpan.innerText = 'Inactive';
+                        labelSpan.style.background = 'rgba(239, 68, 68, 0.1)';
+                        labelSpan.style.color = '#ef4444';
+                        checkbox.checked = false;
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                checkbox.checked = !checkbox.checked; // Revert switch if failed
+                Swal.fire('Error', 'Failed to toggle platform status.', 'error');
             });
         }
 
