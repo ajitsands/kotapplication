@@ -1,3 +1,75 @@
+<style>
+    .btn-secondary:hover { background: rgba(0,0,0,0.1) !important; }
+
+    /* Custom Tooltip */
+    .custom-tooltip {
+        position: relative;
+        display: inline-flex;
+        cursor: pointer;
+    }
+
+    .custom-tooltip .custom-tooltip-content {
+        visibility: hidden;
+        opacity: 0;
+        width: max-content;
+        min-width: 150px;
+        background: #1e293b;
+        color: #fff;
+        text-align: left;
+        border-radius: 8px;
+        padding: 12px 14px;
+        position: absolute;
+        z-index: 99999;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .custom-tooltip .custom-tooltip-content::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -6px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+
+    .custom-tooltip:hover .custom-tooltip-content {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .tooltip-header {
+        font-weight: 700;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tooltip-body {
+        color: #cbd5e1;
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .tooltip-body strong {
+        color: #fff;
+    }
+</style>
 <div id="inventory" class="tab-content">
     <div class="panel-card">
         <div class="panel-title">
@@ -247,77 +319,7 @@
                 </div>
                 <div style="align-self: flex-end;">
                     <button type="button" class="btn-primary" onclick="reloadHistoryTable()" style="padding: 6px 16px; height: auto; background: #8b5cf6; box-shadow: 0 4px 10px rgba(139,92,246,0.2);">Filter</button>
-                    <button type="button" class="btn-secondary" onclick="$('#historyStartDate').val(''); $('#historyEndDate').val(''); reloadHistoryTable();" style="padding: 6px 16px; height: auto;    .btn-secondary:hover { background: rgba(0,0,0,0.1) !important; }
-
-    /* Custom Tooltip */
-    .custom-tooltip {
-        position: relative;
-        display: inline-flex;
-        cursor: pointer;
-    }
-
-    .custom-tooltip .custom-tooltip-content {
-        visibility: hidden;
-        opacity: 0;
-        width: max-content;
-        min-width: 150px;
-        background: #1e293b;
-        color: #fff;
-        text-align: left;
-        border-radius: 8px;
-        padding: 12px 14px;
-        position: absolute;
-        z-index: 99999;
-        bottom: 125%;
-        left: 50%;
-        transform: translateX(-50%) translateY(10px);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-        pointer-events: none;
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    .custom-tooltip .custom-tooltip-content::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -6px;
-        border-width: 6px;
-        border-style: solid;
-        border-color: #1e293b transparent transparent transparent;
-    }
-
-    .custom-tooltip:hover .custom-tooltip-content {
-        visibility: visible;
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-
-    .tooltip-header {
-        font-weight: 700;
-        font-size: 13px;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .tooltip-body {
-        color: #cbd5e1;
-        font-size: 13px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .tooltip-body strong {
-        color: #fff;
-    }
-</style>xt-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Clear</button>
+                    <button type="button" class="btn-secondary" onclick="$('#historyStartDate').val(''); $('#historyEndDate').val(''); reloadHistoryTable();" style="padding: 6px 16px; height: auto; margin-left: 5px; background: rgba(0,0,0,0.05); color: var(--text-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Clear</button>
                 </div>
                 <div style="flex-grow: 1; display: flex; justify-content: flex-end; gap: 20px;">
                     <div style="background: white; padding: 8px 15px; border-radius: 8px; text-align: right; border: 1px solid var(--card-border); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
