@@ -883,7 +883,7 @@
                 </div>
 
                 <!-- Stats Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
                     <!-- Cash Card -->
                     <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
                         <div style="font-size: 24px; background: rgba(16, 185, 129, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💵</div>
