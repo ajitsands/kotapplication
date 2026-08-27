@@ -123,27 +123,39 @@ class InventoryController extends Controller {
 
     public function addStock() {
         $this->requireAuth('admin');
-        $inventory_item_id = $_POST['inventory_item_id'] ?? null;
-        $quantity = $_POST['quantity'] ?? 0;
-        $unit_price = $_POST['unit_price'] ?? 0;
+        
+        $inventory_item_ids = $_POST['inventory_item_id'] ?? [];
+        $quantities = $_POST['quantity'] ?? [];
+        $unit_prices = $_POST['unit_price'] ?? [];
+        $expiry_dates = $_POST['expiry_date'] ?? [];
+        
         $supplier_id = !empty($_POST['supplier_id']) ? $_POST['supplier_id'] : null;
         $notes = $_POST['notes'] ?? '';
         
-        if (!$inventory_item_id || $quantity <= 0) {
-            $this->json(['status' => 'error', 'message' => 'Invalid stock addition data']);
+        if (empty($inventory_item_ids) || !is_array($inventory_item_ids)) {
+            $this->json(['status' => 'error', 'message' => 'No items selected for stock addition']);
             return;
         }
 
         $db = Database::getInstance()->getConnection();
         $db->beginTransaction();
         try {
-            // Update stock
-            $stmt = $db->prepare("UPDATE inventory_items SET current_stock = current_stock + ? WHERE id = ?");
-            $stmt->execute([$quantity, $inventory_item_id]);
+            for ($i = 0; $i < count($inventory_item_ids); $i++) {
+                $item_id = $inventory_item_ids[$i];
+                $qty = (float)($quantities[$i] ?? 0);
+                $price = (float)($unit_prices[$i] ?? 0);
+                $expiry = !empty($expiry_dates[$i]) ? $expiry_dates[$i] : null;
+                
+                if (!$item_id || $qty <= 0) continue;
 
-            // Add transaction log
-            $stmt = $db->prepare("INSERT INTO inventory_transactions (inventory_item_id, transaction_type, quantity, unit_price, supplier_id, notes) VALUES (?, 'add_stock', ?, ?, ?, ?)");
-            $stmt->execute([$inventory_item_id, $quantity, $unit_price, $supplier_id, $notes]);
+                // Update stock
+                $stmt = $db->prepare("UPDATE inventory_items SET current_stock = current_stock + ? WHERE id = ?");
+                $stmt->execute([$qty, $item_id]);
+
+                // Add transaction log
+                $stmt = $db->prepare("INSERT INTO inventory_transactions (inventory_item_id, transaction_type, quantity, unit_price, supplier_id, notes, expiry_date) VALUES (?, 'add_stock', ?, ?, ?, ?, ?)");
+                $stmt->execute([$item_id, $qty, $price, $supplier_id, $notes, $expiry]);
+            }
 
             $db->commit();
             $this->json(['status' => 'success']);

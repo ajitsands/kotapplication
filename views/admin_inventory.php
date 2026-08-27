@@ -12,7 +12,7 @@
                     Import Stock
                 </button>
                 <button class="btn-primary" onclick="fetchSuppliersForSelect(); $('#inventoryForm')[0].reset(); $('#inv_id').val(''); $('#inventoryModalTitle').html('<svg width=\'22\' height=\'22\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z\'></path><line x1=\'7\' y1=\'7\' x2=\'7.01\' y2=\'7\'></line></svg> Add Inventory Item'); $('#inventoryModal').css('display', 'flex').hide().fadeIn();" style="margin-left: 10px;">Add New Item</button>
-                <button class="btn-primary" style="background:#10b981;" onclick="fetchSuppliersForSelect(); $('#stockModal').css('display', 'flex').hide().fadeIn();">Add Stock (Purchase)</button>
+                <button class="btn-primary" style="background:#10b981;" onclick="fetchSuppliersForSelect(); $('#stock_items_container').empty(); addStockItemRow(); $('#stockModal').css('display', 'flex').hide().fadeIn();">Add Stock (Purchase)</button>
             </div>
         </div>
         <table class="dataTable" id="inventoryTable">
@@ -106,7 +106,7 @@
 
 <!-- Add Stock Modal -->
 <div class="modal" id="stockModal">
-    <div class="modal-content" style="max-width: 600px; padding: 0; overflow: hidden;">
+    <div class="modal-content" style="width: 90%; max-width: 800px; padding: 0; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
             <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,40 +120,30 @@
             </button>
         </div>
         
-        <form id="stockForm" style="padding: 30px;">
+        <form id="stockForm" style="padding: 25px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                <div class="form-group">
-                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Select Item <span style="color: #ef4444;">*</span></label>
-                    <select name="inventory_item_id" id="stock_item_id" class="form-input" style="cursor: pointer;" required></select>
-                </div>
                 <div class="form-group">
                     <label class="form-label" style="font-weight: 600; color: var(--text-color);">Supplier (Optional)</label>
                     <select name="supplier_id" id="stock_supplier_id" class="form-input" style="cursor: pointer;">
                         <option value="">-- No Supplier --</option>
                     </select>
                 </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="form-group">
-                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Quantity Received <span style="color: #ef4444;">*</span></label>
-                    <div style="position: relative;">
-                        <input type="number" step="0.001" name="quantity" class="form-input" style="padding-right: 50px;" placeholder="e.g. 50" required>
-                        <div id="stock_unit_label" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: bold; color: var(--text-muted); font-size: 13px;">Unit</div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Total Batch Cost <span style="color: #ef4444;">*</span></label>
-                    <div style="position: relative;">
-                        <div style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: bold; color: var(--text-muted); font-size: 13px;"><?= htmlspecialchars($settings['currency_code'] ?? '$') ?></div>
-                        <input type="number" step="0.001" name="unit_price" class="form-input" style="padding-left: 48px;" placeholder="0.00" required>
-                    </div>
+                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Invoice Number / Notes</label>
+                    <input type="text" name="notes" class="form-input" placeholder="e.g. INV-2023-001">
                 </div>
             </div>
             
-            <div class="form-group" style="margin-bottom: 25px;">
-                <label class="form-label" style="font-weight: 600; color: var(--text-color);">Notes / Invoice Number</label>
-                <input type="text" name="notes" class="form-input" placeholder="e.g. INV-2023-001">
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <label class="form-label" style="font-weight: 600; color: var(--text-color); margin: 0;">Items Received <span style="color: #ef4444;">*</span></label>
+                <button type="button" class="btn-primary" style="padding: 8px 16px; font-size: 13px; height: auto;" onclick="addStockItemRow()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Item
+                </button>
+            </div>
+            
+            <div style="max-height: 350px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--card-border); border-radius: 8px; padding: 15px; background: #f9fafb;" id="stock_items_container">
+                <!-- Dynamic rows here -->
             </div>
             
             <div style="display: flex; gap: 15px; justify-content: flex-end; border-top: 1px solid var(--card-border); padding-top: 25px;">
@@ -279,6 +269,7 @@
                         <th>Type</th>
                         <th>Qty</th>
                         <th>Price/Unit</th>
+                        <th>Expiry</th>
                         <th>Supplier/Chef</th>
                         <th>Notes</th>
                     </tr>
@@ -365,13 +356,44 @@ function loadInventory() {
 function populateItemSelect() {
     $.get('/admin/inventory/items/list', function(res) {
         let r = typeof res === 'string' ? JSON.parse(res) : res;
-        let options = '';
-        r.data.forEach(function(item) {
-            options += `<option value="${item.id}" data-unit="${item.unit}">${item.name}</option>`;
-        });
-        $('#stock_item_id').html(options);
-        $('#stock_item_id').trigger('change');
+        window.inventoryItemsList = r.data; // Store for dynamic rows
     });
+}
+
+function addStockItemRow() {
+    if (!window.inventoryItemsList) return;
+    
+    let options = '<option value="">Select Item</option>';
+    window.inventoryItemsList.forEach(function(item) {
+        options += `<option value="${item.id}" data-unit="${item.unit}">${item.name}</option>`;
+    });
+
+    let rowHtml = `
+        <div class="stock-item-row" style="display: grid; grid-template-columns: 2fr 1fr 1.5fr 1.5fr 40px; gap: 15px; margin-bottom: 15px; align-items: end; background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--card-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px;">Item <span style="color: #ef4444;">*</span></label>
+                <select name="inventory_item_id[]" class="form-input stock-item-select" style="cursor: pointer;" required>
+                    ${options}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px;">Qty <span style="color: #ef4444;">*</span></label>
+                <input type="number" step="0.001" name="quantity[]" class="form-input" placeholder="0" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px;">Total Batch Cost <span style="color: #ef4444;">*</span></label>
+                <input type="number" step="0.001" name="unit_price[]" class="form-input" placeholder="0.00" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 12px;">Expiry Date (Opt)</label>
+                <input type="date" name="expiry_date[]" class="form-input" style="height: auto; padding: 8px 12px;">
+            </div>
+            <button type="button" class="btn-delete" style="height: 38px; width: 38px; padding: 0; display: flex; align-items: center; justify-content: center; margin: 0; border-radius: 8px;" onclick="$(this).closest('.stock-item-row').remove();">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+    `;
+    $('#stock_items_container').append(rowHtml);
 }
 
 function fetchSuppliersForSelect() {
@@ -413,6 +435,11 @@ $('#inventoryForm').on('submit', function(e) {
 
 $('#stockForm').on('submit', function(e) {
     e.preventDefault();
+    if ($('#stock_items_container .stock-item-row').length === 0) {
+        Swal.fire({ icon: 'warning', title: 'No items', text: 'Please add at least one item to stock.' });
+        return;
+    }
+    
     $.post('/admin/inventory/stock/add', $(this).serialize(), function(res) {
         if(typeof Ladda !== 'undefined') Ladda.stopAll();
         let response = typeof res === 'string' ? JSON.parse(res) : res;
@@ -420,6 +447,7 @@ $('#stockForm').on('submit', function(e) {
             $('#stockModal').fadeOut();
             loadInventory();
             $('#stockForm')[0].reset();
+            $('#stock_items_container').empty();
             
             Swal.fire({
                 icon: 'success',
@@ -435,6 +463,8 @@ $('#stockForm').on('submit', function(e) {
         }
     });
 });
+
+
 
 function editInventoryItem(id) {
     let row = inventoryTable.row(function(idx, data) { return data.id == id; }).data();
@@ -469,14 +499,7 @@ function deleteInventoryItem(id) {
     });
 }
 
-$('#stock_item_id').on('change', function() {
-    let unit = $(this).find(':selected').data('unit');
-    if (unit) {
-        $('#stock_unit_label').text(unit);
-    } else {
-        $('#stock_unit_label').text('');
-    }
-});
+
 
 $('#importItemsForm').on('submit', function(e) {
     e.preventDefault();
@@ -602,6 +625,14 @@ function viewHistory(id, name) {
                 data: 'unit_price',
                 render: function(data) {
                     return data ? parseFloat(data).toFixed(window.PRICE_DECIMALS || 3) : '-';
+                }
+            },
+            {
+                data: 'expiry_date',
+                render: function(data) {
+                    if(!data) return '-';
+                    // Format date optionally
+                    return `<span style="font-size: 13px;">${data}</span>`;
                 }
             },
             { 
