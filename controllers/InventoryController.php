@@ -20,7 +20,20 @@ class InventoryController extends Controller {
                 WHERE inventory_item_id = i.id 
                 AND transaction_type = 'add_stock' 
                 AND expiry_date >= CURDATE()
-            ) as nearest_expiry
+            ) as nearest_expiry,
+            (
+                SELECT SUM(quantity)
+                FROM inventory_transactions
+                WHERE inventory_item_id = i.id
+                AND transaction_type = 'add_stock'
+                AND expiry_date = (
+                    SELECT MIN(expiry_date) 
+                    FROM inventory_transactions 
+                    WHERE inventory_item_id = i.id 
+                    AND transaction_type = 'add_stock' 
+                    AND expiry_date >= CURDATE()
+                )
+            ) as expiring_qty
             FROM inventory_items i 
             ORDER BY name ASC
         ";

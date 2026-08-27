@@ -377,7 +377,7 @@ function loadInventory() {
             { data: 'selling_price' },
             {
                 data: 'nearest_expiry',
-                render: function(data) {
+                render: function(data, type, row) {
                     if (!data) return '-';
                     let expDate = new Date(data);
                     let today = new Date();
@@ -387,19 +387,25 @@ function loadInventory() {
                     
                     let parts = data.split('-');
                     let formatted = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : data;
+                    let qtyStr = row.expiring_qty ? ` | Qty: ${parseFloat(row.expiring_qty)}` : '';
+                    let unitStr = row.unit || '';
                     
                     if (diffDays < 0) {
-                        return `<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;" title="Expired ${Math.abs(diffDays)} days ago">
+                        let tooltip = `🚨 EXPIRED BATCH!\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}\nExpired ${Math.abs(diffDays)} days ago`;
+                        return `<span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(239, 68, 68, 0.2);" title="${tooltip}">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                    ${formatted}
+                                    ${formatted}${qtyStr}
                                 </span>`;
                     } else if (diffDays <= 7) {
-                        return `<span style="background: rgba(249, 115, 22, 0.1); color: #f97316; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;" title="Expires in ${diffDays} Days!">
+                        let tooltip = `⚠️ EXPIRING SOON!\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}\nTime left: ${diffDays} Days`;
+                        return `<span style="background: rgba(249, 115, 22, 0.1); color: #f97316; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(249, 115, 22, 0.2);" title="${tooltip}">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                                    ${formatted}
+                                    ${formatted}${qtyStr}
                                 </span>`;
                     }
-                    return `<span style="color: var(--text-muted); font-size: 13px;">${formatted}</span>`;
+                    
+                    let tooltip = `✅ Good Condition\nDate: ${formatted}\nQuantity: ${parseFloat(row.expiring_qty || 0)} ${unitStr}`;
+                    return `<span style="color: var(--text-muted); font-size: 13px; cursor: help;" title="${tooltip}">${formatted}${qtyStr}</span>`;
                 }
             },
             {
