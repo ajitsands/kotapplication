@@ -73,10 +73,11 @@ class CounterController extends Controller {
     public function getActiveOnlineOrders() {
         $db = Database::getInstance()->getConnection();
         
-        $sql = "SELECT o.id, o.token_number, o.status, o.platform_name, o.platform_order_number, 
+        $sql = "SELECT o.id, o.token_number, o.status, p.name as platform_name, o.platform_order_number, 
                        (SELECT COUNT(*) FROM kots k JOIN kot_items ki ON k.id = ki.kot_id WHERE k.order_id = o.id AND ki.status = 'pending') as pending_items_count,
                        (SELECT COUNT(*) FROM kots k WHERE k.order_id = o.id) as kot_exists
                 FROM orders o
+                LEFT JOIN online_platforms p ON o.platform_id = p.id
                 WHERE o.order_type = 'online' AND o.status IN ('active', 'closed')
                 ORDER BY o.created_at DESC";
                 
@@ -89,10 +90,24 @@ class CounterController extends Controller {
         $orderId = (int)($params['id'] ?? 0);
         $db = Database::getInstance()->getConnection();
         
-        $stmt = $db->prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND order_type = 'online'");
-        $success = $stmt->execute([$orderId]);
-        
-        $this->json(['success' => $success]);
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND order_type = 'online'");
+            $stmt->execute([$orderId]);
+            
+            // Mark KOTs as dispatched to remove them from KOT screen
+            $stmtKot = $db->prepare("UPDATE kots SET status = 'dispatched' WHERE order_id = ?");
+            $stmtKot->execute([$orderId]);
+            
+            $stmtKotItems = $db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.status = 'dispatched' WHERE k.order_id = ?");
+            $stmtKotItems->execute([$orderId]);
+            
+            $db->commit();
+            $this->json(['success' => true]);
+        } catch (Exception $e) {
+            $db->rollBack();
+            $this->json(['success' => false, 'error' => 'Database error']);
+        }
     }
     
     public function getCompletedTakeaways() {
@@ -478,6 +493,26 @@ class CounterController extends Controller {
         }
     }
 
+    public function removeOrderItem($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $data = $this->getJsonInput();
+        $productId = (int)($data['product_id'] ?? 0);
+        
+        if ($orderId <= 0 || $productId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid parameters.']);
+            return;
+        }
+
+        $orderModel = new Order();
+        $success = $orderModel->removeOrderItem($orderId, $productId);
+        
+        if ($success) {
+            $this->json(['success' => true]);
+        } else {
+            $this->json(['success' => false, 'error' => 'Failed to remove item.']);
+        }
+    }
+
     // AJAX: Add counter items directly to an order/bill
     public function addCounterItems($params) {
         $orderId = (int)($params['id'] ?? 0);
@@ -515,14 +550,36 @@ class CounterController extends Controller {
         try {
             $isOnline = ($order['order_type'] === 'online');
             $status = $isOnline ? 'pending' : 'dispatched';
-            $kotNumber = 'KOT-CNTR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
-            $stmtKot = $db->prepare("INSERT INTO kots (order_id, waiter_id, kot_number, status) VALUES (?, NULL, ?, ?)");
-            $stmtKot->execute([$orderId, $kotNumber, $status]);
-            $kotId = $db->lastInsertId();
+            
+            // Look for an existing KOT that hasn't been completed/prepared yet
+            $stmtExist = $db->prepare("SELECT id FROM kots WHERE order_id = ? AND status = ? ORDER BY id DESC LIMIT 1");
+            $stmtExist->execute([$orderId, $status]);
+            $existingKot = $stmtExist->fetch();
+            
+            if ($existingKot) {
+                $kotId = $existingKot['id'];
+            } else {
+                $kotNumber = 'KOT-CNTR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
+                $stmtKot = $db->prepare("INSERT INTO kots (order_id, waiter_id, kot_number, status) VALUES (?, NULL, ?, ?)");
+                $stmtKot->execute([$orderId, $kotNumber, $status]);
+                $kotId = $db->lastInsertId();
+            }
 
             $notes = $isOnline ? 'Online Order' : 'Counter Sale';
-            $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, ?, ?)");
-            $stmtItem->execute([$kotId, $productId, $quantity, $status, $notes]);
+            
+            // Check if item already exists in this KOT with the same status
+            $stmtCheckItem = $db->prepare("SELECT id, quantity FROM kot_items WHERE kot_id = ? AND product_id = ? AND status = ?");
+            $stmtCheckItem->execute([$kotId, $productId, $status]);
+            $existingItem = $stmtCheckItem->fetch();
+            
+            if ($existingItem) {
+                $newQuantity = $existingItem['quantity'] + $quantity;
+                $stmtUpdateItem = $db->prepare("UPDATE kot_items SET quantity = ?, notes = ? WHERE id = ?");
+                $stmtUpdateItem->execute([$newQuantity, $notes, $existingItem['id']]);
+            } else {
+                $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, ?, ?)");
+                $stmtItem->execute([$kotId, $productId, $quantity, $status, $notes]);
+            }
 
             // 3. Recalculate totals
             $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal

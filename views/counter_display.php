@@ -1293,6 +1293,7 @@
                             <th style="padding: 8px 5px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); text-align: center; width: 60px;">Qty</th>
                             <th style="padding: 8px 5px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); text-align: right; width: 90px;">Price</th>
                             <th style="padding: 8px 5px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); text-align: right; width: 100px;">Total</th>
+                            <th style="padding: 8px 5px; width: 30px;"></th>
                         </tr>
                     </thead>
                     <tbody id="view-modal-items-body">
@@ -1591,13 +1592,16 @@
                                     <td style="padding: 10px 5px; text-align: center; font-weight: 600; font-size: 14px;">${item.total_quantity}</td>
                                     <td style="padding: 10px 5px; text-align: right; font-size: 14px;" class="price-text">${price} ${currencyCode}</td>
                                     <td style="padding: 10px 5px; text-align: right; font-weight: 600; color: var(--text-color); font-size: 14px;" class="price-text">${total} ${currencyCode}</td>
+                                    <td style="padding: 10px 5px; text-align: center;">
+                                        ${order.status === 'active' ? `<button onclick="deleteCounterItem(${item.product_id})" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; font-size: 16px;" title="Remove Item">🗑️</button>` : ''}
+                                    </td>
                                 </tr>
                             `;
                         });
                     } else {
                         itemsHtml = `
                             <tr>
-                                <td colspan="4" style="text-align: center; padding: 15px; color: var(--text-muted); font-size: 13px;">No items ordered yet.</td>
+                                <td colspan="5" style="text-align: center; padding: 15px; color: var(--text-muted); font-size: 13px;">No items ordered yet.</td>
                             </tr>
                         `;
                     }
@@ -1758,6 +1762,48 @@
                 }
             })
             .catch(err => console.error('Error adding counter item:', err));
+        }
+
+        function deleteCounterItem(productId) {
+            if (!currentOpenOrderId) return;
+            
+            Swal.fire({
+                title: 'Remove Item?',
+                text: 'Are you sure you want to remove this item from the order?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, remove it',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(basePath + '/order/remove-item/' + currentOpenOrderId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ product_id: productId })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            openOrderItemsModal(currentOpenOrderId);
+                            fetchBills();
+                            fetchEngagedTables();
+                            fetchSummary();
+                        } else {
+                            Swal.fire({
+                                title: 'Error',
+                                text: data.error || 'Failed to remove item.',
+                                icon: 'error',
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Error removing counter item:', err));
+                }
+            });
         }
 
         function printBill(billId) {
@@ -2316,6 +2362,9 @@
         window.openRefundModal = openRefundModal;
         window.closeRefundModal = closeRefundModal;
         window.processRefundOrder = processRefundOrder;
+        window.confirmOnlineOrderToKOT = confirmOnlineOrderToKOT;
+        window.cancelOnlineOrder = cancelOnlineOrder;
+        window.markOnlineOrderCompleted = markOnlineOrderCompleted;
 
         function fetchActiveOnlineOrders() {
             fetch(basePath + '/online-orders/active')
@@ -2339,8 +2388,11 @@
                                 else if (o.kot_exists) kotText = `<span style="color:var(--accent-green); font-weight:bold;">Ready</span>`;
                                 
                                 let actionBtn = '';
-                                if (o.status === 'closed') {
+                                if (o.kot_exists && o.pending_items_count == 0) {
                                     actionBtn = `<button class="btn-pay" onclick="markOnlineOrderCompleted(${o.id})" style="background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>`;
+                                } else if (!o.kot_exists) {
+                                    actionBtn = `<button class="btn-pay" onclick="openOrderItemsModal(${o.id})" style="background:var(--card-border); border:none; color:var(--text-color); padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer; margin-right: 5px;">View</button>
+                                                 <button class="btn-pay" onclick="cancelOnlineOrder(${o.id})" style="background:#ef4444; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Delete</button>`;
                                 } else {
                                     actionBtn = `<button class="btn-pay" onclick="openOrderItemsModal(${o.id})" style="background:var(--card-border); border:none; color:var(--text-color); padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View</button>`;
                                 }
@@ -2349,7 +2401,7 @@
                                     <tr style="border-bottom: 1px solid var(--card-border);">
                                         <td style="padding: 12px 10px; font-weight: 700;">${o.token_number} <br><span style="font-size:11px; color:var(--text-muted); font-weight:400;">${o.platform_order_number || ''}</span></td>
                                         <td style="padding: 12px 10px; color:var(--text-muted);">${o.platform_name || 'N/A'}</td>
-                                        <td style="padding: 12px 10px;"><span style="background:${badgeColor}; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase;">${o.status}</span></td>
+                                        <td style="padding: 12px 10px;"><span style="background:${badgeColor}; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase;">${o.status === 'closed' ? 'CONFIRMED' : o.status}</span></td>
                                         <td style="padding: 12px 10px;">${kotText}</td>
                                         <td style="padding: 12px 10px; text-align:right;">${actionBtn}</td>
                                     </tr>

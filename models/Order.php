@@ -38,7 +38,7 @@ class Order extends Model {
     }
 
     public function getOrderItemsSummary($orderId) {
-        $sql = "SELECT p.name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price 
+        $sql = "SELECT p.id as product_id, p.name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price 
                 FROM kot_items ki 
                 JOIN kots k ON ki.kot_id = k.id 
                 JOIN products p ON ki.product_id = p.id 
@@ -47,6 +47,62 @@ class Order extends Model {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$orderId]);
         return $stmt->fetchAll();
+    }
+
+    public function removeOrderItem($orderId, $productId) {
+        $this->db->beginTransaction();
+        try {
+            // Delete the kot_items for this order and product
+            $stmtDel = $this->db->prepare("
+                DELETE ki FROM kot_items ki
+                JOIN kots k ON ki.kot_id = k.id
+                WHERE k.order_id = ? AND ki.product_id = ?
+            ");
+            $stmtDel->execute([$orderId, $productId]);
+            
+            // Re-calculate totals
+            $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+                         FROM kot_items ki 
+                         JOIN kots k ON ki.kot_id = k.id 
+                         JOIN products p ON ki.product_id = p.id 
+                         WHERE k.order_id = ?";
+            $stmtSum = $this->db->prepare($sqlItems);
+            $stmtSum->execute([$orderId]);
+            $subtotal = (float)$stmtSum->fetchColumn();
+
+            // Get settings for Taxes
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            $taxType = $settings['tax_type'] ?? 'VAT';
+            $taxAmount = 0.0;
+            if ($taxType === 'VAT') {
+                $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                $taxAmount = $subtotal * ($vatPercent / 100.0);
+            } else { // GST
+                $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+            }
+            $grandTotal = $subtotal + $taxAmount;
+
+            // Update bill if exists
+            $stmtBillCheck = $this->db->prepare("SELECT id FROM bills WHERE order_id = ? AND status = 'pending'");
+            $stmtBillCheck->execute([$orderId]);
+            $bill = $stmtBillCheck->fetch();
+            if ($bill) {
+                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+                $stmtUpdateBill->execute([$subtotal, $taxAmount, $grandTotal, $bill['id']]);
+            }
+            
+            // Delete empty KOTs that have no items left
+            $this->db->query("DELETE FROM kots WHERE id NOT IN (SELECT DISTINCT kot_id FROM kot_items)");
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
     }
 
     public function closeOrder($orderId) {
@@ -276,7 +332,7 @@ class Order extends Model {
                 FROM orders o
                 LEFT JOIN bills b ON b.order_id = o.id
                 LEFT JOIN online_platforms p ON o.platform_id = p.id
-                WHERE o.order_type IN ('take_away') AND o.status = 'completed'
+                WHERE o.order_type IN ('take_away', 'online') AND o.status = 'completed'
                 AND o.updated_at >= ? AND o.updated_at <= ?
                 ORDER BY o.updated_at DESC";
         $stmt = $this->db->prepare($sql);
