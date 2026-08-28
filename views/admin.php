@@ -2048,6 +2048,8 @@
                     }
 
                     const tbody = document.getElementById('admin-customers-table-body');
+                    tbody.innerHTML = '';
+
                     if (data.customers && data.customers.length > 0) {
                         let html = '';
                         data.customers.forEach(c => {
@@ -2069,12 +2071,6 @@
                             `;
                         });
                         tbody.innerHTML = html;
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No registered customers found.</td>
-                            </tr>
-                        `;
                     }
 
                     // Initialize DataTable
@@ -2085,7 +2081,8 @@
                         dom: '<"dt-header"f>rt<"dt-footer"ip>',
                         language: {
                             search: "",
-                            searchPlaceholder: "Search customers..."
+                            searchPlaceholder: "Search customers...",
+                            emptyTable: "No registered customers found"
                         }
                     });
                 })
@@ -2749,7 +2746,12 @@
                 tbody.appendChild(tr);
             });
 
+            if ($.fn.DataTable.isDataTable('#transactions-report-table')) {
+                $('#transactions-report-table').DataTable().destroy();
+            }
+
             transactionsReportTable = $('#transactions-report-table').DataTable({
+                destroy: true,
                 dom: '<"dt-header"fl>rt<"dt-footer"ip>',
                 pageLength: 15,
                 lengthChange: true,
@@ -2800,8 +2802,8 @@
             fetch(basePath + '/tax-report/json?start_date=' + startDate + '&end_date=' + endDate)
                 .then(res => res.json())
                 .then(data => {
-                    if (taxReportsTable) {
-                        taxReportsTable.destroy();
+                    if ($.fn.DataTable.isDataTable('#tax-report-table')) {
+                        $('#tax-report-table').DataTable().destroy();
                     }
 
                     const tbody = document.getElementById('tax-report-table-body');
@@ -2814,10 +2816,10 @@
 
                     if (data.success && data.report && data.report.length > 0) {
                         data.report.forEach(b => {
-                            const sub = parseFloat(b.subtotal);
-                            const tax = parseFloat(b.tax_amount);
+                            const sub = parseFloat(b.subtotal || 0);
+                            const tax = parseFloat(b.tax_amount || 0);
                             const disc = parseFloat(b.discount_amount || 0);
-                            const grand = parseFloat(b.grand_total);
+                            const grand = parseFloat(b.grand_total || 0);
 
                             totalSubtotal += sub;
                             totalTax += tax;
@@ -2840,12 +2842,6 @@
                                 </tr>
                             `;
                         });
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">No matching records found.</td>
-                            </tr>
-                        `;
                     }
 
                     // Populate summary footer fields
@@ -2856,13 +2852,15 @@
 
                     // Initialize DataTable
                     taxReportsTable = $('#tax-report-table').DataTable({
+                        destroy: true,
                         dom: '<"dt-header"fl>rt<"dt-footer"ip>',
                         pageLength: 10,
                         lengthChange: true,
                         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                         language: {
                             search: "🔍 Search:",
-                            lengthMenu: "Show _MENU_ entries"
+                            lengthMenu: "Show _MENU_ entries",
+                            emptyTable: "No tax records found for the selected date range"
                         }
                     });
                 })
@@ -2932,7 +2930,9 @@
             fetch(basePath + `/reports/item-insights?startDate=${startDate}&endDate=${endDate}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (itemInsightsTable) itemInsightsTable.destroy();
+                    if ($.fn.DataTable.isDataTable('#insights-table')) {
+                        $('#insights-table').DataTable().destroy();
+                    }
                     const tbody = document.querySelector('#insights-table tbody');
                     tbody.innerHTML = '';
                     
@@ -2941,7 +2941,7 @@
                     let totalCost = 0;
                     let totalProfit = 0;
                     
-                    if (data.status === 'success') {
+                    if (data.status === 'success' && data.data && data.data.length > 0) {
                         data.data.forEach(item => {
                             totalQty += parseFloat(item.total_sold) || 0;
                             totalRev += parseFloat(item.total_revenue) || 0;
@@ -2965,22 +2965,26 @@
                                 </tr>
                             `;
                         });
-                        
-                        document.getElementById('insights-total-qty').textContent = totalQty;
-                        document.getElementById('insights-total-rev').textContent = _cur + ' ' + totalRev.toFixed(window.PRICE_DECIMALS);
-                        document.getElementById('insights-total-cost').textContent = _cur + ' ' + totalCost.toFixed(window.PRICE_DECIMALS);
-                        
-                        document.getElementById('insights-total-profit').textContent = (totalProfit >= 0 ? '+' : '') + _cur + ' ' + totalProfit.toFixed(window.PRICE_DECIMALS);
-                        document.getElementById('insights-total-profit').style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-                        
-                        let totalMargin = totalRev > 0 ? (totalProfit / totalRev) * 100 : 0;
-                        document.getElementById('insights-total-margin').textContent = totalMargin.toFixed(2) + '%';
-                        document.getElementById('insights-total-margin').style.color = totalMargin >= 30 ? 'var(--accent-green)' : 'var(--accent-red)';
                     }
                     
+                    document.getElementById('insights-total-qty').textContent = totalQty;
+                    document.getElementById('insights-total-rev').textContent = _cur + ' ' + totalRev.toFixed(window.PRICE_DECIMALS);
+                    document.getElementById('insights-total-cost').textContent = _cur + ' ' + totalCost.toFixed(window.PRICE_DECIMALS);
+                    
+                    document.getElementById('insights-total-profit').textContent = (totalProfit >= 0 ? '+' : '') + _cur + ' ' + totalProfit.toFixed(window.PRICE_DECIMALS);
+                    document.getElementById('insights-total-profit').style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                    
+                    let totalMargin = totalRev > 0 ? (totalProfit / totalRev) * 100 : 0;
+                    document.getElementById('insights-total-margin').textContent = totalMargin.toFixed(2) + '%';
+                    document.getElementById('insights-total-margin').style.color = totalMargin >= 30 ? 'var(--accent-green)' : 'var(--accent-red)';
+                    
                     itemInsightsTable = $('#insights-table').DataTable({
+                        destroy: true,
                         "pageLength": 25,
-                        "order": [[1, "desc"]]
+                        "order": [[1, "desc"]],
+                        language: {
+                            emptyTable: "No item insights data available"
+                        }
                     });
                 })
                 .catch(err => {
@@ -3000,8 +3004,12 @@
                 .then(data => {
                     analyticsDataGlobal = (data.success && data.report) ? data.report : [];
 
-                    if (fastMovingTable) fastMovingTable.destroy();
-                    if (highRevenueTable) highRevenueTable.destroy();
+                    if ($.fn.DataTable.isDataTable('#fast-moving-table')) {
+                        $('#fast-moving-table').DataTable().destroy();
+                    }
+                    if ($.fn.DataTable.isDataTable('#high-revenue-table')) {
+                        $('#high-revenue-table').DataTable().destroy();
+                    }
 
                     const fmTbody = document.getElementById('fast-moving-tbody');
                     const hrTbody = document.getElementById('high-revenue-tbody');
@@ -3055,9 +3063,6 @@
                                 </tr>
                             `;
                         });
-                    } else {
-                        fmTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-muted);">No sales data available.</td></tr>`;
-                        hrTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-muted);">No sales data available.</td></tr>`;
                     }
 
                     document.getElementById('kpi-total-qty').innerText = totalQty;
@@ -3065,20 +3070,24 @@
                     document.getElementById('kpi-top-product').innerText = totalQty > 0 ? `${topQtyProduct} (${maxQty} sold)` : 'None';
 
                     fastMovingTable = $('#fast-moving-table').DataTable({
+                        destroy: true,
                         dom: 'rtip',
                         pageLength: 5,
                         order: [[2, 'desc']],
                         language: {
-                            paginate: { previous: "◀", next: "▶" }
+                            paginate: { previous: "◀", next: "▶" },
+                            emptyTable: "No sales data available"
                         }
                     });
 
                     highRevenueTable = $('#high-revenue-table').DataTable({
+                        destroy: true,
                         dom: 'rtip',
                         pageLength: 5,
                         order: [[2, 'desc']],
                         language: {
-                            paginate: { previous: "◀", next: "▶" }
+                            paginate: { previous: "◀", next: "▶" },
+                            emptyTable: "No sales data available"
                         }
                     });
                 })
@@ -3138,8 +3147,8 @@
                 .then(data => {
                     waiterPerformanceDataGlobal = (data.success && data.report) ? data.report : [];
 
-                    if (waiterPerformanceTable) {
-                        waiterPerformanceTable.destroy();
+                    if ($.fn.DataTable.isDataTable('#waiter-performance-table')) {
+                        $('#waiter-performance-table').DataTable().destroy();
                     }
 
                     const tbody = document.getElementById('waiter-performance-table-body');
@@ -3163,16 +3172,11 @@
                                 </tr>
                             `;
                         });
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">No records found.</td>
-                            </tr>
-                        `;
                     }
 
                     // Initialize DataTable
                     waiterPerformanceTable = $('#waiter-performance-table').DataTable({
+                        destroy: true,
                         dom: '<"dt-header"fl>rt<"dt-footer"ip>',
                         pageLength: 10,
                         lengthChange: true,
@@ -3180,7 +3184,8 @@
                         order: [[6, 'desc']],
                         language: {
                             search: "🔍 Search:",
-                            lengthMenu: "Show _MENU_ entries"
+                            lengthMenu: "Show _MENU_ entries",
+                            emptyTable: "No waiter performance records found"
                         }
                     });
                 })
