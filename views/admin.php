@@ -1509,7 +1509,7 @@
                 <div id="transactions-summary" style="margin-bottom: 20px; padding: 15px; background: rgba(99, 102, 241, 0.05); border-radius: 8px; display: flex; gap: 30px; align-items: center;">
                     <div>
                         <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Total Amount</div>
-                        <div style="font-size: 20px; font-weight: 800; color: var(--accent-blue);"><span id="trans-total-amount">0.000</span> <?= htmlspecialchars($settings['currency_code']) ?></div>
+                        <div style="font-size: 20px; font-weight: 800; color: var(--accent-blue);"><span id="trans-total-amount">0.000</span> <small style="font-size: 0.6em; color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars($settings['currency_code']) ?></small></div>
                     </div>
                     <div>
                         <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Transactions</div>
@@ -2703,7 +2703,7 @@
                     <td>${row.details}</td>
                     <td><span class="badge ${statusBadge}">${row.status}</span></td>
                     <td>${row.payment_method}</td>
-                    <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                    <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${cur}</small></td>
                 `;
                 tbody.appendChild(tr);
             });
