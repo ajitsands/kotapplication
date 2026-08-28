@@ -976,6 +976,22 @@
         </div>
     </header>
 
+    <?php
+    $expiryDate = $settings['software_expiry_date'] ?? null;
+    if ($expiryDate && ($_SESSION['username'] ?? '') !== 'superadmin') {
+        $today = new DateTime();
+        $expire = new DateTime($expiryDate);
+        $diff = $today->diff($expire);
+        $daysLeft = (int)$diff->format('%R%a'); 
+        
+        if ($daysLeft >= 0 && $daysLeft <= 45) {
+            echo '<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-left: 4px solid var(--warning); padding: 15px 20px; margin: 20px auto 0; max-width: 1400px; width: 95%; border-radius: 8px; color: #d97706; font-weight: 600; font-size: 14px; display: flex; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">';
+            echo '<div>⚠️ <span style="margin-left: 8px;">Software License Alert: Your license will expire in <strong style="font-size: 16px; text-decoration: underline;">' . $daysLeft . ' days</strong> (on ' . date('d M Y', strtotime($expiryDate)) . '). Please contact support to renew before the system locks.</span></div>';
+            echo '</div>';
+        }
+    }
+    ?>
+
     <div class="container">
 
         <!-- Catalog Tab -->
