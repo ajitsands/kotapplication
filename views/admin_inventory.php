@@ -421,17 +421,33 @@
 <!-- Exp History Modal -->
 <div class="modal" id="expHistoryModal">
     <div class="modal-content" style="width: 90%; max-width: 1100px; padding: 0; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 20px 25px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-                <h3 style="margin: 0 0 5px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
+                <h3 style="margin: 0 0 4px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     Expiry History
                 </h3>
-                <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 13px;">Item: <strong id="expHistoryItemName" style="color: white; font-weight: 700;"></strong></p>
+                <p style="margin: 0; color: rgba(255,255,255,0.85); font-size: 13px;">Item: <strong id="expHistoryItemName" style="color: white; font-weight: 700;"></strong></p>
             </div>
             <button type="button" onclick="$('#expHistoryModal').fadeOut();" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
+        </div>
+        
+        <div style="padding: 15px 20px; background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--card-border); display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">From Date</label>
+                <input type="date" id="expHistoryStartDate" class="form-input" style="padding: 6px 12px; height: auto; background: white; border-color: var(--card-border);">
+            </div>
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600;">To Date</label>
+                <input type="date" id="expHistoryEndDate" class="form-input" style="padding: 6px 12px; height: auto; background: white; border-color: var(--card-border);">
+            </div>
+            <div style="align-self: flex-end; display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="btn-primary" onclick="reloadExpHistoryTable()" style="padding: 6px 16px; height: auto; background: #0284c7; box-shadow: 0 4px 10px rgba(2,132,199,0.2);">Filter</button>
+                <button type="button" class="btn-secondary" onclick="resetExpHistoryDates()" style="padding: 6px 14px; height: auto; background: rgba(0,0,0,0.05); color: var(--text-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Default (Last 10 Days)</button>
+                <button type="button" class="btn-secondary" onclick="clearExpHistoryDates()" style="padding: 6px 14px; height: auto; background: rgba(0,0,0,0.05); color: var(--text-color); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-weight: 600;">Show All</button>
+            </div>
         </div>
         
         <div style="padding: 20px;">
@@ -912,8 +928,26 @@ function reloadHistoryTable() {
 }
 
 let expHistoryTable;
+let currentExpHistoryItemId = null;
+
 function viewExpHistory(id, name) {
+    currentExpHistoryItemId = id;
     $('#expHistoryItemName').text(name);
+    
+    // Set default date range to last 10 days
+    let today = new Date();
+    let tenDaysAgo = new Date();
+    tenDaysAgo.setDate(today.getDate() - 10);
+    
+    let formatLocalYMD = (d) => {
+        let year = d.getFullYear();
+        let month = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    $('#expHistoryStartDate').val(formatLocalYMD(tenDaysAgo));
+    $('#expHistoryEndDate').val(formatLocalYMD(today));
     
     if ($.fn.DataTable.isDataTable('#expHistoryTable')) {
         $('#expHistoryTable').DataTable().destroy();
@@ -922,6 +956,10 @@ function viewExpHistory(id, name) {
     expHistoryTable = $('#expHistoryTable').DataTable({
         ajax: {
             url: '/admin/inventory/exp-history/' + id,
+            data: function(d) {
+                d.start_date = $('#expHistoryStartDate').val();
+                d.end_date = $('#expHistoryEndDate').val();
+            },
             dataSrc: 'data'
         },
         order: [[3, 'asc']], // order by expiry date ascending
@@ -984,6 +1022,35 @@ function viewExpHistory(id, name) {
         ]
     });
     $('#expHistoryModal').css('display', 'flex').hide().fadeIn();
+}
+
+function reloadExpHistoryTable() {
+    if (expHistoryTable) {
+        expHistoryTable.ajax.reload();
+    }
+}
+
+function resetExpHistoryDates() {
+    let today = new Date();
+    let tenDaysAgo = new Date();
+    tenDaysAgo.setDate(today.getDate() - 10);
+    
+    let formatLocalYMD = (d) => {
+        let year = d.getFullYear();
+        let month = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    $('#expHistoryStartDate').val(formatLocalYMD(tenDaysAgo));
+    $('#expHistoryEndDate').val(formatLocalYMD(today));
+    reloadExpHistoryTable();
+}
+
+function clearExpHistoryDates() {
+    $('#expHistoryStartDate').val('');
+    $('#expHistoryEndDate').val('');
+    reloadExpHistoryTable();
 }
 
 function moveToDamage(itemId, maxQty, expiryDate) {

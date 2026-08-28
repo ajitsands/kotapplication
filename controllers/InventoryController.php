@@ -128,6 +128,21 @@ class InventoryController extends Controller {
 
         $db = Database::getInstance()->getConnection();
         
+        $start_date = $_GET['start_date'] ?? null;
+        $end_date = $_GET['end_date'] ?? null;
+
+        $whereClause = "t.inventory_item_id = ? AND t.expiry_date IS NOT NULL";
+        $queryParams = [$item_id];
+
+        if (!empty($start_date)) {
+            $whereClause .= " AND t.created_at >= ?";
+            $queryParams[] = $start_date . ' 00:00:00';
+        }
+        if (!empty($end_date)) {
+            $whereClause .= " AND t.created_at <= ?";
+            $queryParams[] = $end_date . ' 23:59:59';
+        }
+
         $query = "
             SELECT 
                 MAX(t.created_at) as created_at,
@@ -138,14 +153,14 @@ class InventoryController extends Controller {
                 MAX(t.inventory_item_id) as inventory_item_id
             FROM inventory_transactions t
             LEFT JOIN suppliers s ON t.supplier_id = s.id
-            WHERE t.inventory_item_id = ? AND t.expiry_date IS NOT NULL
+            WHERE $whereClause
             GROUP BY t.expiry_date
             HAVING quantity > 0
             ORDER BY t.expiry_date ASC
         ";
         
         $stmt = $db->prepare($query);
-        $stmt->execute([$item_id]);
+        $stmt->execute($queryParams);
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $this->json(['status' => 'success', 'data' => $data]);
