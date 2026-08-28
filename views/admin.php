@@ -445,7 +445,9 @@
             border: 1px solid var(--card-border);
             border-radius: 16px;
             padding: 8px;
-            min-width: 240px;
+            min-width: 250px;
+            max-height: 85vh;
+            overflow-y: auto;
             z-index: 500;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
             animation: dropdownFadeIn 0.2s ease;
@@ -463,6 +465,21 @@
 
         .nav-dropdown.open .nav-dropdown-menu {
             display: block;
+        }
+
+        .nav-dropdown-divider {
+            height: 1px;
+            background: var(--card-border);
+            margin: 8px 4px;
+        }
+
+        .nav-dropdown-header {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            padding: 6px 12px 4px;
         }
 
         .nav-dropdown-item {
@@ -876,20 +893,21 @@
 
         // Tab map for restore
         const TAB_MAP = {
-            catalog:     { icon: '📋', label: 'Menu Catalog' },
-            settings:    { icon: '⚙️', label: 'Settings & Taxes' },
-            tables:      { icon: '🪑', label: 'Tables & QR Codes' },
-            users:       { icon: '👥', label: 'Users Management' },
-            closures:    { icon: '🔄', label: 'Counter Shifts' },
-            customers:   { icon: '🎁', label: 'Customers (Loyalty)' },
-            tax_reports: { icon: '🧾', label: 'VAT/Tax Reports' },
-            transactions: { icon: '🗂️', label: 'All Transactions' },
-            analytics:   { icon: '📊', label: 'Sales & Product Analytics' },
+            catalog:       { icon: '📋', label: 'Menu Catalog' },
+            settings:      { icon: '⚙️', label: 'Settings & Taxes' },
+            tables:        { icon: '🪑', label: 'Tables & QR Codes' },
+            users:         { icon: '👥', label: 'Users Management' },
+            closures:      { icon: '🔄', label: 'Counter Shifts' },
+            customers:     { icon: '🎁', label: 'Customers (Loyalty)' },
+            inventory:     { icon: '📦', label: 'Inventory Stock' },
+            suppliers:     { icon: '🚚', label: 'Suppliers Mgmt' },
+            platforms:     { icon: '🌐', label: 'Online Platforms' },
+            transactions:  { icon: '🗂️', label: 'All Transactions' },
+            tax_reports:   { icon: '🧾', label: 'VAT/Tax Reports' },
+            analytics:     { icon: '📊', label: 'Sales & Product Analytics' },
             item_insights: { icon: '💡', label: 'Item Insights' },
             waiter_report: { icon: '🤵', label: 'Waiter Performance' },
-            inventory:   { icon: '📦', label: 'Inventory Stock' },
-            suppliers:   { icon: '🚚', label: 'Suppliers Mgmt' },
-            kpi:         { icon: '📈', label: 'Profit & KPI' }
+            kpi:           { icon: '📈', label: 'Profit & KPI' }
         };
 
         // Restore active tab from localStorage
@@ -916,6 +934,7 @@
                     <span class="chevron">▼</span>
                 </button>
                 <div class="nav-dropdown-menu" id="section-dropdown-menu">
+                    <!-- Core & Operations -->
                     <button class="nav-dropdown-item active" id="item-catalog" onclick="selectSection('catalog','📋','Menu Catalog')">
                         <span class="item-icon">📋</span> Menu Catalog
                     </button>
@@ -934,11 +953,26 @@
                     <button class="nav-dropdown-item" id="item-customers" onclick="selectSection('customers','🎁','Customers (Loyalty)')">
                         <span class="item-icon">🎁</span> Customers (Loyalty)
                     </button>
-                    <button class="nav-dropdown-item" id="item-tax_reports" onclick="selectSection('tax_reports','🧾','VAT/Tax Reports')">
-                        <span class="item-icon">🧾</span> VAT/Tax Reports
+                    <button class="nav-dropdown-item" id="item-inventory" onclick="selectSection('inventory','📦','Inventory Stock')">
+                        <span class="item-icon">📦</span> Inventory Stock
                     </button>
+                    <button class="nav-dropdown-item" id="item-suppliers" onclick="selectSection('suppliers','🚚','Suppliers Mgmt')">
+                        <span class="item-icon">🚚</span> Suppliers Mgmt
+                    </button>
+                    <button class="nav-dropdown-item" id="item-platforms" onclick="selectSection('platforms','🌐','Online Platforms')">
+                        <span class="item-icon">🌐</span> Online Platforms
+                    </button>
+
+                    <!-- Divider & Reports Header -->
+                    <div class="nav-dropdown-divider"></div>
+                    <div class="nav-dropdown-header">Reports &amp; Analytics</div>
+
+                    <!-- Reports Group -->
                     <button class="nav-dropdown-item" id="item-transactions" onclick="selectSection('transactions','🗂️','All Transactions')">
                         <span class="item-icon">🗂️</span> All Transactions
+                    </button>
+                    <button class="nav-dropdown-item" id="item-tax_reports" onclick="selectSection('tax_reports','🧾','VAT/Tax Reports')">
+                        <span class="item-icon">🧾</span> VAT/Tax Reports
                     </button>
                     <button class="nav-dropdown-item" id="item-analytics" onclick="selectSection('analytics','📊','Sales &amp; Product Analytics')">
                         <span class="item-icon">📊</span> Sales &amp; Product Analytics
@@ -949,17 +983,8 @@
                     <button class="nav-dropdown-item" id="item-waiter_report" onclick="selectSection('waiter_report','🤵','Waiter Performance')">
                         <span class="item-icon">🤵</span> Waiter Performance
                     </button>
-                    <button class="nav-dropdown-item" id="item-inventory" onclick="selectSection('inventory','📦','Inventory Stock')">
-                        <span class="item-icon">📦</span> Inventory Stock
-                    </button>
-                    <button class="nav-dropdown-item" id="item-suppliers" onclick="selectSection('suppliers','🚚','Suppliers Mgmt')">
-                        <span class="item-icon">🚚</span> Suppliers Mgmt
-                    </button>
                     <button class="nav-dropdown-item" id="item-kpi" onclick="selectSection('kpi','📈','Profit &amp; KPI')">
                         <span class="item-icon">📈</span> Profit &amp; KPI
-                    </button>
-                    <button class="nav-dropdown-item" id="item-platforms" onclick="selectSection('platforms','🌐','Online Platforms')">
-                        <span class="item-icon">🌐</span> Online Platforms
                     </button>
                 </div>
             </div>
