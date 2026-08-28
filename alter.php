@@ -8,3 +8,4 @@ try {
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }
+try { $db->exec("ALTER TABLE settings ADD COLUMN custom_units VARCHAR(255) DEFAULT 'Nos, Box, Packet, Gram, KG, Litre, ML' AFTER currency_code"); echo "Success units\n"; } catch (Exception $e) { echo "Error units: " . $e->getMessage() . "\n"; }
