@@ -1506,6 +1506,17 @@
                     <button class="trans-tab-btn" data-cat="online" onclick="filterTransactionsTab('online')">Online Orders</button>
                 </div>
 
+                <div id="transactions-summary" style="margin-bottom: 20px; padding: 15px; background: rgba(99, 102, 241, 0.05); border-radius: 8px; display: flex; gap: 30px; align-items: center;">
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Total Amount</div>
+                        <div style="font-size: 20px; font-weight: 800; color: var(--accent-blue);"><span id="trans-total-amount">0.000</span> <?= htmlspecialchars($settings['currency_code']) ?></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Transactions</div>
+                        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary);"><span id="trans-total-count">0</span></div>
+                    </div>
+                </div>
+
                 <style>
                     .trans-tab-btn {
                         background: none; border: none; padding: 10px 15px; font-weight: 600; font-size: 14px;
@@ -2669,7 +2680,11 @@
 
             const filteredData = currentTransactionsData.filter(t => currentTransCat === 'all' || t.category === currentTransCat);
 
+            let totalSum = 0;
+
             filteredData.forEach(row => {
+                totalSum += parseFloat(row.total || 0);
+                
                 let badgeClass = 'secondary';
                 if(row.category === 'takeaway') badgeClass = 'warning';
                 else if(row.category === 'online') badgeClass = 'info';
@@ -2703,6 +2718,9 @@
                     { targets: 6, className: 'dt-right' }
                 ]
             });
+
+            document.getElementById('trans-total-amount').innerText = totalSum.toFixed(window.PRICE_DECIMALS || 3);
+            document.getElementById('trans-total-count').innerText = filteredData.length;
         }
 
         function loadTransactionsReport() {
