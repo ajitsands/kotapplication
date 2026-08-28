@@ -80,6 +80,7 @@ $router->add('GET', '/admin/reports/kpi/supplier', 'ReportsController@supplierKp
 $router->add('GET', '/admin/reports/profitability', 'ReportsController@profitabilityJson');
 $router->add('GET', '/admin/reports/kpi/product-sales', 'ReportsController@productSalesKpiJson');
 $router->add('GET', '/admin/reports/item-insights', 'ReportsController@itemInsightsJson');
+$router->add('GET', '/admin/reports/transactions', 'ReportsController@transactionsJson');
 
 
 // KOT Operations Routes

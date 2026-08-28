@@ -859,6 +859,7 @@
             else if (id === 'tax_reports' && typeof loadTaxReport === 'function') loadTaxReport();
             else if (id === 'analytics' && typeof loadAnalyticsReport === 'function') loadAnalyticsReport();
             else if (id === 'item_insights' && typeof loadItemInsights === 'function') loadItemInsights();
+            else if (id === 'transactions' && typeof loadTransactionsReport === 'function') loadTransactionsReport();
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
             else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
             else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
@@ -882,6 +883,7 @@
             closures:    { icon: '🔄', label: 'Counter Shifts' },
             customers:   { icon: '🎁', label: 'Customers (Loyalty)' },
             tax_reports: { icon: '🧾', label: 'VAT/Tax Reports' },
+            transactions: { icon: '🗂️', label: 'All Transactions' },
             analytics:   { icon: '📊', label: 'Sales & Product Analytics' },
             item_insights: { icon: '💡', label: 'Item Insights' },
             waiter_report: { icon: '🤵', label: 'Waiter Performance' },
@@ -934,6 +936,9 @@
                     </button>
                     <button class="nav-dropdown-item" id="item-tax_reports" onclick="selectSection('tax_reports','🧾','VAT/Tax Reports')">
                         <span class="item-icon">🧾</span> VAT/Tax Reports
+                    </button>
+                    <button class="nav-dropdown-item" id="item-transactions" onclick="selectSection('transactions','🗂️','All Transactions')">
+                        <span class="item-icon">🗂️</span> All Transactions
                     </button>
                     <button class="nav-dropdown-item" id="item-analytics" onclick="selectSection('analytics','📊','Sales &amp; Product Analytics')">
                         <span class="item-icon">📊</span> Sales &amp; Product Analytics
@@ -1466,6 +1471,65 @@
                             <tr>
                                 <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">Loading customer directory...</td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Transactions Tab -->
+        <div id="transactions" class="tab-content">
+            <div class="panel-card">
+                <h2 class="panel-title">🗂️ All Transactions (Billing, Online, Takeaway, Waiter, Self Orders)</h2>
+                
+                <div class="dt-header" style="margin-bottom: 20px; flex-wrap: wrap; gap: 15px; justify-content: space-between;">
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Start Date</label>
+                            <input type="date" id="trans-start-date" class="form-input" style="width: auto; padding: 8px 12px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">End Date</label>
+                            <input type="date" id="trans-end-date" class="form-input" style="width: auto; padding: 8px 12px;">
+                        </div>
+                        <div style="align-self: flex-end;">
+                            <button class="btn btn-primary" onclick="loadTransactionsReport()" style="padding: 9px 20px; height: 38px;">Filter</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="transactions-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border);">
+                    <button class="trans-tab-btn active" data-cat="all" onclick="filterTransactionsTab('all')">All</button>
+                    <button class="trans-tab-btn" data-cat="self_order" onclick="filterTransactionsTab('self_order')">Self Orders</button>
+                    <button class="trans-tab-btn" data-cat="waiter_order" onclick="filterTransactionsTab('waiter_order')">Waiter Orders</button>
+                    <button class="trans-tab-btn" data-cat="takeaway" onclick="filterTransactionsTab('takeaway')">Takeaway</button>
+                    <button class="trans-tab-btn" data-cat="online" onclick="filterTransactionsTab('online')">Online Orders</button>
+                </div>
+
+                <style>
+                    .trans-tab-btn {
+                        background: none; border: none; padding: 10px 15px; font-weight: 600; font-size: 14px;
+                        color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;
+                    }
+                    .trans-tab-btn:hover { color: var(--text-primary); }
+                    .trans-tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+                </style>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="transactions-report-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date & Time</th>
+                                <th>Type</th>
+                                <th>Details</th>
+                                <th>Status</th>
+                                <th>Payment Method</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-report-table-body">
+                            <!-- Populated via JS -->
                         </tbody>
                     </table>
                 </div>
@@ -2580,6 +2644,89 @@
                     });
                 })
                 .catch(err => console.error('Error filtering products:', err));
+        }
+
+        let transactionsReportTable = null;
+        let currentTransactionsData = [];
+        let currentTransCat = 'all';
+
+        function filterTransactionsTab(cat) {
+            document.querySelectorAll('.trans-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.trans-tab-btn[data-cat="${cat}"]`).classList.add('active');
+            currentTransCat = cat;
+            renderTransactionsTable();
+        }
+
+        function renderTransactionsTable() {
+            if (transactionsReportTable) {
+                transactionsReportTable.destroy();
+            }
+
+            const tbody = document.getElementById('transactions-report-table-body');
+            tbody.innerHTML = '';
+            
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+
+            const filteredData = currentTransactionsData.filter(t => currentTransCat === 'all' || t.category === currentTransCat);
+
+            filteredData.forEach(row => {
+                let badgeClass = 'secondary';
+                if(row.category === 'takeaway') badgeClass = 'warning';
+                else if(row.category === 'online') badgeClass = 'info';
+                else if(row.category === 'self_order') badgeClass = 'primary';
+
+                let statusBadge = 'secondary';
+                if(row.status.toLowerCase() === 'completed') statusBadge = 'success';
+                else if(row.status.toLowerCase() === 'cancelled') statusBadge = 'danger';
+                else if(row.status.toLowerCase() === 'active') statusBadge = 'warning';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${row.order_id}</td>
+                    <td>${row.created_at}</td>
+                    <td><span class="badge ${badgeClass}">${row.order_type.replace('_', ' ').toUpperCase()}</span></td>
+                    <td>${row.details}</td>
+                    <td><span class="badge ${statusBadge}">${row.status}</span></td>
+                    <td>${row.payment_method}</td>
+                    <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            transactionsReportTable = $('#transactions-report-table').DataTable({
+                dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                pageLength: 15,
+                lengthChange: true,
+                language: { search: "", searchPlaceholder: "Search transactions..." },
+                order: [[1, 'desc']],
+                columnDefs: [
+                    { targets: 6, className: 'dt-right' }
+                ]
+            });
+        }
+
+        function loadTransactionsReport() {
+            let startDate = document.getElementById('trans-start-date').value;
+            let endDate = document.getElementById('trans-end-date').value;
+            
+            if(!startDate) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('trans-start-date').value = today;
+                document.getElementById('trans-end-date').value = today;
+                startDate = today;
+                endDate = today;
+            }
+
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            fetch(basePath + '/reports/transactions?startDate=' + startDate + '&endDate=' + endDate)
+                .then(res => res.json())
+                .then(res => {
+                    if(res.status === 'success') {
+                        currentTransactionsData = res.data;
+                        renderTransactionsTable();
+                    }
+                })
+                .catch(err => console.error(err));
         }
 
         let taxReportsTable = null;

@@ -242,4 +242,81 @@ class ReportsController extends Controller {
         
         $this->json(['status' => 'success', 'data' => $reportData]);
     }
+
+    public function transactionsJson() {
+        $this->requireAuth('admin');
+        $db = Database::getInstance()->getConnection();
+        
+        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
+        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
+        $endDate = $endDate . ' 23:59:59';
+        $startDate = $startDate . ' 00:00:00';
+
+        $sql = "SELECT 
+                    o.id as order_id,
+                    o.order_type,
+                    o.waiter_id,
+                    o.status as order_status,
+                    o.created_at,
+                    o.table_number,
+                    b.id as bill_id,
+                    b.payment_method,
+                    b.grand_total as bill_total,
+                    op.name as platform_name,
+                    (SELECT COALESCE(SUM(p.price * ki.quantity), 0) 
+                     FROM kots k 
+                     JOIN kot_items ki ON k.id = ki.kot_id 
+                     JOIN products p ON ki.product_id = p.id
+                     WHERE k.order_id = o.id AND ki.status != 'cancelled') as kot_subtotal
+                FROM orders o
+                LEFT JOIN bills b ON o.id = b.order_id
+                LEFT JOIN online_platforms op ON o.platform_id = op.id
+                WHERE o.created_at BETWEEN :start AND :end
+                ORDER BY o.created_at DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute(['start' => $startDate, 'end' => $endDate]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $transactions = [];
+        foreach ($rows as $row) {
+            $cat = 'all'; // baseline
+            if ($row['order_type'] === 'take_away') {
+                $cat = 'takeaway';
+            } else if ($row['order_type'] === 'online') {
+                $cat = 'online';
+            } else if ($row['order_type'] === 'dine_in') {
+                if ($row['waiter_id'] === null) {
+                    $cat = 'self_order';
+                } else {
+                    $cat = 'waiter_order';
+                }
+            }
+
+            // Calculate total
+            $total = 0;
+            if (!empty($row['bill_total'])) {
+                $total = (float)$row['bill_total'];
+            } else {
+                // If no bill yet (e.g. online order or active dine_in), calculate from kot_subtotal
+                $sub = (float)$row['kot_subtotal'];
+                $tax = $sub * 0.10; // Hardcoded 10% tax for now as per system logic
+                $total = $sub + $tax;
+            }
+
+            $transactions[] = [
+                'order_id' => $row['order_id'],
+                'category' => $cat,
+                'order_type' => $row['order_type'],
+                'created_at' => date('d M Y, h:i A', strtotime($row['created_at'])),
+                'status' => ucfirst($row['order_status']),
+                'total' => $total,
+                'payment_method' => $row['payment_method'] ? ucfirst(str_replace('_', ' ', $row['payment_method'])) : 'Pending',
+                'details' => $cat === 'online' ? $row['platform_name'] : ($row['table_number'] ? 'Table '.$row['table_number'] : 'N/A'),
+                'bill_id' => $row['bill_id']
+            ];
+        }
+
+        $this->json(['status' => 'success', 'data' => $transactions]);
+    }
 }
