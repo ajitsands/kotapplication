@@ -2558,11 +2558,13 @@
                         `;
                     }
                     
-                    if (completedTakeawayTable) {
-                        completedTakeawayTable.destroy();
+                    if ($.fn.DataTable.isDataTable('#takeaway-completed-table')) {
+                        $('#takeaway-completed-table').DataTable().destroy();
                     }
                     
                     const tbody = document.getElementById('takeaway-completed-body');
+                    tbody.innerHTML = '';
+                    
                     let html = '';
                     orders.forEach(o => {
                         const dateStr = new Date(o.updated_at || o.created_at).toLocaleString();
@@ -2575,14 +2577,14 @@
                                 <td style="padding: 12px 10px; font-weight:600;">${tokenDisplay}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
-                                <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
-                                <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method)}</td>
+                                <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total || 0).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
+                                <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method || 'Cash')}</td>
                             </tr>
                         `;
                     });
                     tbody.innerHTML = html;
                     
-                    completedTakeawayTable = $('#takeaway-completed-table').DataTable({
+                    $('#takeaway-completed-table').DataTable({
                         "order": [[0, "desc"]],
                         "pageLength": 10,
                         "bDestroy": true,
