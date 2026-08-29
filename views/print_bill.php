@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Print Bill | Table <?= htmlspecialchars($bill['table_number']) ?></title>
+    <title>Print Bill | <?= htmlspecialchars(!empty($bill['table_number']) && $bill['table_number'] !== '-' ? 'Table '.$bill['table_number'] : ('Order #'.($bill['order_id'] ?? $bill['id']))) ?></title>
     <style>
         @page {
             margin: 0;
@@ -105,16 +105,39 @@
     </div>
 
     <div class="meta-row">
-        <span>Bill ID: <b>#<?= str_pad($bill['id'], 6, '0', STR_PAD_LEFT) ?></b></span>
-        <span>Table: <b>T<?= htmlspecialchars($bill['table_number']) ?></b></span>
+        <span>Order/Bill: <b>#<?= str_pad($bill['id'] ?? $bill['order_id'], 6, '0', STR_PAD_LEFT) ?></b></span>
+        <?php if (!empty($bill['order_type']) && $bill['order_type'] === 'online'): ?>
+            <span>Type: <b>🌐 <?= htmlspecialchars($bill['platform_name'] ?? 'Online') ?><?= !empty($bill['platform_order_number']) ? ' #'.htmlspecialchars($bill['platform_order_number']) : '' ?></b></span>
+        <?php elseif (!empty($bill['order_type']) && $bill['order_type'] === 'take_away'): ?>
+            <span>Type: <b>🛍️ Takeaway (Token #<?= htmlspecialchars($bill['token_number'] ?? $bill['order_id'] ?? $bill['id']) ?>)</b></span>
+        <?php else: ?>
+            <span>Table: <b>T<?= htmlspecialchars($bill['table_number'] ?? '-') ?></b></span>
+        <?php endif; ?>
     </div>
     <div class="meta-row">
-        <span>Waiter: <b><?= htmlspecialchars($bill['waiter_name'] ?? 'Self-Order') ?></b></span>
+        <?php if (!empty($bill['customer_name'])): ?>
+            <span>Cust: <b><?= htmlspecialchars($bill['customer_name']) ?></b></span>
+        <?php else: ?>
+            <span>Waiter: <b><?= htmlspecialchars($bill['waiter_name'] ?? 'Self-Order') ?></b></span>
+        <?php endif; ?>
         <span>Date: <?= date('d-M-Y', strtotime($bill['created_at'])) ?></span>
     </div>
     <div class="meta-row">
+        <?php if (!empty($bill['customer_mobile'])): ?>
+            <span>Mobile: <b><?= htmlspecialchars($bill['customer_mobile']) ?></b></span>
+        <?php else: ?>
+            <span>Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b></span>
+        <?php endif; ?>
         <span>Time: <?= date('h:i A', strtotime($bill['created_at'])) ?></span>
     </div>
+    <?php if (!empty($bill['payment_method'])): ?>
+    <div class="meta-row">
+        <span>Payment: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b></span>
+        <?php if (!empty($bill['customer_mobile'])): ?>
+            <span>Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b></span>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <table>
         <thead>
@@ -125,14 +148,19 @@
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($bill['items'] as $item): ?>
+            <?php foreach ($bill['items'] as $item): 
+                $pName = $item['product_name'] ?? $item['name'] ?? 'Item';
+                $pQty = $item['total_quantity'] ?? $item['quantity'] ?? 1;
+                $pPrice = (float)($item['price'] ?? 0);
+                $pSubtotal = (float)($item['subtotal_price'] ?? ($pPrice * $pQty));
+            ?>
                 <tr>
                     <td>
-                        <?= htmlspecialchars($item['product_name']) ?><br>
-                        <small style="color:#555; font-size:10px;"><?= format_price($item['price']) ?></small>
+                        <?= htmlspecialchars($pName) ?><br>
+                        <small style="color:#555; font-size:10px;"><?= format_price($pPrice) ?></small>
                     </td>
-                    <td class="text-center"><?= $item['total_quantity'] ?></td>
-                    <td class="text-right"><?= format_price($item['subtotal_price']) ?></td>
+                    <td class="text-center"><?= $pQty ?></td>
+                    <td class="text-right"><?= format_price($pSubtotal) ?></td>
                 </tr>
             <?php endforeach; ?>
         </tbody>

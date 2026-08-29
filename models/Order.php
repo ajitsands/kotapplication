@@ -38,12 +38,13 @@ class Order extends Model {
     }
 
     public function getOrderItemsSummary($orderId) {
-        $sql = "SELECT p.id as product_id, p.name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price 
+        $sql = "SELECT p.id as product_id, p.name, p.name as product_name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price,
+                       GROUP_CONCAT(DISTINCT NULLIF(ki.notes, '') SEPARATOR ', ') as notes
                 FROM kot_items ki 
                 JOIN kots k ON ki.kot_id = k.id 
                 JOIN products p ON ki.product_id = p.id 
-                WHERE k.order_id = ? 
-                GROUP BY ki.product_id";
+                WHERE k.order_id = ? AND ki.status != 'cancelled'
+                GROUP BY p.id, p.name, p.price";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$orderId]);
         return $stmt->fetchAll();
@@ -286,9 +287,10 @@ class Order extends Model {
     }
 
     public function getOrderDetails($orderId) {
-        $stmt = $this->db->prepare("SELECT o.*, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
+        $stmt = $this->db->prepare("SELECT o.*, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, p.name as platform_name 
                                     FROM orders o 
                                     LEFT JOIN users u ON o.waiter_id = u.id 
+                                    LEFT JOIN online_platforms p ON o.platform_id = p.id
                                     WHERE o.id = ?");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
@@ -297,11 +299,12 @@ class Order extends Model {
             $order['items'] = $this->getOrderItemsSummary($orderId);
             
             // Fetch bill if it exists
-            $stmtBill = $this->db->prepare("SELECT id, status FROM bills WHERE order_id = ? ORDER BY id DESC LIMIT 1");
+            $stmtBill = $this->db->prepare("SELECT * FROM bills WHERE order_id = ? ORDER BY id DESC LIMIT 1");
             $stmtBill->execute([$orderId]);
             $bill = $stmtBill->fetch();
             $order['bill_id'] = $bill ? (int)$bill['id'] : null;
             $order['bill_status'] = $bill ? $bill['status'] : null;
+            $order['bill'] = $bill ?: null;
         }
         return $order;
     }

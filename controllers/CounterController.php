@@ -246,6 +246,75 @@ class CounterController extends Controller {
         $this->render('print_bill', ['bill' => $bill, 'settings' => $settings]);
     }
 
+    public function printOrder($params) {
+        $orderId = (int)($params['id'] ?? 0);
+        $orderModel = new Order();
+        $order = $orderModel->getOrderDetails($orderId);
+        if (!$order) {
+            echo "<h1>Order Not Found</h1>";
+            exit;
+        }
+
+        $billModel = new Bill();
+        $bill = null;
+        if (!empty($order['bill_id'])) {
+            $bill = $billModel->getBillDetails($order['bill_id']);
+        }
+
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+
+        if (!$bill) {
+            $subtotal = 0.0;
+            if (!empty($order['items'])) {
+                foreach ($order['items'] as $item) {
+                    $subtotal += (float)($item['subtotal_price'] ?? ($item['price'] * $item['total_quantity']));
+                }
+            }
+            $taxType = $settings['tax_type'] ?? 'VAT';
+            $taxAmount = 0.0;
+            if ($taxType === 'VAT') {
+                $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                $taxAmount = $subtotal * ($vatPercent / 100.0);
+            } else {
+                $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+            }
+
+            $bill = [
+                'id' => $order['id'],
+                'order_id' => $order['id'],
+                'table_number' => $order['table_number'] ?? '-',
+                'order_type' => $order['order_type'],
+                'platform_name' => $order['platform_name'] ?? null,
+                'platform_order_number' => $order['platform_order_number'] ?? null,
+                'token_number' => $order['token_number'] ?? null,
+                'customer_name' => $order['customer_name'] ?? null,
+                'customer_mobile' => $order['customer_mobile'] ?? null,
+                'waiter_name' => $order['waiter_name'] ?? 'Self-Order',
+                'created_at' => $order['created_at'],
+                'status' => $order['status'],
+                'payment_method' => $order['payment_method'] ?? 'pending',
+                'subtotal' => $subtotal,
+                'tax_amount' => $taxAmount,
+                'discount_percent' => 0,
+                'discount_amount' => 0,
+                'grand_total' => $subtotal + $taxAmount,
+                'items' => $order['items'] ?? []
+            ];
+        } else {
+            $bill['order_type'] = $order['order_type'];
+            $bill['platform_name'] = $order['platform_name'] ?? null;
+            $bill['platform_order_number'] = $order['platform_order_number'] ?? null;
+            $bill['token_number'] = $order['token_number'] ?? null;
+            if (empty($bill['customer_name'])) $bill['customer_name'] = $order['customer_name'] ?? null;
+            if (empty($bill['customer_mobile'])) $bill['customer_mobile'] = $order['customer_mobile'] ?? null;
+        }
+
+        $this->render('print_bill', ['bill' => $bill, 'settings' => $settings]);
+    }
+
     public function summary() {
         $startDate = $_GET['start_date'] ?? $_GET['date'] ?? date('Y-m-d');
         $endDate = $_GET['end_date'] ?? $_GET['date'] ?? date('Y-m-d');
@@ -396,33 +465,45 @@ class CounterController extends Controller {
         $order = $orderModel->getOrderDetails($orderId);
         
         if ($order) {
-            // Calculate totals
-            $subtotal = 0.0;
-            if (!empty($order['items'])) {
-                foreach ($order['items'] as $item) {
-                    $subtotal += (float)$item['subtotal_price'];
-                }
-            }
-            
             $settingsModel = new Setting();
             $settings = $settingsModel->getSettings();
             $taxType = $settings['tax_type'] ?? 'VAT';
-            $taxAmount = 0.0;
-            
-            if ($taxType === 'VAT') {
-                $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
-                $taxAmount = $subtotal * ($vatPercent / 100.0);
-            } else { // GST
-                $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
-                $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
-                $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+
+            if (!empty($order['bill'])) {
+                $b = $order['bill'];
+                $order['subtotal'] = (float)$b['subtotal'];
+                $order['tax_amount'] = (float)$b['tax_amount'];
+                $order['discount_percent'] = (float)$b['discount_percent'];
+                $order['discount_amount'] = (float)$b['discount_amount'];
+                $order['grand_total'] = (float)$b['grand_total'];
+                $order['payment_method'] = $b['payment_method'];
+            } else {
+                // Calculate totals from items
+                $subtotal = 0.0;
+                if (!empty($order['items'])) {
+                    foreach ($order['items'] as $item) {
+                        $subtotal += (float)($item['subtotal_price'] ?? ($item['price'] * $item['total_quantity']));
+                    }
+                }
+                
+                $taxAmount = 0.0;
+                if ($taxType === 'VAT') {
+                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                    $taxAmount = $subtotal * ($vatPercent / 100.0);
+                } else { // GST
+                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                    $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+                }
+                
+                $order['subtotal'] = $subtotal;
+                $order['tax_amount'] = $taxAmount;
+                $order['discount_percent'] = 0;
+                $order['discount_amount'] = 0;
+                $order['grand_total'] = $subtotal + $taxAmount;
             }
             
-            $order['subtotal'] = $subtotal;
-            $order['tax_amount'] = $taxAmount;
-            $order['grand_total'] = $subtotal + $taxAmount;
-            
-            $this->json(['order' => $order]);
+            $this->json(['order' => $order, 'settings' => $settings]);
         } else {
             $this->json(['error' => 'Order not found'], 404);
         }

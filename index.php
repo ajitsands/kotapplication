@@ -81,6 +81,13 @@ $router->add('GET', '/admin/reports/profitability', 'ReportsController@profitabi
 $router->add('GET', '/admin/reports/kpi/product-sales', 'ReportsController@productSalesKpiJson');
 $router->add('GET', '/admin/reports/item-insights', 'ReportsController@itemInsightsJson');
 $router->add('GET', '/admin/reports/transactions', 'ReportsController@transactionsJson');
+$router->add('GET', '/counter/reports/transactions', 'ReportsController@transactionsJson');
+$router->add('GET', '/reports/transactions', 'ReportsController@transactionsJson');
+$router->add('GET', '/admin/order/:id', 'CounterController@orderDetails');
+$router->add('GET', '/api/order/:id', 'CounterController@orderDetails');
+$router->add('GET', '/print/order/:id', 'CounterController@printOrder');
+$router->add('GET', '/counter/print/order/:id', 'CounterController@printOrder');
+$router->add('GET', '/admin/print/order/:id', 'CounterController@printOrder');
 
 
 // KOT Operations Routes

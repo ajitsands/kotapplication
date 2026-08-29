@@ -1038,6 +1038,9 @@
                 <button id="tab-btn-refunded-list" onclick="switchTakeawayTab('refunded-list')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
                     ✅ Refunded List
                 </button>
+                <button id="tab-btn-transactions" onclick="switchTakeawayTab('transactions')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
+                    🗂️ All Transactions
+                </button>
             </div>
 
             <style>
@@ -1056,17 +1059,20 @@
                     document.getElementById('tab-btn-completed').classList.remove('active-tab');
                     document.getElementById('tab-btn-refunds').classList.remove('active-tab');
                     document.getElementById('tab-btn-refunded-list').classList.remove('active-tab');
+                    document.getElementById('tab-btn-transactions').classList.remove('active-tab');
                     document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-online-active').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-refunds').style.color = 'var(--text-muted)';
                     document.getElementById('tab-btn-refunded-list').style.color = 'var(--text-muted)';
+                    document.getElementById('tab-btn-transactions').style.color = 'var(--text-muted)';
                     
                     document.getElementById('takeaway-live-section').style.display = 'none';
                     document.getElementById('online-active-section').style.display = 'none';
                     document.getElementById('takeaway-completed-section').style.display = 'none';
                     document.getElementById('takeaway-refunds-section').style.display = 'none';
                     document.getElementById('takeaway-refunded-list-section').style.display = 'none';
+                    document.getElementById('takeaway-transactions-section').style.display = 'none';
 
                     document.getElementById('tab-btn-' + tab).classList.add('active-tab');
                     document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-light)';
@@ -1085,6 +1091,9 @@
                     } else if (tab === 'refunded-list') {
                         document.getElementById('takeaway-refunded-list-section').style.display = 'block';
                         fetchRefundedItemsList();
+                    } else if (tab === 'transactions') {
+                        document.getElementById('takeaway-transactions-section').style.display = 'block';
+                        loadCounterTransactionsReport();
                     }
                 }
             </script>
@@ -1202,6 +1211,61 @@
                         </thead>
                         <tbody id="takeaway-refunded-list-body">
                             <!-- Populated dynamically via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- All Transactions Section -->
+            <div id="takeaway-transactions-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="date" id="counter-trans-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
+                        <input type="date" id="counter-trans-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <button onclick="loadCounterTransactionsReport()" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Filter</button>
+                    </div>
+                    
+                    <div id="counter-trans-summary" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 10px 18px; border-radius: 10px; display: flex; gap: 20px; font-size: 13px; align-items: center;">
+                        <div><strong style="color:var(--text-muted);">Total Amount:</strong> <span id="counter-trans-total-amount" style="font-weight:700; color:var(--accent-green); font-size:16px;">0.000</span> <span style="color:var(--text-muted); font-size: 11px;"><?= htmlspecialchars($settings['currency_code']) ?></span></div>
+                        <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">Transactions:</strong> <span id="counter-trans-total-count" style="font-weight:700; font-size: 15px;">0</span></div>
+                    </div>
+                </div>
+
+                <!-- Sub Category Tabs -->
+                <div class="transactions-tabs" style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid var(--card-border); overflow-x: auto; white-space: nowrap;">
+                    <button class="counter-trans-tab-btn active" data-cat="all" onclick="filterCounterTransactionsTab('all')">All</button>
+                    <button class="counter-trans-tab-btn" data-cat="self_order" onclick="filterCounterTransactionsTab('self_order')">Self Orders</button>
+                    <button class="counter-trans-tab-btn" data-cat="waiter_order" onclick="filterCounterTransactionsTab('waiter_order')">Waiter Orders</button>
+                    <button class="counter-trans-tab-btn" data-cat="takeaway" onclick="filterCounterTransactionsTab('takeaway')">Takeaway</button>
+                    <button class="counter-trans-tab-btn" data-cat="online" onclick="filterCounterTransactionsTab('online')">Online Orders</button>
+                </div>
+
+                <style>
+                    .counter-trans-tab-btn {
+                        background: none; border: none; padding: 8px 14px; font-weight: 600; font-size: 13px;
+                        color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+                    }
+                    .counter-trans-tab-btn:hover { color: var(--text-color); }
+                    .counter-trans-tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; font-weight: 700; }
+                </style>
+
+                <div style="overflow-x: auto;">
+                    <table id="counter-transactions-table" class="display" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Order ID</th>
+                                <th style="text-align: left; padding: 12px 10px;">Date & Time</th>
+                                <th style="text-align: left; padding: 12px 10px;">Type</th>
+                                <th style="text-align: left; padding: 12px 10px;">Details</th>
+                                <th style="text-align: left; padding: 12px 10px;">Status</th>
+                                <th style="text-align: left; padding: 12px 10px;">Payment Method</th>
+                                <th style="text-align: right; padding: 12px 10px;">Total Amount</th>
+                                <th style="text-align: center; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="counter-transactions-table-body">
+                            <!-- Loaded via AJAX -->
                         </tbody>
                     </table>
                 </div>
@@ -3448,7 +3512,269 @@
                 Swal.fire('Error', 'Network error. Please try again.', 'error');
             });
         }
+
+        let currentCounterTransData = [];
+        let currentCounterTransCat = 'all';
+        let counterTransactionsTable = null;
+
+        function filterCounterTransactionsTab(cat) {
+            document.querySelectorAll('.counter-trans-tab-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.querySelector(`.counter-trans-tab-btn[data-cat="${cat}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            currentCounterTransCat = cat;
+            renderCounterTransactionsTable();
+        }
+
+        function renderCounterTransactionsTable() {
+            if ($.fn.DataTable.isDataTable('#counter-transactions-table')) {
+                $('#counter-transactions-table').DataTable().destroy();
+            }
+
+            const tbody = document.getElementById('counter-transactions-table-body');
+            tbody.innerHTML = '';
+
+            const filteredData = currentCounterTransData.filter(t => currentCounterTransCat === 'all' || t.category === currentCounterTransCat);
+
+            let totalSum = 0;
+
+            filteredData.forEach(row => {
+                totalSum += parseFloat(row.total || 0);
+
+                let badgeClass = 'secondary';
+                if(row.category === 'takeaway') badgeClass = 'warning';
+                else if(row.category === 'online') badgeClass = 'info';
+                else if(row.category === 'self_order') badgeClass = 'primary';
+
+                let statusBadge = 'secondary';
+                if(row.status.toLowerCase() === 'completed') statusBadge = 'success';
+                else if(row.status.toLowerCase() === 'cancelled') statusBadge = 'danger';
+                else if(row.status.toLowerCase() === 'active') statusBadge = 'warning';
+
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--card-border)';
+                tr.innerHTML = `
+                    <td style="padding: 12px 10px; font-weight:600;">#${row.order_id}</td>
+                    <td style="padding: 12px 10px;">${row.created_at}</td>
+                    <td style="padding: 12px 10px;"><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
+                    <td style="padding: 12px 10px;">${escapeHtml(row.details || '')}</td>
+                    <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${row.status}</span></td>
+                    <td style="padding: 12px 10px;">${escapeHtml(row.payment_method || 'Pending')}</td>
+                    <td class="price-text" style="font-weight:700; text-align:right; padding: 12px 10px;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small></td>
+                    <td style="text-align: center; padding: 12px 10px;">
+                        <button type="button" class="btn-action btn-print" onclick="viewCounterOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <span>📋</span> Order Details
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            counterTransactionsTable = $('#counter-transactions-table').DataTable({
+                destroy: true,
+                dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                pageLength: 15,
+                lengthChange: true,
+                language: { search: "", searchPlaceholder: "Search transactions..." },
+                order: [[1, 'desc']],
+                columnDefs: [
+                    { targets: 6, className: 'dt-right' },
+                    { targets: 7, orderable: false, className: 'dt-center' }
+                ]
+            });
+
+            document.getElementById('counter-trans-total-amount').innerText = totalSum.toFixed(window.PRICE_DECIMALS || 3);
+            document.getElementById('counter-trans-total-count').innerText = filteredData.length;
+        }
+
+        function loadCounterTransactionsReport() {
+            let startDate = document.getElementById('counter-trans-start-date').value;
+            let endDate = document.getElementById('counter-trans-end-date').value;
+
+            if(!startDate) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('counter-trans-start-date').value = today;
+                document.getElementById('counter-trans-end-date').value = today;
+                startDate = today;
+                endDate = today;
+            }
+
+            fetch(`${rootPath}/counter/reports/transactions?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
+                .then(res => res.json())
+                .then(res => {
+                    if(res.status === 'success') {
+                        currentCounterTransData = res.data || [];
+                        renderCounterTransactionsTable();
+                    }
+                })
+                .catch(err => console.error('Error loading counter transactions:', err));
+        }
+
+        let currentCounterViewOrderId = null;
+
+        function viewCounterOrderDetails(orderId) {
+            currentCounterViewOrderId = orderId;
+
+            fetch(`${rootPath}/counter/order/${orderId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error || !data.order) {
+                        Swal.fire({ title: 'Error', text: data.error || 'Failed to load order details', icon: 'error' });
+                        return;
+                    }
+                    const o = data.order;
+                    const settings = data.settings || {};
+
+                    document.getElementById('counter-modal-order-title').innerText = `📋 Order Details #${o.id}`;
+
+                    let badgeClass = 'secondary';
+                    if(o.order_type === 'take_away') badgeClass = 'warning';
+                    else if(o.order_type === 'online') badgeClass = 'info';
+                    else if(o.order_type === 'dine_in' && !o.waiter_id) badgeClass = 'primary';
+
+                    let statusBadge = 'secondary';
+                    if((o.status||'').toLowerCase() === 'completed') statusBadge = 'success';
+                    else if((o.status||'').toLowerCase() === 'cancelled') statusBadge = 'danger';
+                    else if((o.status||'').toLowerCase() === 'active') statusBadge = 'warning';
+
+                    document.getElementById('counter-modal-order-badges').innerHTML = `
+                        <span class="badge ${badgeClass}">${(o.order_type||'').replace('_', ' ').toUpperCase()}</span>
+                        <span class="badge ${statusBadge}">${(o.status||'').toUpperCase()}</span>
+                        ${o.payment_method ? `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>` : '<span class="badge secondary">Payment Pending</span>'}
+                    `;
+
+                    let detailDisplay = 'Dine In';
+                    if (o.order_type === 'online') {
+                        detailDisplay = `🌐 ${o.platform_name || 'Online'}${o.platform_order_number ? ' #' + o.platform_order_number : ''}`;
+                    } else if (o.order_type === 'take_away') {
+                        detailDisplay = `🛍️ Token #${o.token_number || o.id}`;
+                    } else if (o.table_number) {
+                        detailDisplay = `🍽️ Table T${o.table_number}`;
+                    }
+
+                    const dateStr = o.created_at ? new Date(o.created_at.replace(' ', 'T')).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+
+                    document.getElementById('counter-modal-order-meta').innerHTML = `
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">TYPE / LOCATION</span> <strong>${detailDisplay}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">CUSTOMER</span> <strong>${escapeHtml(o.customer_name || 'Guest')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">MOBILE</span> <strong>${escapeHtml(o.customer_mobile || '-')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">WAITER / SERVER</span> <strong>${escapeHtml(o.waiter_name || 'Self-Order')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">DATE & TIME</span> <strong>${dateStr}</strong></div>
+                    `;
+
+                    const tbody = document.getElementById('counter-modal-items-body');
+                    tbody.innerHTML = '';
+                    if (o.items && o.items.length > 0) {
+                        o.items.forEach(item => {
+                            const price = parseFloat(item.price || 0);
+                            const qty = parseInt(item.total_quantity || item.quantity || 1);
+                            const sub = parseFloat(item.subtotal_price || (price * qty));
+                            const notes = item.notes ? `<div style="font-size:11px; color:var(--accent-orange); margin-top:2px;">📝 ${escapeHtml(item.notes)}</div>` : '';
+                            tbody.innerHTML += `
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <td style="padding: 10px 12px; font-weight: 600;">${escapeHtml(item.product_name || item.name)}${notes}</td>
+                                    <td style="padding: 10px 12px; text-align: right;" class="price-text">${price.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
+                                    <td style="padding: 10px 12px; text-align: center; font-weight: 700;">${qty}</td>
+                                    <td style="padding: 10px 12px; text-align: right; font-weight: 600;" class="price-text">${sub.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 25px; color:var(--text-muted);">No items found in this order.</td></tr>`;
+                    }
+
+                    const subtotal = parseFloat(o.subtotal || 0);
+                    const taxAmount = parseFloat(o.tax_amount || 0);
+                    const discountAmount = parseFloat(o.discount_amount || 0);
+                    const grandTotal = parseFloat(o.grand_total || (subtotal + taxAmount - discountAmount));
+
+                    let taxLabel = (settings.tax_type === 'GST') ? 'CGST + SGST' : `VAT (${settings.vat_percent || 10}%)`;
+
+                    document.getElementById('counter-modal-totals-box').innerHTML = `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">Subtotal:</span>
+                            <span class="price-text" style="font-weight:600;">${subtotal.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">${taxLabel}:</span>
+                            <span class="price-text" style="color:var(--accent-orange); font-weight:600;">+${taxAmount.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
+                        </div>
+                        ${discountAmount > 0 ? `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">Discount:</span>
+                            <span class="price-text" style="color:var(--accent-red); font-weight:600;">-${discountAmount.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
+                        </div>` : ''}
+                        <div style="display:flex; justify-content:space-between; border-top: 1px dashed var(--card-border); padding-top: 8px; margin-top: 6px; font-size: 16px; font-weight: 800;">
+                            <span>Grand Total:</span>
+                            <span class="price-text" style="color:var(--accent-green);">${grandTotal.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>
+                        </div>
+                    `;
+
+                    document.getElementById('counter-modal-print-btn').onclick = function() {
+                        printOrderReceipt(o.id);
+                    };
+
+                    document.getElementById('counter-order-details-modal').style.display = 'flex';
+                })
+                .catch(err => {
+                    console.error('Error fetching order details:', err);
+                    Swal.fire({ title: 'Error', text: 'An unexpected error occurred while loading order details.', icon: 'error' });
+                });
+        }
+
+        function closeCounterOrderDetailsModal() {
+            document.getElementById('counter-order-details-modal').style.display = 'none';
+        }
+
+        function printOrderReceipt(orderId) {
+            const url = rootPath + '/print/order/' + orderId;
+            window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+        }
     </script>
+
+    <!-- Counter Order Details Modal -->
+    <div id="counter-order-details-modal" class="modal" style="display: none; z-index: 1200;">
+        <div class="modal-content" style="max-width: 650px; width: 95%; text-align: left; max-height: 90vh; display: flex; flex-direction: column; padding: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 15px;">
+                <div>
+                    <h3 id="counter-modal-order-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-color);">📋 Order Details</h3>
+                    <div id="counter-modal-order-badges" style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;"></div>
+                </div>
+                <button onclick="closeCounterOrderDetailsModal()" style="background: none; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+            </div>
+
+            <!-- Order Meta Info -->
+            <div id="counter-modal-order-meta" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 15px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; font-size: 13px;">
+            </div>
+
+            <!-- Items Table Container -->
+            <div style="flex: 1; overflow-y: auto; max-height: 240px; margin-bottom: 15px; border: 1px solid var(--card-border); border-radius: 10px;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
+                    <thead>
+                        <tr style="background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--card-border);">
+                            <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase;">Item</th>
+                            <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: right;">Price</th>
+                            <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: center;">Qty</th>
+                            <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="counter-modal-items-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals Breakdown -->
+            <div id="counter-modal-totals-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 15px; margin-bottom: 15px; font-size: 13px;">
+            </div>
+
+            <!-- Modal Actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
+                <button type="button" class="modal-close" onclick="closeCounterOrderDetailsModal()" style="margin-top: 0; padding: 10px 20px;">Close</button>
+                <button type="button" id="counter-modal-print-btn" class="btn-pay" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--primary-grad); color: white; border: none; border-radius: 10px; cursor: pointer;">
+                    <span>🖨️</span> Print Receipt (Thermal)
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Online Order Modal -->
     <div id="online-order-modal" class="modal">

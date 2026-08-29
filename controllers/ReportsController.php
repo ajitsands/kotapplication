@@ -244,7 +244,7 @@ class ReportsController extends Controller {
     }
 
     public function transactionsJson() {
-        $this->requireAuth('admin');
+        $this->requireAuth('counter');
         $db = Database::getInstance()->getConnection();
         
         $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
@@ -252,11 +252,25 @@ class ReportsController extends Controller {
         $endDate = $endDate . ' 23:59:59';
         $startDate = $startDate . ' 00:00:00';
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $taxType = $settings['tax_type'] ?? 'VAT';
+        $taxPercent = 0.0;
+        if ($taxType === 'VAT') {
+            $taxPercent = (float)($settings['vat_percent'] ?? 10.00);
+        } else {
+            $taxPercent = (float)($settings['cgst_percent'] ?? 2.50) + (float)($settings['sgst_percent'] ?? 2.50);
+        }
+
         $sql = "SELECT 
                     o.id as order_id,
                     o.order_type,
                     o.waiter_id,
                     o.status as order_status,
+                    o.token_number,
+                    o.customer_name,
+                    o.customer_mobile,
+                    o.platform_order_number,
                     o.created_at,
                     o.table_number,
                     b.id as bill_id,
@@ -300,20 +314,32 @@ class ReportsController extends Controller {
             } else {
                 // If no bill yet (e.g. online order or active dine_in), calculate from kot_subtotal
                 $sub = (float)$row['kot_subtotal'];
-                $tax = $sub * 0.10; // Hardcoded 10% tax for now as per system logic
+                $tax = $sub * ($taxPercent / 100.0);
                 $total = $sub + $tax;
             }
 
+            $details = 'N/A';
+            if ($cat === 'online') {
+                $details = ($row['platform_name'] ?: 'Online') . ($row['platform_order_number'] ? ' #' . $row['platform_order_number'] : '');
+            } elseif ($cat === 'takeaway') {
+                $details = 'Token #' . ($row['token_number'] ?: $row['order_id']) . ($row['customer_name'] ? ' (' . $row['customer_name'] . ')' : '');
+            } else {
+                $details = ($row['table_number'] ? 'Table ' . $row['table_number'] : 'Dine In') . ($row['customer_name'] ? ' (' . $row['customer_name'] . ')' : '');
+            }
+
             $transactions[] = [
-                'order_id' => $row['order_id'],
+                'order_id' => (int)$row['order_id'],
                 'category' => $cat,
                 'order_type' => $row['order_type'],
+                'token_number' => $row['token_number'],
+                'customer_name' => $row['customer_name'],
+                'customer_mobile' => $row['customer_mobile'],
                 'created_at' => date('d M Y, h:i A', strtotime($row['created_at'])),
                 'status' => ucfirst($row['order_status']),
                 'total' => $total,
                 'payment_method' => $row['payment_method'] ? ucfirst(str_replace('_', ' ', $row['payment_method'])) : 'Pending',
-                'details' => $cat === 'online' ? $row['platform_name'] : ($row['table_number'] ? 'Table '.$row['table_number'] : 'N/A'),
-                'bill_id' => $row['bill_id']
+                'details' => $details,
+                'bill_id' => $row['bill_id'] ? (int)$row['bill_id'] : null
             ];
         }
 

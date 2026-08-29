@@ -1578,12 +1578,58 @@
                                 <th>Status</th>
                                 <th>Payment Method</th>
                                 <th>Total Amount</th>
+                                <th style="text-align: center;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-report-table-body">
                             <!-- Populated via JS -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Order Details Modal -->
+        <div id="admin-order-details-modal" class="modal" style="display: none; z-index: 1200;">
+            <div class="modal-content" style="max-width: 650px; width: 95%; text-align: left; max-height: 90vh; display: flex; flex-direction: column; padding: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 15px;">
+                    <div>
+                        <h3 id="admin-modal-order-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-color);">📋 Order Details</h3>
+                        <div id="admin-modal-order-badges" style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;"></div>
+                    </div>
+                    <button onclick="closeOrderDetailsModal()" style="background: none; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+                </div>
+
+                <!-- Order Meta Info -->
+                <div id="admin-modal-order-meta" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 15px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; font-size: 13px;">
+                </div>
+
+                <!-- Items Table Container -->
+                <div style="flex: 1; overflow-y: auto; max-height: 240px; margin-bottom: 15px; border: 1px solid var(--card-border); border-radius: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0;">
+                        <thead>
+                            <tr style="background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--card-border);">
+                                <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase;">Item</th>
+                                <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: right;">Price</th>
+                                <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: center;">Qty</th>
+                                <th style="padding: 10px 12px; font-size: 11px; text-transform: uppercase; text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-modal-items-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Totals Breakdown -->
+                <div id="admin-modal-totals-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 15px; margin-bottom: 15px; font-size: 13px;">
+                </div>
+
+                <!-- Modal Actions -->
+                <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
+                    <button type="button" class="modal-close" onclick="closeOrderDetailsModal()" style="margin-top: 0; padding: 10px 20px;">Close</button>
+                    <button type="button" id="admin-modal-print-btn" class="btn-primary" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700;">
+                        <span>🖨️</span> Print Receipt (Thermal)
+                    </button>
                 </div>
             </div>
         </div>
@@ -2742,6 +2788,11 @@
                     <td><span class="badge ${statusBadge}">${row.status}</span></td>
                     <td>${row.payment_method}</td>
                     <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${cur}</small></td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn-action btn-print" onclick="viewOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <span>📋</span> Order Details
+                        </button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2758,12 +2809,146 @@
                 language: { search: "", searchPlaceholder: "Search transactions..." },
                 order: [[1, 'desc']],
                 columnDefs: [
-                    { targets: 6, className: 'dt-right' }
+                    { targets: 6, className: 'dt-right' },
+                    { targets: 7, orderable: false, className: 'dt-center' }
                 ]
             });
 
             document.getElementById('trans-total-amount').innerText = totalSum.toFixed(window.PRICE_DECIMALS || 3);
             document.getElementById('trans-total-count').innerText = filteredData.length;
+        }
+
+        function escapeHtmlAdmin(str) {
+            if (str === null || str === undefined) return '';
+            var div = document.createElement('div');
+            div.innerText = str;
+            return div.innerHTML;
+        }
+
+        let currentAdminViewOrderId = null;
+
+        function viewOrderDetails(orderId) {
+            currentAdminViewOrderId = orderId;
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/admin$/, '');
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+
+            fetch(rootPath + '/admin/order/' + orderId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error || !data.order) {
+                        Swal.fire({ title: 'Error', text: data.error || 'Failed to load order details', icon: 'error' });
+                        return;
+                    }
+                    const o = data.order;
+                    const settings = data.settings || {};
+                    
+                    document.getElementById('admin-modal-order-title').innerText = `📋 Order Details #${o.id}`;
+
+                    let badgeClass = 'secondary';
+                    if(o.order_type === 'take_away') badgeClass = 'warning';
+                    else if(o.order_type === 'online') badgeClass = 'info';
+                    else if(o.order_type === 'dine_in' && !o.waiter_id) badgeClass = 'primary';
+                    
+                    let statusBadge = 'secondary';
+                    if((o.status||'').toLowerCase() === 'completed') statusBadge = 'success';
+                    else if((o.status||'').toLowerCase() === 'cancelled') statusBadge = 'danger';
+                    else if((o.status||'').toLowerCase() === 'active') statusBadge = 'warning';
+
+                    document.getElementById('admin-modal-order-badges').innerHTML = `
+                        <span class="badge ${badgeClass}">${(o.order_type||'').replace('_', ' ').toUpperCase()}</span>
+                        <span class="badge ${statusBadge}">${(o.status||'').toUpperCase()}</span>
+                        ${o.payment_method ? `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>` : '<span class="badge secondary">Payment Pending</span>'}
+                    `;
+
+                    let detailDisplay = 'Dine In';
+                    if (o.order_type === 'online') {
+                        detailDisplay = `🌐 ${o.platform_name || 'Online'}${o.platform_order_number ? ' #' + o.platform_order_number : ''}`;
+                    } else if (o.order_type === 'take_away') {
+                        detailDisplay = `🛍️ Token #${o.token_number || o.id}`;
+                    } else if (o.table_number) {
+                        detailDisplay = `🍽️ Table T${o.table_number}`;
+                    }
+
+                    const dateStr = o.created_at ? new Date(o.created_at.replace(' ', 'T')).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+
+                    document.getElementById('admin-modal-order-meta').innerHTML = `
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">TYPE / LOCATION</span> <strong>${detailDisplay}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">CUSTOMER</span> <strong>${escapeHtmlAdmin(o.customer_name || 'Guest')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">MOBILE</span> <strong>${escapeHtmlAdmin(o.customer_mobile || '-')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">WAITER / SERVER</span> <strong>${escapeHtmlAdmin(o.waiter_name || 'Self-Order')}</strong></div>
+                        <div><span style="color:var(--text-muted); display:block; font-size:11px;">DATE & TIME</span> <strong>${dateStr}</strong></div>
+                    `;
+
+                    const tbody = document.getElementById('admin-modal-items-body');
+                    tbody.innerHTML = '';
+                    if (o.items && o.items.length > 0) {
+                        o.items.forEach(item => {
+                            const price = parseFloat(item.price || 0);
+                            const qty = parseInt(item.total_quantity || item.quantity || 1);
+                            const sub = parseFloat(item.subtotal_price || (price * qty));
+                            const notes = item.notes ? `<div style="font-size:11px; color:var(--accent-orange); margin-top:2px;">📝 ${escapeHtmlAdmin(item.notes)}</div>` : '';
+                            tbody.innerHTML += `
+                                <tr style="border-bottom: 1px solid var(--card-border);">
+                                    <td style="padding: 10px 12px; font-weight: 600;">${escapeHtmlAdmin(item.product_name || item.name)}${notes}</td>
+                                    <td style="padding: 10px 12px; text-align: right;" class="price-text">${price.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 10px 12px; text-align: center; font-weight: 700;">${qty}</td>
+                                    <td style="padding: 10px 12px; text-align: right; font-weight: 600;" class="price-text">${sub.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 25px; color:var(--text-muted);">No items found in this order.</td></tr>`;
+                    }
+
+                    const subtotal = parseFloat(o.subtotal || 0);
+                    const taxAmount = parseFloat(o.tax_amount || 0);
+                    const discountAmount = parseFloat(o.discount_amount || 0);
+                    const grandTotal = parseFloat(o.grand_total || (subtotal + taxAmount - discountAmount));
+
+                    let taxLabel = (settings.tax_type === 'GST') ? 'CGST + SGST' : `VAT (${settings.vat_percent || 10}%)`;
+
+                    document.getElementById('admin-modal-totals-box').innerHTML = `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">Subtotal:</span>
+                            <span class="price-text" style="font-weight:600;">${subtotal.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">${taxLabel}:</span>
+                            <span class="price-text" style="color:var(--accent-orange); font-weight:600;">+${taxAmount.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</span>
+                        </div>
+                        ${discountAmount > 0 ? `
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <span style="color:var(--text-muted);">Discount:</span>
+                            <span class="price-text" style="color:var(--accent-red); font-weight:600;">-${discountAmount.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</span>
+                        </div>` : ''}
+                        <div style="display:flex; justify-content:space-between; border-top: 1px dashed var(--card-border); padding-top: 8px; margin-top: 6px; font-size: 16px; font-weight: 800;">
+                            <span>Grand Total:</span>
+                            <span class="price-text" style="color:var(--accent-green);">${grandTotal.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</span>
+                        </div>
+                    `;
+
+                    document.getElementById('admin-modal-print-btn').onclick = function() {
+                        printOrderReceipt(o.id);
+                    };
+
+                    document.getElementById('admin-order-details-modal').style.display = 'flex';
+                })
+                .catch(err => {
+                    console.error('Error fetching order details:', err);
+                    Swal.fire({ title: 'Error', text: 'An unexpected error occurred while loading order details.', icon: 'error' });
+                });
+        }
+
+        function closeOrderDetailsModal() {
+            document.getElementById('admin-order-details-modal').style.display = 'none';
+        }
+
+        function printOrderReceipt(orderId) {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/admin$/, '');
+            const url = rootPath + '/print/order/' + orderId;
+            window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
         }
 
         function loadTransactionsReport() {
