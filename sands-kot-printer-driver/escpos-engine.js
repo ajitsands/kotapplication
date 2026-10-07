@@ -1,6 +1,6 @@
 /**
  * SaNDS KOT Printer Driver - ESC/POS Command Engine
- * Universal pure JavaScript thermal print generator with zero watermarks
+ * Universal thermal print generator with native TCP Android Bridge support
  */
 
 const EscPos = {
@@ -35,7 +35,6 @@ const EscPos = {
         return this.ESC + "p" + "\x00" + "\x19" + "\xFA";
     },
 
-    // Format row with left/right alignment and dynamic margin inset
     formatRow(left, right, width = 48, marginLeft = 0) {
         const indent = " ".repeat(marginLeft);
         const availWidth = width - marginLeft;
@@ -59,7 +58,7 @@ const EscPos = {
     buildTestReceipt(cfg) {
         const paperSize = parseInt(cfg.printerSize || 80);
         const width = paperSize === 58 ? 32 : 48;
-        const marginLeft = Math.floor(parseInt(cfg.marginLeft || 5) / 2.5); // Approx chars for mm
+        const marginLeft = Math.floor(parseInt(cfg.marginLeft || 5) / 2.5);
         const divider = " ".repeat(marginLeft) + "-".repeat(width - marginLeft) + "\n";
         const doubleDiv = " ".repeat(marginLeft) + "=".repeat(width - marginLeft) + "\n";
 
@@ -100,32 +99,37 @@ const EscPos = {
     async print(rawData, cfg) {
         const ip = cfg.printerIp || "192.168.8.101";
         const port = parseInt(cfg.printerPort || 9100);
-        const mode = cfg.printMode || "direct";
 
         // Convert string to base64
         const base64Data = btoa(unescape(encodeURIComponent(rawData)));
 
-        // 1. If running in Android Native Bridge (Custom APK wrapper)
+        // 1. Native Android App TCP Socket Bridge (Direct TCP from Tablet)
         if (window.AndroidPrintBridge && typeof window.AndroidPrintBridge.printTcp === "function") {
             try {
                 const res = window.AndroidPrintBridge.printTcp(ip, port, base64Data);
-                return JSON.parse(res);
+                const parsed = JSON.parse(res);
+                if (!parsed.success) {
+                    throw new Error(parsed.error || 'Native socket error');
+                }
+                return parsed;
             } catch (err) {
-                return { success: false, error: "Native print error: " + err.message };
+                return { success: false, error: err.message };
             }
         }
 
-        // 2. Direct RawBT Intent Trigger (on Android Tablets)
-        if (mode === "rawbt" || /Android/i.test(navigator.userAgent)) {
-            try {
-                window.location.href = "rawbt:data:application/octet-stream;base64," + base64Data;
-                return { success: true, message: "Print job transmitted to RawBT" };
-            } catch (e) {
-                // fallback
-            }
+        // 2. Direct RawBT Intent Trigger (if RawBT app is installed on tab)
+        if (cfg.printMode === "rawbt") {
+            window.location.href = "rawbt:data:application/octet-stream;base64," + base64Data;
+            return { success: true, message: "Dispatched to RawBT" };
         }
 
-        // 3. Direct backend socket proxy
+        // 3. Browser Print Graphic Fallback
+        if (cfg.printMode === "browser") {
+            window.print();
+            return { success: true, message: "Browser print opened" };
+        }
+
+        // 4. Server-Side Socket Relay
         try {
             const serverUrl = (cfg.domain.startsWith('http') ? cfg.domain : 'https://' + cfg.domain) + '/admin/printer/test';
             const res = await fetch(serverUrl, {
@@ -135,9 +139,11 @@ const EscPos = {
             });
             return await res.json();
         } catch (err) {
+            // Fallback to browser print
+            window.print();
             return {
                 success: true,
-                message: "Print command dispatched to " + ip + ":" + port
+                message: "Print dialog opened on tablet"
             };
         }
     }
