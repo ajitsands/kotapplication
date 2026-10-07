@@ -16,15 +16,25 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", Courier, monospace;
-            width: <?= (int)$settings['printer_size'] === 58 ? '52mm' : '76mm' ?>;
+            margin: 0;
+            padding: 10px 0;
+            background: #f9fafb;
+            color: #000;
+        }
+        
+        /* Receipt container with safe inner margins from physical edges */
+        .receipt-container {
+            width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?>;
             max-width: 100%;
             margin: 0 auto;
-            padding: 8px 4px;
-            font-size: 12px;
-            color: #000;
+            padding: 6px 5mm;
             background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+            font-size: 12px;
             line-height: 1.35;
         }
+        
         .text-center { text-align: center; }
         .text-left { text-align: left; }
         .text-right { text-align: right; }
@@ -36,12 +46,12 @@
             margin-bottom: 6px;
         }
         .logo-img {
-            max-width: 55px;
+            max-width: 50px;
             height: auto;
             margin-bottom: 4px;
         }
         .restaurant-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -94,15 +104,17 @@
         
         /* On-screen control bar (Hidden during Print) */
         .no-print-bar {
-            background: #f3f4f6;
+            max-width: 320px;
+            margin: 0 auto 12px auto;
+            background: #fff;
             border: 1px solid #d1d5db;
             border-radius: 8px;
             padding: 10px;
-            margin-bottom: 15px;
             display: flex;
             gap: 8px;
             justify-content: center;
             flex-wrap: wrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         }
         .btn-print {
             background: #4f46e5;
@@ -126,13 +138,22 @@
         }
 
         @media print {
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+            .receipt-container {
+                width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
+                max-width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
+                margin: 0 auto !important;
+                padding: 4px 5mm 15px 5mm !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
             .no-print-bar {
                 display: none !important;
-            }
-            body {
-                width: 100%;
-                padding: 0;
-                margin: 0;
             }
         }
     </style>
@@ -146,142 +167,143 @@
         <button class="btn-print" style="background:#6b7280;" onclick="window.close()">❌ Close</button>
     </div>
 
-    <!-- Header Section -->
-    <div class="header text-center">
-        <?php if (!empty($settings['logo_path'])): 
-            $logoUrl = '/' . ltrim($settings['logo_path'], '/');
-        ?>
-            <img class="logo-img" src="<?= $logoUrl ?>" alt="Logo"><br>
-        <?php endif; ?>
-        <span class="restaurant-name"><?= htmlspecialchars($settings['restaurant_name']) ?></span><br>
-        <span style="font-size: 11px; font-weight: bold;">TAX INVOICE</span>
-    </div>
-
-    <!-- Metadata Section -->
-    <table class="meta-table">
-        <tr>
-            <td class="text-left" style="width: 55%;">
-                Invoice: <b>#<?= str_pad($bill['id'] ?? $bill['order_id'], 6, '0', STR_PAD_LEFT) ?></b>
-            </td>
-            <td class="text-right" style="width: 45%;">
-                <?php if (!empty($bill['order_type']) && $bill['order_type'] === 'online'): ?>
-                    <b>🌐 <?= htmlspecialchars($bill['platform_name'] ?? 'Online') ?></b>
-                <?php elseif (!empty($bill['order_type']) && $bill['order_type'] === 'take_away'): ?>
-                    <b>🛍️ Takeaway #<?= htmlspecialchars($bill['token_number'] ?? $bill['order_id'] ?? $bill['id']) ?></b>
-                <?php else: ?>
-                    <b>Table: T<?= htmlspecialchars($bill['table_number'] ?? '-') ?></b>
-                <?php endif; ?>
-            </td>
-        </tr>
-        <tr>
-            <td class="text-left">
-                <?php if (!empty($bill['customer_name'])): ?>
-                    Cust: <b><?= htmlspecialchars($bill['customer_name']) ?></b>
-                <?php else: ?>
-                    Staff: <b><?= htmlspecialchars($bill['waiter_name'] ?? 'Self-Order') ?></b>
-                <?php endif; ?>
-            </td>
-            <td class="text-right">
-                Date: <?= date('d-M-Y', strtotime($bill['created_at'])) ?>
-            </td>
-        </tr>
-        <tr>
-            <td class="text-left">
-                <?php if (!empty($bill['customer_mobile'])): ?>
-                    Mob: <b><?= htmlspecialchars($bill['customer_mobile']) ?></b>
-                <?php else: ?>
-                    Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b>
-                <?php endif; ?>
-            </td>
-            <td class="text-right">
-                Time: <?= date('h:i A', strtotime($bill['created_at'])) ?>
-            </td>
-        </tr>
-        <?php if (!empty($bill['payment_method'])): ?>
-        <tr>
-            <td class="text-left">
-                Pay: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b>
-            </td>
-            <td class="text-right">
-                Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b>
-            </td>
-        </tr>
-        <?php endif; ?>
-    </table>
-
-    <!-- Line Items Table -->
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th class="text-left" style="width: 50%;">Item</th>
-                <th class="text-center" style="width: 15%;">Qty</th>
-                <th class="text-right" style="width: 35%;">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($bill['items'] as $item): 
-                $pName = $item['product_name'] ?? $item['name'] ?? 'Item';
-                $pQty = $item['total_quantity'] ?? $item['quantity'] ?? 1;
-                $pPrice = (float)($item['price'] ?? 0);
-                $pSubtotal = (float)($item['subtotal_price'] ?? ($pPrice * $pQty));
+    <div class="receipt-container">
+        <!-- Header Section -->
+        <div class="header text-center">
+            <?php if (!empty($settings['logo_path'])): 
+                $logoUrl = '/' . ltrim($settings['logo_path'], '/');
             ?>
+                <img class="logo-img" src="<?= $logoUrl ?>" alt="Logo"><br>
+            <?php endif; ?>
+            <span class="restaurant-name"><?= htmlspecialchars($settings['restaurant_name']) ?></span><br>
+            <span style="font-size: 11px; font-weight: bold;">TAX INVOICE</span>
+        </div>
+
+        <!-- Metadata Section -->
+        <table class="meta-table">
+            <tr>
+                <td class="text-left" style="width: 55%;">
+                    Invoice: <b>#<?= str_pad($bill['id'] ?? $bill['order_id'], 6, '0', STR_PAD_LEFT) ?></b>
+                </td>
+                <td class="text-right" style="width: 45%;">
+                    <?php if (!empty($bill['order_type']) && $bill['order_type'] === 'online'): ?>
+                        <b>🌐 <?= htmlspecialchars($bill['platform_name'] ?? 'Online') ?></b>
+                    <?php elseif (!empty($bill['order_type']) && $bill['order_type'] === 'take_away'): ?>
+                        <b>🛍️ Takeaway #<?= htmlspecialchars($bill['token_number'] ?? $bill['order_id'] ?? $bill['id']) ?></b>
+                    <?php else: ?>
+                        <b>Table: T<?= htmlspecialchars($bill['table_number'] ?? '-') ?></b>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <tr>
+                <td class="text-left">
+                    <?php if (!empty($bill['customer_name'])): ?>
+                        Cust: <b><?= htmlspecialchars($bill['customer_name']) ?></b>
+                    <?php else: ?>
+                        Staff: <b><?= htmlspecialchars($bill['waiter_name'] ?? 'Self-Order') ?></b>
+                    <?php endif; ?>
+                </td>
+                <td class="text-right">
+                    Date: <?= date('d-M-Y', strtotime($bill['created_at'])) ?>
+                </td>
+            </tr>
+            <tr>
+                <td class="text-left">
+                    <?php if (!empty($bill['customer_mobile'])): ?>
+                        Mob: <b><?= htmlspecialchars($bill['customer_mobile']) ?></b>
+                    <?php else: ?>
+                        Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b>
+                    <?php endif; ?>
+                </td>
+                <td class="text-right">
+                    Time: <?= date('h:i A', strtotime($bill['created_at'])) ?>
+                </td>
+            </tr>
+            <?php if (!empty($bill['payment_method'])): ?>
+            <tr>
+                <td class="text-left">
+                    Pay: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b>
+                </td>
+                <td class="text-right">
+                    Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b>
+                </td>
+            </tr>
+            <?php endif; ?>
+        </table>
+
+        <!-- Line Items Table -->
+        <table class="items-table">
+            <thead>
                 <tr>
-                    <td class="text-left">
-                        <b><?= htmlspecialchars($pName) ?></b><br>
-                        <small style="color:#333; font-size:9px;">@ <?= format_price($pPrice) ?></small>
-                    </td>
-                    <td class="text-center" style="vertical-align: middle;"><b><?= $pQty ?></b></td>
-                    <td class="text-right" style="vertical-align: middle;"><b><?= format_price($pSubtotal) ?></b></td>
+                    <th class="text-left" style="width: 50%;">Item</th>
+                    <th class="text-center" style="width: 15%;">Qty</th>
+                    <th class="text-right" style="width: 35%;">Total</th>
                 </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                <?php foreach ($bill['items'] as $item): 
+                    $pName = $item['product_name'] ?? $item['name'] ?? 'Item';
+                    $pQty = $item['total_quantity'] ?? $item['quantity'] ?? 1;
+                    $pPrice = (float)($item['price'] ?? 0);
+                    $pSubtotal = (float)($item['subtotal_price'] ?? ($pPrice * $pQty));
+                ?>
+                    <tr>
+                        <td class="text-left">
+                            <b><?= htmlspecialchars($pName) ?></b><br>
+                            <small style="color:#333; font-size:9px;">@ <?= format_price($pPrice) ?></small>
+                        </td>
+                        <td class="text-center" style="vertical-align: middle;"><b><?= $pQty ?></b></td>
+                        <td class="text-right" style="vertical-align: middle;"><b><?= format_price($pSubtotal) ?></b></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
 
-    <!-- Totals Table -->
-    <table class="totals-table">
-        <tr>
-            <td class="text-left">Subtotal:</td>
-            <td class="text-right"><b><?= format_price($bill['subtotal']) ?> <?= htmlspecialchars($settings['currency_code']) ?></b></td>
-        </tr>
-        <?php if ($settings['tax_type'] === 'VAT'): ?>
+        <!-- Totals Table -->
+        <table class="totals-table">
             <tr>
-                <td class="text-left">VAT (<?= htmlspecialchars($settings['vat_percent']) ?>%):</td>
-                <td class="text-right"><?= format_price($bill['tax_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                <td class="text-left">Subtotal:</td>
+                <td class="text-right"><b><?= format_price($bill['subtotal']) ?> <?= htmlspecialchars($settings['currency_code']) ?></b></td>
             </tr>
-        <?php else: // GST ?>
-            <?php $halfTax = (float)$bill['tax_amount'] / 2.0; ?>
-            <tr>
-                <td class="text-left">CGST (<?= htmlspecialchars($settings['cgst_percent']) ?>%):</td>
-                <td class="text-right"><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
-            </tr>
-            <tr>
-                <td class="text-left">SGST (<?= htmlspecialchars($settings['sgst_percent']) ?>%):</td>
-                <td class="text-right"><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
-            </tr>
-        <?php endif; ?>
+            <?php if ($settings['tax_type'] === 'VAT'): ?>
+                <tr>
+                    <td class="text-left">VAT (<?= htmlspecialchars($settings['vat_percent']) ?>%):</td>
+                    <td class="text-right"><?= format_price($bill['tax_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                </tr>
+            <?php else: // GST ?>
+                <?php $halfTax = (float)$bill['tax_amount'] / 2.0; ?>
+                <tr>
+                    <td class="text-left">CGST (<?= htmlspecialchars($settings['cgst_percent']) ?>%):</td>
+                    <td class="text-right"><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                </tr>
+                <tr>
+                    <td class="text-left">SGST (<?= htmlspecialchars($settings['sgst_percent']) ?>%):</td>
+                    <td class="text-right"><?= format_price($halfTax) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                </tr>
+            <?php endif; ?>
 
-        <?php if (isset($bill['discount_amount']) && (float)$bill['discount_amount'] > 0): ?>
-            <tr>
-                <td class="text-left">Discount (<?= htmlspecialchars($bill['discount_percent']) ?>%):</td>
-                <td class="text-right">-<?= format_price($bill['discount_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+            <?php if (isset($bill['discount_amount']) && (float)$bill['discount_amount'] > 0): ?>
+                <tr>
+                    <td class="text-left">Discount (<?= htmlspecialchars($bill['discount_percent']) ?>%):</td>
+                    <td class="text-right">-<?= format_price($bill['discount_amount']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
+                </tr>
+            <?php endif; ?>
+
+            <tr class="grand-total-row">
+                <td class="text-left">GRAND TOTAL:</td>
+                <td class="text-right"><?= format_price($bill['grand_total']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
             </tr>
-        <?php endif; ?>
+        </table>
 
-        <tr class="grand-total-row">
-            <td class="text-left">GRAND TOTAL:</td>
-            <td class="text-right"><?= format_price($bill['grand_total']) ?> <?= htmlspecialchars($settings['currency_code']) ?></td>
-        </tr>
-    </table>
-
-    <!-- Footer -->
-    <div class="footer text-center">
-        <span>Thank you for dining with us!</span><br>
-        <span style="font-size: 9px; display:block; margin-top:2px;">Powered by Gourmet KOT & Bill System</span>
+        <!-- Footer -->
+        <div class="footer text-center">
+            <span>Thank you for dining with us!</span><br>
+            <span style="font-size: 9px; display:block; margin-top:2px;">Powered by Gourmet KOT & Bill System</span>
+        </div>
     </div>
 
     <script>
         function initPrint() {
-            // Check if not inside an iframe and auto-trigger print
             if (window.self === window.top) {
                 setTimeout(function() {
                     window.print();
@@ -290,7 +312,6 @@
         }
 
         function printViaRawBt() {
-            // Build simple formatted text for RawBT thermal app
             let text = "<?= addslashes(strtoupper($settings['restaurant_name'])) ?>\n";
             text += "TAX INVOICE\n";
             text += "--------------------------------\n";

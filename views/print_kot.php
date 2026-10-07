@@ -16,15 +16,25 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", Courier, monospace;
-            width: <?= (int)$settings['printer_size'] === 58 ? '52mm' : '76mm' ?>;
+            margin: 0;
+            padding: 10px 0;
+            background: #f9fafb;
+            color: #000;
+        }
+        
+        /* Receipt container with safe 5mm inner margins from paper edges */
+        .receipt-container {
+            width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?>;
             max-width: 100%;
             margin: 0 auto;
-            padding: 8px 4px;
-            font-size: 13px;
-            color: #000;
+            padding: 6px 5mm;
             background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+            font-size: 13px;
             line-height: 1.35;
         }
+        
         .text-center { text-align: center; }
         .text-left { text-align: left; }
         .text-right { text-align: right; }
@@ -36,12 +46,12 @@
             margin-bottom: 6px;
         }
         .title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 900;
             margin: 2px 0;
         }
         .table-num {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 900;
             border: 2px solid #000;
             display: inline-block;
@@ -80,7 +90,7 @@
             text-align: center;
         }
         .item-name {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
         }
         .item-notes {
@@ -98,15 +108,17 @@
         }
 
         .no-print-bar {
-            background: #f3f4f6;
+            max-width: 320px;
+            margin: 0 auto 12px auto;
+            background: #fff;
             border: 1px solid #d1d5db;
             border-radius: 8px;
             padding: 10px;
-            margin-bottom: 15px;
             display: flex;
             gap: 8px;
             justify-content: center;
             flex-wrap: wrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         }
         .btn-print {
             background: #4f46e5;
@@ -130,13 +142,22 @@
         }
 
         @media print {
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+            .receipt-container {
+                width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
+                max-width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
+                margin: 0 auto !important;
+                padding: 4px 5mm 15px 5mm !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
             .no-print-bar {
                 display: none !important;
-            }
-            body {
-                width: 100%;
-                padding: 0;
-                margin: 0;
             }
         }
     </style>
@@ -149,51 +170,53 @@
         <button class="btn-print" style="background:#6b7280;" onclick="window.close()">❌ Close</button>
     </div>
 
-    <div class="header text-center">
-        <span class="title">KITCHEN ORDER TICKET</span><br>
-        <div class="table-num">
-            <?php if (!empty($kot['order_type']) && $kot['order_type'] === 'take_away'): ?>
-                TAKEAWAY #<?= htmlspecialchars($kot['token_number'] ?? $kot['order_id'] ?? $kot['table_number']) ?>
-            <?php else: ?>
-                TABLE <?= htmlspecialchars($kot['table_number']) ?>
-            <?php endif; ?>
+    <div class="receipt-container">
+        <div class="header text-center">
+            <span class="title">KITCHEN ORDER TICKET</span><br>
+            <div class="table-num">
+                <?php if (!empty($kot['order_type']) && $kot['order_type'] === 'take_away'): ?>
+                    TAKEAWAY #<?= htmlspecialchars($kot['token_number'] ?? $kot['order_id'] ?? $kot['table_number']) ?>
+                <?php else: ?>
+                    TABLE <?= htmlspecialchars($kot['table_number']) ?>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
 
-    <table class="meta-table">
-        <tr>
-            <td class="text-left" style="width: 50%;">KOT: <b><?= htmlspecialchars($kot['kot_number'] ?? $kot['id']) ?></b></td>
-            <td class="text-right" style="width: 50%;">Waiter: <b><?= htmlspecialchars($kot['waiter_name'] ?? 'Self-Order') ?></b></td>
-        </tr>
-        <tr>
-            <td class="text-left" colspan="2">Date: <?= date('d-M-Y h:i A', strtotime($kot['created_at'])) ?></td>
-        </tr>
-    </table>
-
-    <table class="items-table">
-        <thead>
+        <table class="meta-table">
             <tr>
-                <th class="text-center" style="width: 20%;">Qty</th>
-                <th class="text-left" style="width: 80%;">Item / Prep Note</th>
+                <td class="text-left" style="width: 50%;">KOT: <b><?= htmlspecialchars($kot['kot_number'] ?? $kot['id']) ?></b></td>
+                <td class="text-right" style="width: 50%;">Waiter: <b><?= htmlspecialchars($kot['waiter_name'] ?? 'Self-Order') ?></b></td>
             </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($kot['items'] as $item): ?>
-                <tr>
-                    <td class="item-qty"><?= $item['quantity'] ?></td>
-                    <td>
-                        <span class="item-name"><?= htmlspecialchars($item['product_name']) ?></span>
-                        <?php if (!empty($item['notes'])): ?>
-                            <span class="item-notes">* <?= htmlspecialchars($item['notes']) ?></span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+            <tr>
+                <td class="text-left" colspan="2">Date: <?= date('d-M-Y h:i A', strtotime($kot['created_at'])) ?></td>
+            </tr>
+        </table>
 
-    <div class="footer text-center">
-        <span>Printed at <?= date('h:i:s A') ?></span>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 20%;">Qty</th>
+                    <th class="text-left" style="width: 80%;">Item / Prep Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($kot['items'] as $item): ?>
+                    <tr>
+                        <td class="item-qty"><?= $item['quantity'] ?></td>
+                        <td>
+                            <span class="item-name"><?= htmlspecialchars($item['product_name']) ?></span>
+                            <?php if (!empty($item['notes'])): ?>
+                                <span class="item-notes">* <?= htmlspecialchars($item['notes']) ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <div class="footer text-center">
+            <span>Printed at <?= date('h:i:s A') ?></span>
+        </div>
     </div>
 
     <script>
