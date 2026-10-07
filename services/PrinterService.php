@@ -214,10 +214,10 @@ class PrinterService {
         $data .= "KITCHEN ORDER TICKET\n";
         $data .= $doubleDiv;
 
-        // Table / Token Section (High Visibility)
+        // Table / Token Section (Clean, standard font size)
         $data .= self::cmdAlign(1);
         $data .= self::cmdBold(true);
-        $data .= self::cmdSize(2, 2);
+        $data .= self::cmdSize(1, 1);
         
         $tableNum = !empty($kot['table_number']) ? $kot['table_number'] : '-';
         if (!empty($kot['order_type']) && $kot['order_type'] === 'take_away') {
@@ -229,7 +229,6 @@ class PrinterService {
             $data .= "TABLE: $tableNum\n";
         }
 
-        $data .= self::cmdSize(1, 1);
         $data .= self::cmdBold(false);
         $data .= $doubleDiv;
 
@@ -251,7 +250,7 @@ class PrinterService {
         $data .= self::cmdBold(false);
         $data .= $divider;
 
-        // Items List
+        // Items List (Clean & Compact Font)
         if (!empty($kot['items'])) {
             foreach ($kot['items'] as $item) {
                 $qty = (int)$item['quantity'];
@@ -259,22 +258,19 @@ class PrinterService {
                 $notes = trim($item['notes'] ?? '');
 
                 $data .= self::cmdBold(true);
+                $data .= self::cmdSize(1, 1);
                 if ($printerSize === 58) {
-                    $data .= self::cmdSize(1, 1);
                     $data .= self::formatRow($name, "x$qty", $width, $marginCols);
                 } else {
-                    $data .= self::cmdSize(1, 2); // Taller font for kitchen readability
                     $wQty = 8;
                     $wItem = max(10, $width - $marginCols - $wQty);
                     $data .= str_repeat(' ', $marginCols) . str_pad("$qty x", $wQty, ' ', STR_PAD_RIGHT) . str_pad($name, $wItem, ' ', STR_PAD_RIGHT) . "\n";
                 }
-                $data .= self::cmdSize(1, 1);
                 $data .= self::cmdBold(false);
 
                 if (!empty($notes)) {
                     $data .= str_repeat(' ', $marginCols) . "  >> NOTE: " . $notes . "\n";
                 }
-                $data .= "\n";
             }
         }
 
@@ -345,9 +341,8 @@ class PrinterService {
         // Restaurant Header
         $data .= self::cmdAlign(1); // Center
         $data .= self::cmdBold(true);
-        $data .= self::cmdSize(2, 2);
-        $data .= ($settings['restaurant_name'] ?? 'GOURMET RESTAURANT') . "\n";
         $data .= self::cmdSize(1, 1);
+        $data .= strtoupper($settings['restaurant_name'] ?? 'GOURMET RESTAURANT') . "\n";
         $data .= "TAX INVOICE\n";
         $data .= self::cmdBold(false);
         $data .= $doubleDiv;
