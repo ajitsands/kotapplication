@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Print KOT | <?= htmlspecialchars($kot['kot_number']) ?></title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <?php
         $marginLeft = isset($settings['print_margin_left']) ? (int)$settings['print_margin_left'] : 5;
         $marginRight = isset($settings['print_margin_right']) ? (int)$settings['print_margin_right'] : 5;
@@ -230,9 +231,28 @@
         const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
         const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
 
+        function showNotification(type, title, message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: type,
+                    title: title,
+                    text: message || '',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2500,
+                    timerProgressBar: true,
+                    background: '#111827',
+                    color: '#f9fafb'
+                });
+            } else {
+                alert(title + (message ? '\n' + message : ''));
+            }
+        }
+
         function triggerKotPrint() {
             const btn = document.querySelector('.btn-print');
-            if (btn) btn.innerText = '⏳ Sending to Printer...';
+            if (btn) btn.innerText = '⏳ Sending...';
 
             const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
 
@@ -244,12 +264,12 @@
                             const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
                             const parsed = JSON.parse(resStr);
                             if (parsed.success) {
-                                alert('✅ KOT Printed to EASY+ POS (' + printerIp + ')');
+                                showNotification('success', '🖨️ KOT Printed to EASY+ POS', 'Dispatched to ' + printerIp);
                             } else {
-                                alert('❌ Printer error: ' + (parsed.error || 'Check printer connection'));
+                                showNotification('error', 'Printer Error', parsed.error || 'Check printer connection');
                             }
                         } catch (e) {
-                            alert('❌ Error: ' + e.message);
+                            showNotification('error', 'Print Error', e.message);
                         }
                     } else {
                         // Trigger server direct-print
@@ -257,9 +277,10 @@
                             .then(r => r.json())
                             .then(d => {
                                 if (d.success) {
-                                    alert('✅ KOT Printed to EASY+ POS!');
+                                    showNotification('success', '🖨️ KOT Printed to EASY+ POS', 'Direct network print successful');
                                 } else if (d.base64 && window.parent && window.parent !== window) {
                                     window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64 }, '*');
+                                    showNotification('success', '🖨️ Sent to Driver', 'Dispatched to printer');
                                 } else {
                                     window.print();
                                 }

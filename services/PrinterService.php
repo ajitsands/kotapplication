@@ -338,11 +338,12 @@ class PrinterService {
         // Kick Cash Drawer on bill printing
         $data .= self::cmdKickDrawer();
 
-        // Restaurant Header
+        // Restaurant Header (Company Name Larger & Prominent)
         $data .= self::cmdAlign(1); // Center
         $data .= self::cmdBold(true);
-        $data .= self::cmdSize(1, 1);
+        $data .= self::cmdSize(2, 2);
         $data .= strtoupper($settings['restaurant_name'] ?? 'GOURMET RESTAURANT') . "\n";
+        $data .= self::cmdSize(1, 1);
         $data .= "TAX INVOICE\n";
         $data .= self::cmdBold(false);
         $data .= $doubleDiv;
