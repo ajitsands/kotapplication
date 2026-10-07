@@ -171,9 +171,9 @@
 <body>
 
     <div class="no-print-bar">
-        <button class="btn-print" onclick="window.print()">🖨️ Print KOT</button>
+        <button class="btn-print" onclick="triggerKotPrint()">🖨️ Print KOT (Thermal)</button>
         <button class="btn-rawbt" onclick="printKotViaRawBt()">⚡ RawBT (Tab Direct)</button>
-        <button class="btn-print" style="background:#6b7280;" onclick="window.close()">❌ Close</button>
+        <button class="btn-print" style="background:#6b7280;" onclick="closeKotPage()">❌ Close</button>
     </div>
 
     <div class="receipt-container">
@@ -226,6 +226,67 @@
     </div>
 
     <script>
+        const kotId = <?= (int)($kot['id'] ?? 0) ?>;
+        const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+        const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+
+        function triggerKotPrint() {
+            const btn = document.querySelector('.btn-print');
+            if (btn) btn.innerText = '⏳ Sending to Printer...';
+
+            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+
+            fetch('/kot/escpos/' + kotId)
+                .then(res => res.json())
+                .then(data => {
+                    if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
+                        try {
+                            const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
+                            const parsed = JSON.parse(resStr);
+                            if (parsed.success) {
+                                alert('✅ KOT Printed to EASY+ POS (' + printerIp + ')');
+                            } else {
+                                alert('❌ Printer error: ' + (parsed.error || 'Check printer connection'));
+                            }
+                        } catch (e) {
+                            alert('❌ Error: ' + e.message);
+                        }
+                    } else {
+                        // Trigger server direct-print
+                        fetch('/kot/direct-print/' + kotId)
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.success) {
+                                    alert('✅ KOT Printed to EASY+ POS!');
+                                } else if (d.base64 && window.parent && window.parent !== window) {
+                                    window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64 }, '*');
+                                } else {
+                                    window.print();
+                                }
+                            })
+                            .catch(err => {
+                                window.print();
+                            });
+                    }
+                })
+                .catch(err => {
+                    window.print();
+                })
+                .finally(() => {
+                    if (btn) btn.innerText = '🖨️ Print KOT (Thermal)';
+                });
+        }
+
+        function closeKotPage() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/kot';
+            }
+        }
+
         function printKotViaRawBt() {
             let text = "--------------------------------\n";
             text += "     KITCHEN ORDER TICKET       \n";

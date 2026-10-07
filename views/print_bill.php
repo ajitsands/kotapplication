@@ -168,9 +168,9 @@
 
     <!-- Control bar for touch screens and mobile tablets -->
     <div class="no-print-bar">
-        <button class="btn-print" onclick="window.print()">🖨️ Print Receipt</button>
+        <button class="btn-print" onclick="triggerReceiptPrint()">🖨️ Print Receipt (Thermal)</button>
         <button class="btn-rawbt" onclick="printViaRawBt()">⚡ RawBT (Tab Direct)</button>
-        <button class="btn-print" style="background:#6b7280;" onclick="window.close()">❌ Close</button>
+        <button class="btn-print" style="background:#6b7280;" onclick="closeReceiptPage()">❌ Close</button>
     </div>
 
     <div class="receipt-container">
@@ -309,6 +309,67 @@
     </div>
 
     <script>
+        const billId = <?= (int)($bill['id'] ?? $bill['order_id'] ?? 0) ?>;
+        const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+        const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+
+        function triggerReceiptPrint() {
+            const btn = document.querySelector('.btn-print');
+            if (btn) btn.innerText = '⏳ Sending to Printer...';
+
+            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+
+            fetch('/counter/escpos-bill/' + billId)
+                .then(res => res.json())
+                .then(data => {
+                    if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
+                        try {
+                            const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
+                            const parsed = JSON.parse(resStr);
+                            if (parsed.success) {
+                                alert('✅ Receipt Printed to EASY+ POS (' + printerIp + ')');
+                            } else {
+                                alert('❌ Printer error: ' + (parsed.error || 'Check printer connection'));
+                            }
+                        } catch (e) {
+                            alert('❌ Error: ' + e.message);
+                        }
+                    } else {
+                        // Trigger server direct-print
+                        fetch('/counter/direct-print/' + billId)
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.success) {
+                                    alert('✅ Receipt Printed to EASY+ POS!');
+                                } else if (d.base64 && window.parent && window.parent !== window) {
+                                    window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64 }, '*');
+                                } else {
+                                    window.print();
+                                }
+                            })
+                            .catch(err => {
+                                window.print();
+                            });
+                    }
+                })
+                .catch(err => {
+                    window.print();
+                })
+                .finally(() => {
+                    if (btn) btn.innerText = '🖨️ Print Receipt (Thermal)';
+                });
+        }
+
+        function closeReceiptPage() {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            } else if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/counter';
+            }
+        }
+
         function printViaRawBt() {
             let text = "<?= addslashes(strtoupper($settings['restaurant_name'])) ?>\n";
             text += "TAX INVOICE\n";

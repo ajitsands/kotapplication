@@ -1,8 +1,10 @@
 package com.sandslab.kotdriver;
 
+import android.app.Activity;
 import android.util.Base64;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import org.json.JSONObject;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -14,6 +16,16 @@ import java.net.Socket;
  */
 public class PrinterBridge {
     private static final String TAG = "SaNDSPrinterBridge";
+    private Activity activity;
+    private WebView webView;
+
+    public PrinterBridge() {
+    }
+
+    public PrinterBridge(Activity activity, WebView webView) {
+        this.activity = activity;
+        this.webView = webView;
+    }
 
     @JavascriptInterface
     public String printTcp(String ip, int port, String base64Data) {
@@ -63,5 +75,29 @@ public class PrinterBridge {
         }
 
         return result.toString();
+    }
+
+    @JavascriptInterface
+    public void goBack() {
+        if (activity != null && webView != null) {
+            activity.runOnUiThread(() -> {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                }
+            });
+        }
+    }
+
+    @JavascriptInterface
+    public void closeWindow() {
+        if (activity != null && webView != null) {
+            activity.runOnUiThread(() -> {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    activity.finish();
+                }
+            });
+        }
     }
 }

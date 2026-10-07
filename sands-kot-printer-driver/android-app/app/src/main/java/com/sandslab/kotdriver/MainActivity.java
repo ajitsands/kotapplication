@@ -44,10 +44,19 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         // Expose Native TCP Socket Printer Bridge to JavaScript
-        webView.addJavascriptInterface(new PrinterBridge(), "AndroidPrintBridge");
+        webView.addJavascriptInterface(new PrinterBridge(this, webView), "AndroidPrintBridge");
 
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onCloseWindow(WebView window) {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    finish();
+                }
+            }
+        });
 
         // Load Driver Portal
         webView.loadUrl("https://kot.sandslab.com/sands-kot-printer-driver/");
