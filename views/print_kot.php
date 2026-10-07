@@ -168,7 +168,7 @@
         }
     </style>
 </head>
-<body onload="initPrint()">
+<body>
 
     <div class="no-print-bar">
         <button class="btn-print" onclick="window.print()">🖨️ Print KOT</button>
@@ -226,14 +226,6 @@
     </div>
 
     <script>
-        function initPrint() {
-            if (window.self === window.top) {
-                setTimeout(function() {
-                    window.print();
-                }, 400);
-            }
-        }
-
         function printKotViaRawBt() {
             let text = "--------------------------------\n";
             text += "     KITCHEN ORDER TICKET       \n";

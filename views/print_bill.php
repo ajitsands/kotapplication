@@ -164,7 +164,7 @@
         }
     </style>
 </head>
-<body onload="initPrint()">
+<body>
 
     <!-- Control bar for touch screens and mobile tablets -->
     <div class="no-print-bar">
@@ -309,14 +309,6 @@
     </div>
 
     <script>
-        function initPrint() {
-            if (window.self === window.top) {
-                setTimeout(function() {
-                    window.print();
-                }, 400);
-            }
-        }
-
         function printViaRawBt() {
             let text = "<?= addslashes(strtoupper($settings['restaurant_name'])) ?>\n";
             text += "TAX INVOICE\n";

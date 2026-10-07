@@ -1909,37 +1909,91 @@
 
         function printBill(billId) {
             const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
-            if (printerMode === 'network' || printerMode === 'both') {
-                fetch(rootPath + '/counter/direct-print/' + billId)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
+            const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+            const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+
+            if (printerMode === 'browser') {
+                const url = rootPath + '/counter/print/' + billId;
+                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                return;
+            }
+
+            // Network / Silent Direct ESC/POS printing (Zero Popups)
+            fetch(rootPath + '/counter/direct-print/' + billId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '🖨️ Bill Printed to EASY+ POS',
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
+                        }
+                    } else if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
+                        try {
+                            const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
+                            const parsed = JSON.parse(resStr);
+                            if (parsed.success) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: '🖨️ Bill Printed to EASY+ POS',
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    });
+                                }
+                            } else {
+                                throw new Error(parsed.error || 'Failed to communicate with printer');
+                            }
+                        } catch (err) {
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
                                     toast: true,
                                     position: 'top-end',
-                                    icon: 'success',
-                                    title: '🖨️ Bill Printed to EASY+ POS',
+                                    icon: 'error',
+                                    title: 'Printer error: ' + err.message,
                                     showConfirmButton: false,
-                                    timer: 2000
+                                    timer: 3500
                                 });
                             }
-                        } else {
-                            console.warn('Network print failed, fallback to browser print:', data.error);
-                            if (printerMode === 'network') {
-                                window.open(rootPath + '/counter/print/' + billId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-                            }
                         }
-                    })
-                    .catch(err => {
-                        console.error('Direct print error:', err);
-                        window.open(rootPath + '/counter/print/' + billId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-                    });
-            }
-            if (printerMode === 'browser' || printerMode === 'both') {
-                const url = rootPath + '/counter/print/' + billId;
-                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-            }
+                    } else {
+                        // Relay via postMessage if running in SaNDS Driver iframe
+                        if (window.parent && window.parent !== window && data.base64) {
+                            window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64 }, '*');
+                        }
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'warning',
+                                title: 'Printer offline (' + (data.error || 'Check printer IP: ' + printerIp) + ')',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Direct print error:', err);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: 'Failed to trigger printer',
+                            showConfirmButton: false,
+                            timer: 2500
+                        });
+                    }
+                });
         }
 
         function openPaymentModal(billId) {
@@ -3757,37 +3811,91 @@
 
         function printOrderReceipt(orderId) {
             const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
-            if (printerMode === 'network' || printerMode === 'both') {
-                fetch(rootPath + '/counter/direct-print-order/' + orderId)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
+            const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+            const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+
+            if (printerMode === 'browser') {
+                const url = rootPath + '/print/order/' + orderId;
+                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                return;
+            }
+
+            // Network / Silent Direct ESC/POS printing (Zero Popups)
+            fetch(rootPath + '/counter/direct-print-order/' + orderId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '🖨️ Receipt Printed to EASY+ POS',
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
+                        }
+                    } else if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
+                        try {
+                            const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
+                            const parsed = JSON.parse(resStr);
+                            if (parsed.success) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: '🖨️ Receipt Printed to EASY+ POS',
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    });
+                                }
+                            } else {
+                                throw new Error(parsed.error || 'Failed to communicate with printer');
+                            }
+                        } catch (err) {
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
                                     toast: true,
                                     position: 'top-end',
-                                    icon: 'success',
-                                    title: '🖨️ Receipt Printed to EASY+ POS',
+                                    icon: 'error',
+                                    title: 'Printer error: ' + err.message,
                                     showConfirmButton: false,
-                                    timer: 2000
+                                    timer: 3500
                                 });
                             }
-                        } else {
-                            console.warn('Network print failed, fallback to browser print:', data.error);
-                            if (printerMode === 'network') {
-                                window.open(rootPath + '/print/order/' + orderId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-                            }
                         }
-                    })
-                    .catch(err => {
-                        console.error('Direct print error:', err);
-                        window.open(rootPath + '/print/order/' + orderId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-                    });
-            }
-            if (printerMode === 'browser' || printerMode === 'both') {
-                const url = rootPath + '/print/order/' + orderId;
-                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
-            }
+                    } else {
+                        // Relay via postMessage if running in SaNDS Driver iframe
+                        if (window.parent && window.parent !== window && data.base64) {
+                            window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64 }, '*');
+                        }
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'warning',
+                                title: 'Printer offline (' + (data.error || 'Check printer IP: ' + printerIp) + ')',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Direct print error:', err);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: 'Failed to trigger printer',
+                            showConfirmButton: false,
+                            timer: 2500
+                        });
+                    }
+                });
         }
     </script>
 

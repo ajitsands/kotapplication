@@ -79,6 +79,13 @@ class KotController extends Controller {
         $this->json($result);
     }
 
+    public function getEscPos($params) {
+        require_once __DIR__ . '/../services/PrinterService.php';
+        $kotId = (int)($params['id'] ?? 0);
+        $result = PrinterService::getKotEscPos($kotId);
+        $this->json($result);
+    }
+
     public function deleteItem($params) {
         $itemId = (int)($params['id'] ?? 0);
         $kotModel = new Kot();
