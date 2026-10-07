@@ -104,20 +104,38 @@ async function callActivateApi(licenseKey, domain, ipAddress) {
         ip_address: ipAddress ? ipAddress.trim() : ''
     };
 
-    const response = await fetch(KEY_ACTIVATION_API, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
+    const endpoints = ['activate.php', '/api/activate-license', KEY_ACTIVATION_API];
+    let lastError = 'License activation failed. Please check your key.';
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-        throw new Error(data.message || 'License activation failed. Please verify your key.');
+    for (const url of endpoints) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                lastError = errData.message || `HTTP ${response.status} from key server.`;
+                continue;
+            }
+
+            const data = await response.json();
+            if (data && data.success) {
+                return data;
+            } else if (data && data.message) {
+                throw new Error(data.message);
+            }
+        } catch (e) {
+            if (e.message && !e.message.includes('fetch')) {
+                throw e;
+            }
+            lastError = e.message || 'Connection error';
+        }
     }
 
-    return data;
+    throw new Error(lastError);
 }
 
 /**

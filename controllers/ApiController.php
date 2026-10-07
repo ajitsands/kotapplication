@@ -365,4 +365,62 @@ class ApiController extends Controller {
             $this->json(['success' => false, 'error' => $errMsg]);
         }
     }
+
+    public function activateLicense() {
+        $input = $this->getJsonInput();
+        $licenseKey = trim($input['license_key'] ?? '');
+        $domain = trim($input['domain_name'] ?? '');
+        $ip = trim($input['ip_address'] ?? '');
+
+        if (empty($licenseKey)) {
+            $this->json(['success' => false, 'message' => 'License key is required.'], 400);
+        }
+
+        if (empty($domain)) {
+            $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        }
+
+        $cleanDomain = preg_replace('#^https?://#', '', $domain);
+        $cleanDomain = explode('/', $cleanDomain)[0];
+        $cleanDomain = explode(':', $cleanDomain)[0];
+
+        if (empty($ip)) {
+            $ip = gethostbyname($cleanDomain);
+            if ($ip === $cleanDomain || $ip === '127.0.0.1') {
+                $ip = @file_get_contents('https://api.ipify.org') ?: ($_SERVER['SERVER_ADDR'] ?? '');
+            }
+        }
+
+        $payload = [
+            'license_key' => $licenseKey,
+            'domain_name' => $cleanDomain,
+            'ip_address'  => trim($ip)
+        ];
+
+        $ch = curl_init('https://key.sandslab.com/public/api/activate');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT => 15
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            $this->json(['success' => false, 'message' => 'Failed to reach key server: ' . $curlError], 500);
+        }
+
+        $data = json_decode($response, true);
+        if (!$data) {
+            $this->json(['success' => false, 'message' => 'Invalid response from key server.'], 500);
+        }
+
+        $this->json($data, $httpCode ?: 200);
+    }
 }

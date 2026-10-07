@@ -162,6 +162,7 @@ $router->add('POST', '/api/notifications/dispatch/:id', 'ApiController@dispatchK
 $router->add('GET', '/api/orders/status/:id', 'ApiController@getOrderStatus');
 $router->add('GET', '/api/orders/mobile/:mobile', 'ApiController@getActiveOrderByMobile');
 $router->add('POST', '/api/orders/received/:id', 'ApiController@customerItemReceived');
+$router->add('POST', '/api/activate-license', 'ApiController@activateLicense');
 // Catch-all Customer Web Menu for scanned QR code (e.g. /customer/5)
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
 $router->add('GET', '/takeaway', 'HomeController@takeawayView');
