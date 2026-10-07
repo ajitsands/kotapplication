@@ -16,6 +16,11 @@ class Setting extends Model {
                 'cgst_percent' => 2.50,
                 'sgst_percent' => 2.50,
                 'printer_size' => 80,
+                'printer_ip' => '192.168.8.101',
+                'printer_port' => 9100,
+                'printer_mode' => 'network',
+                'auto_print_kot' => 1,
+                'auto_print_bill' => 1,
                 'logo_path' => null,
                 'software_expiry_date' => '2027-12-31'
             ];
@@ -33,7 +38,12 @@ class Setting extends Model {
                 vat_percent = ?, 
                 cgst_percent = ?, 
                 sgst_percent = ?, 
-                printer_size = ?";
+                printer_size = ?,
+                printer_ip = ?,
+                printer_port = ?,
+                printer_mode = ?,
+                auto_print_kot = ?,
+                auto_print_bill = ?";
         
         $params = [
             $data['restaurant_name'] ?? 'Gourmet Restaurant',
@@ -44,7 +54,12 @@ class Setting extends Model {
             $data['vat_percent'] ?? 10.00,
             $data['cgst_percent'] ?? 2.50,
             $data['sgst_percent'] ?? 2.50,
-            (int)($data['printer_size'] ?? 80)
+            (int)($data['printer_size'] ?? 80),
+            trim($data['printer_ip'] ?? '192.168.8.101'),
+            (int)($data['printer_port'] ?? 9100),
+            $data['printer_mode'] ?? 'network',
+            isset($data['auto_print_kot']) ? 1 : 0,
+            isset($data['auto_print_bill']) ? 1 : 0
         ];
 
         if ($logoPath !== null) {

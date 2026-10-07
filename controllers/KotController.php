@@ -71,6 +71,14 @@ class KotController extends Controller {
         ]);
     }
 
+    // Direct network print to ESC/POS printer
+    public function directPrint($params) {
+        require_once __DIR__ . '/../services/PrinterService.php';
+        $kotId = (int)($params['id'] ?? 0);
+        $result = PrinterService::printKot($kotId);
+        $this->json($result);
+    }
+
     public function deleteItem($params) {
         $itemId = (int)($params['id'] ?? 0);
         $kotModel = new Kot();

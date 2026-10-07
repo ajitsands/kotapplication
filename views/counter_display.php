@@ -1908,8 +1908,38 @@
         }
 
         function printBill(billId) {
-            const url = rootPath + '/counter/print/' + billId;
-            const printWin = window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
+            if (printerMode === 'network' || printerMode === 'both') {
+                fetch(rootPath + '/counter/direct-print/' + billId)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: '🖨️ Bill Printed to EASY+ POS',
+                                    showConfirmButton: false,
+                                    timer: 2000
+                                });
+                            }
+                        } else {
+                            console.warn('Network print failed, fallback to browser print:', data.error);
+                            if (printerMode === 'network') {
+                                window.open(rootPath + '/counter/print/' + billId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Direct print error:', err);
+                        window.open(rootPath + '/counter/print/' + billId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                    });
+            }
+            if (printerMode === 'browser' || printerMode === 'both') {
+                const url = rootPath + '/counter/print/' + billId;
+                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            }
         }
 
         function openPaymentModal(billId) {
@@ -3726,8 +3756,38 @@
         }
 
         function printOrderReceipt(orderId) {
-            const url = rootPath + '/print/order/' + orderId;
-            window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
+            if (printerMode === 'network' || printerMode === 'both') {
+                fetch(rootPath + '/counter/direct-print-order/' + orderId)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: '🖨️ Receipt Printed to EASY+ POS',
+                                    showConfirmButton: false,
+                                    timer: 2000
+                                });
+                            }
+                        } else {
+                            console.warn('Network print failed, fallback to browser print:', data.error);
+                            if (printerMode === 'network') {
+                                window.open(rootPath + '/print/order/' + orderId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Direct print error:', err);
+                        window.open(rootPath + '/print/order/' + orderId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                    });
+            }
+            if (printerMode === 'browser' || printerMode === 'both') {
+                const url = rootPath + '/print/order/' + orderId;
+                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            }
         }
     </script>
 

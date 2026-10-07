@@ -1145,9 +1145,38 @@
         }
 
         function printKot(kotId) {
-            // Open print window in a small popup
-            const url = 'kot/print/' + kotId;
-            const printWin = window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
+            if (printerMode === 'network' || printerMode === 'both') {
+                fetch('/kot/direct-print/' + kotId)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: '🖨️ KOT Printed to EASY+ POS',
+                                    showConfirmButton: false,
+                                    timer: 2000
+                                });
+                            }
+                        } else {
+                            console.warn('Network print failed, fallback to browser print:', data.error);
+                            if (printerMode === 'network') {
+                                window.open('/kot/print/' + kotId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Direct print error:', err);
+                        window.open('/kot/print/' + kotId, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+                    });
+            }
+            if (printerMode === 'browser' || printerMode === 'both') {
+                const url = '/kot/print/' + kotId;
+                window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+            }
         }
 
         function escapeHtml(str) {

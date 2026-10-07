@@ -1250,7 +1250,7 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="form-label">Time Zone</label>
                             <select name="time_zone" required>
@@ -1263,13 +1263,62 @@
                                 <option value="Asia/Kolkata" <?= $settings['time_zone'] === 'Asia/Kolkata' ? 'selected' : '' ?>>Asia/Kolkata</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Thermal Printer Width</label>
-                            <select name="printer_size" required>
-                                <option value="80" <?= (int)$settings['printer_size'] === 80 ? 'selected' : '' ?>>80 MM Standard Width</option>
-                                <option value="58" <?= (int)$settings['printer_size'] === 58 ? 'selected' : '' ?>>58 MM Compact Width</option>
-                            </select>
+                    </div>
+
+                    <!-- Network ESC/POS Printer Configuration -->
+                    <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 20px; margin: 20px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #818cf8; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                🖨️ ESC/POS Thermal Network Printer (EASY+ POS)
+                            </h4>
+                            <button type="button" onclick="testNetworkPrinter()" id="btn-test-printer" class="btn" style="padding: 6px 14px; font-size: 12px; background: #6366f1; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                ⚡ Send Test Print
+                            </button>
                         </div>
+
+                        <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 15px;">
+                            <div class="form-group">
+                                <label class="form-label">Printer IP Address</label>
+                                <input class="form-input" type="text" name="printer_ip" id="printer_ip_input" value="<?= htmlspecialchars($settings['printer_ip'] ?? '192.168.8.101') ?>" placeholder="e.g. 192.168.8.101" required>
+                                <small style="color: var(--text-muted); font-size: 11px;">Local IP assigned to EASY+ POS</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Printer Port</label>
+                                <input class="form-input" type="number" name="printer_port" id="printer_port_input" value="<?= htmlspecialchars($settings['printer_port'] ?? '9100') ?>" placeholder="9100" required>
+                                <small style="color: var(--text-muted); font-size: 11px;">Standard Port: 9100</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Paper Width</label>
+                                <select name="printer_size" id="printer_size_input" required>
+                                    <option value="80" <?= (int)($settings['printer_size'] ?? 80) === 80 ? 'selected' : '' ?>>80 MM Standard Width</option>
+                                    <option value="58" <?= (int)($settings['printer_size'] ?? 80) === 58 ? 'selected' : '' ?>>58 MM Compact Width</option>
+                                </select>
+                                <small style="color: var(--text-muted); font-size: 11px;">Paper roll width</small>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 12px;">
+                            <div class="form-group">
+                                <label class="form-label">Printing Mode</label>
+                                <select name="printer_mode">
+                                    <option value="network" <?= ($settings['printer_mode'] ?? 'network') === 'network' ? 'selected' : '' ?>>Direct Network ESC/POS (Silent Socket to IP)</option>
+                                    <option value="browser" <?= ($settings['printer_mode'] ?? '') === 'browser' ? 'selected' : '' ?>>Browser Print Dialog (Popup)</option>
+                                    <option value="both" <?= ($settings['printer_mode'] ?? '') === 'both' ? 'selected' : '' ?>>Both (Direct Socket + Browser Backup)</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                                    <input type="checkbox" name="auto_print_kot" value="1" <?= !empty($settings['auto_print_kot']) ? 'checked' : '' ?>>
+                                    <span>⚡ Auto-print KOT on new order from Waiter Tab</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                                    <input type="checkbox" name="auto_print_bill" value="1" <?= !empty($settings['auto_print_bill']) ? 'checked' : '' ?>>
+                                    <span>🧾 Auto-print Bill on Takeaway & Checkout</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="printer-test-result" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 12px;"></div>
                     </div>
 
                     <div class="form-group" style="margin-top: 15px;">
@@ -3655,6 +3704,76 @@
                         document.body.appendChild(iframe);
                     }
                     iframe.src = downloadUrl;
+                }
+            });
+        function testNetworkPrinter() {
+            const ip = document.getElementById('printer_ip_input')?.value || '192.168.8.101';
+            const port = document.getElementById('printer_port_input')?.value || '9100';
+            const btn = document.getElementById('btn-test-printer');
+            const resultBox = document.getElementById('printer-test-result');
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Connecting to ' + ip + '...';
+            }
+
+            if (resultBox) {
+                resultBox.style.display = 'block';
+                resultBox.style.background = 'rgba(99, 102, 241, 0.1)';
+                resultBox.style.color = '#818cf8';
+                resultBox.style.border = '1px solid rgba(99, 102, 241, 0.3)';
+                resultBox.innerHTML = `Connecting to EASY+ POS printer at <b>${ip}:${port}</b>...`;
+            }
+
+            fetch('/admin/printer/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ printer_ip: ip, printer_port: port })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '⚡ Send Test Print';
+                }
+                if (data.success) {
+                    if (resultBox) {
+                        resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                        resultBox.style.color = '#10b981';
+                        resultBox.style.border = '1px solid #10b981';
+                        resultBox.innerHTML = `✅ <b>Success!</b> Test slip sent to printer at <b>${ip}:${port}</b> (${data.bytes} bytes transmitted).`;
+                    }
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Printer Connected!',
+                        text: `Test receipt was successfully sent to EASY+ POS at ${ip}:${port}. Check your printer.`,
+                        confirmButtonColor: '#10b981'
+                    });
+                } else {
+                    if (resultBox) {
+                        resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                        resultBox.style.color = '#ef4444';
+                        resultBox.style.border = '1px solid #ef4444';
+                        resultBox.innerHTML = `❌ <b>Failed:</b> ${data.error || 'Connection timed out'}`;
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Printer Connection Failed',
+                        html: `<p style="font-size: 14px;">Could not connect to printer at <b>${ip}:${port}</b>.</p><p style="font-size: 12px; color: #ef4444;">${data.error || 'Socket connection failed'}</p><p style="font-size: 12px; color: #6b7280;">Ensure the printer is powered ON and connected to Wi-Fi subnet (192.168.8.x).</p>`,
+                        confirmButtonColor: '#ef4444'
+                    });
+                }
+            })
+            .catch(err => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '⚡ Send Test Print';
+                }
+                if (resultBox) {
+                    resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+                    resultBox.style.color = '#ef4444';
+                    resultBox.style.border = '1px solid #ef4444';
+                    resultBox.innerHTML = `❌ <b>Request Error:</b> ${err.message}`;
                 }
             });
         }

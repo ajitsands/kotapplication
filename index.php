@@ -51,6 +51,8 @@ $router->add('POST', '/user/change-password', 'HomeController@changePassword');
 $router->add('GET', '/admin/tax-report/json', 'AdminController@taxReportJson');
 $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
 $router->add('GET', '/admin/waiter-performance/json', 'AdminController@waiterPerformanceJson');
+$router->add('POST', '/admin/printer/test', 'AdminController@testPrinter');
+$router->add('GET', '/admin/printer/test', 'AdminController@testPrinter');
 
 // Inventory & Supplier Routes
 $router->add('GET', '/admin/suppliers/list', 'SupplierController@suppliersListJson');
@@ -97,6 +99,8 @@ $router->add('GET', '/kot/completed', 'KotController@completedList');
 $router->add('POST', '/kot/items/ready/:id', 'KotController@markItemReady');
 $router->add('POST', '/kot/ready/:id', 'KotController@markKotReady');
 $router->add('GET', '/kot/print/:id', 'KotController@printKot');
+$router->add('GET', '/kot/direct-print/:id', 'KotController@directPrint');
+$router->add('POST', '/kot/direct-print/:id', 'KotController@directPrint');
 $router->add('POST', '/kot/items/delete/:id', 'KotController@deleteItem');
 $router->add('POST', '/kot/delete/:id', 'KotController@deleteKot');
 $router->add('GET', '/kot/products/list', 'KotController@productsListJson');
@@ -110,6 +114,10 @@ $router->add('GET', '/counter/bill/:id', 'CounterController@billDetails');
 $router->add('GET', '/counter/customer/lookup', 'CounterController@lookupCustomer');
 $router->add('GET', '/counter/customers', 'CounterController@customersList');
 $router->add('GET', '/counter/print/:id', 'CounterController@printBill');
+$router->add('GET', '/counter/direct-print/:id', 'CounterController@directPrintBill');
+$router->add('POST', '/counter/direct-print/:id', 'CounterController@directPrintBill');
+$router->add('GET', '/counter/direct-print-order/:id', 'CounterController@directPrintOrder');
+$router->add('POST', '/counter/direct-print-order/:id', 'CounterController@directPrintOrder');
 $router->add('POST', '/counter/pay/:id', 'CounterController@payBill');
 $router->add('POST', '/counter/bills/delete/:id', 'CounterController@deleteBill');
 $router->add('POST', '/counter/bills/merge/:table', 'CounterController@mergeBills');

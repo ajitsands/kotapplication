@@ -143,6 +143,22 @@ class ApiController extends Controller {
                     $orderModel->closeOrder($orderId);
                 }
 
+                // Check and trigger auto network printing to EASY+ POS
+                try {
+                    require_once __DIR__ . '/../services/PrinterService.php';
+                    $settingsModel = new Setting();
+                    $settings = $settingsModel->getSettings();
+                    
+                    if (!empty($settings['auto_print_kot']) && ($settings['printer_mode'] ?? 'network') !== 'browser') {
+                        @PrinterService::printKot($kotId);
+                    }
+                    if ($orderType === 'take_away' && !empty($settings['auto_print_bill']) && ($settings['printer_mode'] ?? 'network') !== 'browser') {
+                        @PrinterService::printOrder($orderId);
+                    }
+                } catch (Exception $e) {
+                    // Silently continue if printer is offline so order flow is not blocked
+                }
+
                 // Return token number if it's take_away
                 $orderInfo = $orderModel->getOrderDetails($orderId);
                 

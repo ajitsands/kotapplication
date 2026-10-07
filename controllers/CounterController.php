@@ -246,6 +246,20 @@ class CounterController extends Controller {
         $this->render('print_bill', ['bill' => $bill, 'settings' => $settings]);
     }
 
+    public function directPrintBill($params) {
+        require_once __DIR__ . '/../services/PrinterService.php';
+        $billId = (int)($params['id'] ?? 0);
+        $result = PrinterService::printBill($billId);
+        $this->json($result);
+    }
+
+    public function directPrintOrder($params) {
+        require_once __DIR__ . '/../services/PrinterService.php';
+        $orderId = (int)($params['id'] ?? 0);
+        $result = PrinterService::printOrder($orderId);
+        $this->json($result);
+    }
+
     public function printOrder($params) {
         $orderId = (int)($params['id'] ?? 0);
         $orderModel = new Order();

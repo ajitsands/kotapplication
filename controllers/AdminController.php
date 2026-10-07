@@ -58,6 +58,15 @@ class AdminController extends Controller {
         $this->redirect('/admin');
     }
 
+    public function testPrinter() {
+        require_once __DIR__ . '/../services/PrinterService.php';
+        $ip = $_POST['printer_ip'] ?? $_GET['printer_ip'] ?? null;
+        $port = $_POST['printer_port'] ?? $_GET['printer_port'] ?? null;
+
+        $result = PrinterService::testPrint($ip, $port);
+        $this->json($result);
+    }
+
     public function saveCategory() {
         $id = $_POST['id'] ?? null;
         $name = $_POST['name'] ?? '';
