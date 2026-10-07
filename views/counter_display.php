@@ -747,6 +747,19 @@
             document.body.classList.add('light-theme');
         }
 
+        // Page Zoom scaling
+        let pageZoom = parseFloat(localStorage.getItem('counter_zoom')) || 1.0;
+        function applyPageZoom(z) {
+            pageZoom = Math.min(1.5, Math.max(0.5, Math.round(z * 100) / 100));
+            localStorage.setItem('counter_zoom', pageZoom);
+            document.body.style.zoom = pageZoom;
+            const txt = document.getElementById('page-zoom-text');
+            if (txt) txt.textContent = Math.round(pageZoom * 100) + '%';
+        }
+        function adjustPageZoom(delta) { applyPageZoom(pageZoom + delta); }
+        function resetPageZoom() { applyPageZoom(1.0); }
+        document.addEventListener('DOMContentLoaded', () => { applyPageZoom(pageZoom); });
+
         function toggleTheme() {
             if (document.body.classList.contains('light-theme')) {
                 document.body.classList.remove('light-theme');
@@ -778,6 +791,11 @@
             <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link" style="color: #f59e0b;">🛍️ Take Away QR</a>
             <a href="javascript:void(0)" onclick="showOnlineOrderModal()" class="nav-link" style="color: #10b981;">🌐 Online Order</a>
             <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
+            <div style="display: inline-flex; align-items: center; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 20px; padding: 2px 4px; gap: 3px; margin-right: 8px;">
+                <button type="button" onclick="adjustPageZoom(-0.05)" title="Zoom Out (−)" style="width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: var(--text-color); font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
+                <span id="page-zoom-text" onclick="resetPageZoom()" title="Click to Reset 100%" style="font-size: 11px; font-family: monospace; color: var(--text-muted); cursor: pointer; padding: 0 4px; font-weight: 600;">100%</span>
+                <button type="button" onclick="adjustPageZoom(+0.05)" title="Zoom In (+)" style="width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: var(--text-color); font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+            </div>
             <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout">Logout</a>
         </div>
