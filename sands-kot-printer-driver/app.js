@@ -20,12 +20,39 @@ const defaultConfig = {
 
 let currentConfig = { ...defaultConfig };
 let currentLicense = null;
+let currentZoom = parseFloat(localStorage.getItem('sands_pos_zoom')) || 1.0;
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedData();
+    applyZoom(currentZoom);
     checkInitialState();
 });
+
+function applyZoom(zoom) {
+    currentZoom = Math.min(1.5, Math.max(0.5, Math.round(zoom * 100) / 100));
+    localStorage.setItem('sands_pos_zoom', currentZoom);
+
+    const frame = document.getElementById('pos-frame');
+    const zoomText = document.getElementById('zoom-level-text');
+    if (zoomText) {
+        zoomText.textContent = Math.round(currentZoom * 100) + '%';
+    }
+
+    if (frame) {
+        frame.style.transform = `scale(${currentZoom})`;
+        frame.style.width = `${(100 / currentZoom)}%`;
+        frame.style.height = `${(100 / currentZoom)}%`;
+    }
+}
+
+function adjustZoom(delta) {
+    applyZoom(currentZoom + delta);
+}
+
+function resetZoom() {
+    applyZoom(1.0);
+}
 
 function loadSavedData() {
     try {
@@ -82,6 +109,7 @@ function loadPosPortal() {
 
     frame.src = targetUrl;
     frame.onload = () => {
+        applyZoom(currentZoom);
         setTimeout(() => {
             overlay.classList.add('hidden');
         }, 300);

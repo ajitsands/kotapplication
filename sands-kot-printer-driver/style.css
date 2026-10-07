@@ -121,6 +121,65 @@ body {
     background: var(--danger);
 }
 
+/* Zoom Pill Controls (+ / -) */
+.zoom-pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 2px 4px;
+    gap: 3px;
+    user-select: none;
+}
+
+.zoom-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-main);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.zoom-btn:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+.zoom-btn:active {
+    transform: scale(0.92);
+}
+
+.zoom-display {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.zoom-display:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
 .btn-icon {
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid var(--card-border);
@@ -153,6 +212,7 @@ body {
     width: 100%;
     height: 100%;
     position: relative;
+    overflow: hidden;
 }
 
 #pos-frame {
@@ -160,6 +220,8 @@ body {
     height: 100%;
     border: none;
     display: block;
+    transform-origin: top left;
+    transition: transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out;
 }
 
 .loading-overlay {

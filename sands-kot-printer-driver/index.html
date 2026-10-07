@@ -31,6 +31,16 @@
                 <span class="status-dot green"></span>
                 <span id="license-status-text">Licensed</span>
             </div>
+
+            <!-- Viewport Zoom Controls (+ and -) -->
+            <div class="zoom-pill" title="Scale / Resize Window Content">
+                <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="adjustZoom(-0.05)" title="Make Smaller (−)">−</button>
+                <button type="button" class="zoom-display" id="btn-zoom-reset" onclick="resetZoom()" title="Reset to 100%">
+                    <span id="zoom-level-text">100%</span>
+                </button>
+                <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="adjustZoom(+0.05)" title="Make Bigger (+)">+</button>
+            </div>
+
             <div class="status-badge" id="printer-badge">
                 <span class="status-dot green"></span>
                 <span id="printer-status-text">Printer: 192.168.8.101</span>
