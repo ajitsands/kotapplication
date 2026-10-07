@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Print Bill | <?= htmlspecialchars(!empty($bill['table_number']) && $bill['table_number'] !== '-' ? 'Table '.$bill['table_number'] : ('Order #'.($bill['order_id'] ?? $bill['id']))) ?></title>
+    <?php
+        $marginLeft = isset($settings['print_margin_left']) ? (int)$settings['print_margin_left'] : 5;
+        $marginRight = isset($settings['print_margin_right']) ? (int)$settings['print_margin_right'] : 5;
+        $paperWidth = (int)($settings['printer_size'] ?? 80) === 58 ? 52 : 76;
+        $contentWidth = max(35, $paperWidth - $marginLeft - $marginRight);
+    ?>
     <style>
         @page {
             margin: 0;
@@ -22,12 +28,12 @@
             color: #000;
         }
         
-        /* Receipt container with safe inner margins from physical edges */
+        /* Receipt container with user-configured left and right margins */
         .receipt-container {
-            width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?>;
+            width: <?= $contentWidth ?>mm;
             max-width: 100%;
             margin: 0 auto;
-            padding: 6px 5mm;
+            padding: 6px <?= $marginRight ?>mm 15px <?= $marginLeft ?>mm;
             background: #fff;
             box-shadow: 0 2px 10px rgba(0,0,0,0.08);
             box-sizing: border-box;
@@ -145,10 +151,10 @@
                 width: 100% !important;
             }
             .receipt-container {
-                width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
-                max-width: <?= (int)$settings['printer_size'] === 58 ? '48mm' : '70mm' ?> !important;
+                width: <?= $contentWidth ?>mm !important;
+                max-width: <?= $contentWidth ?>mm !important;
                 margin: 0 auto !important;
-                padding: 4px 5mm 15px 5mm !important;
+                padding: 4px <?= $marginRight ?>mm 15px <?= $marginLeft ?>mm !important;
                 box-shadow: none !important;
                 border: none !important;
             }

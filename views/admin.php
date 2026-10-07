@@ -1323,6 +1323,20 @@
                             </div>
                         </div>
 
+                        <!-- Left & Right Margin Controls -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 12px; background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border);">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">👈 Left Print Margin (mm)</label>
+                                <input class="form-input" type="number" min="0" max="30" name="print_margin_left" value="<?= htmlspecialchars($settings['print_margin_left'] ?? '5') ?>" placeholder="5" required>
+                                <small style="color: var(--text-muted); font-size: 11px;">Distance from left paper edge (Default: 5mm)</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">👉 Right Print Margin (mm)</label>
+                                <input class="form-input" type="number" min="0" max="30" name="print_margin_right" value="<?= htmlspecialchars($settings['print_margin_right'] ?? '5') ?>" placeholder="5" required>
+                                <small style="color: var(--text-muted); font-size: 11px;">Distance from right paper edge (Default: 5mm)</small>
+                            </div>
+                        </div>
+
                         <div id="printer-test-result" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 12px;"></div>
                     </div>
 

@@ -24,6 +24,8 @@ class Setting extends Model {
                 'printer_mode' => 'network',
                 'auto_print_kot' => 1,
                 'auto_print_bill' => 1,
+                'print_margin_left' => 5,
+                'print_margin_right' => 5,
                 'logo_path' => null,
                 'software_expiry_date' => '2027-12-31'
             ];
@@ -49,6 +51,12 @@ class Setting extends Model {
             if (!in_array('auto_print_bill', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN auto_print_bill TINYINT(1) NOT NULL DEFAULT 1");
             }
+            if (!in_array('print_margin_left', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN print_margin_left INT NOT NULL DEFAULT 5");
+            }
+            if (!in_array('print_margin_right', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN print_margin_right INT NOT NULL DEFAULT 5");
+            }
         } catch (Exception $e) {
             // ignore if already present
         }
@@ -69,7 +77,9 @@ class Setting extends Model {
                 printer_port = ?,
                 printer_mode = ?,
                 auto_print_kot = ?,
-                auto_print_bill = ?";
+                auto_print_bill = ?,
+                print_margin_left = ?,
+                print_margin_right = ?";
         
         $params = [
             $data['restaurant_name'] ?? 'Gourmet Restaurant',
@@ -85,7 +95,9 @@ class Setting extends Model {
             (int)($data['printer_port'] ?? 9100),
             $data['printer_mode'] ?? 'network',
             isset($data['auto_print_kot']) ? 1 : 0,
-            isset($data['auto_print_bill']) ? 1 : 0
+            isset($data['auto_print_bill']) ? 1 : 0,
+            max(0, min(30, (int)($data['print_margin_left'] ?? 5))),
+            max(0, min(30, (int)($data['print_margin_right'] ?? 5)))
         ];
 
         if ($logoPath !== null) {
