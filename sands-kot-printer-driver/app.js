@@ -1,0 +1,339 @@
+/**
+ * SaNDS KOT Printer Driver - Main Controller
+ * Integrated with key.sandslab.com License Authentication API
+ */
+
+const STORAGE_KEY_CONFIG = 'sands_kot_config';
+const STORAGE_KEY_LICENSE = 'sands_kot_license';
+const KEY_ACTIVATION_API = 'https://key.sandslab.com/public/api/activate';
+
+const defaultConfig = {
+    domain: 'kot.sandslab.com',
+    printerIp: '192.168.8.101',
+    printerPort: 9100,
+    printerSize: 80,
+    printMode: 'direct',
+    marginLeft: 5,
+    marginRight: 5,
+    licenseKey: ''
+};
+
+let currentConfig = { ...defaultConfig };
+let currentLicense = null;
+
+// Initialize on DOM Ready
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedData();
+    checkInitialState();
+});
+
+function loadSavedData() {
+    try {
+        const savedCfg = localStorage.getItem(STORAGE_KEY_CONFIG);
+        if (savedCfg) {
+            currentConfig = { ...defaultConfig, ...JSON.parse(savedCfg) };
+        }
+        const savedLic = localStorage.getItem(STORAGE_KEY_LICENSE);
+        if (savedLic) {
+            currentLicense = JSON.parse(savedLic);
+        }
+    } catch (e) {
+        console.warn('Error reading saved configuration:', e);
+    }
+}
+
+function checkInitialState() {
+    // Check if license exists and is valid
+    if (!currentLicense || !currentLicense.token) {
+        document.getElementById('first-launch-modal').style.display = 'flex';
+    } else {
+        updateStatusBadges();
+        loadPosPortal();
+    }
+}
+
+function updateStatusBadges() {
+    document.getElementById('status-portal-url').textContent = currentConfig.domain;
+    document.getElementById('printer-status-text').textContent = `Printer: ${currentConfig.printerIp}`;
+
+    const licBadge = document.getElementById('license-badge');
+    const licText = document.getElementById('license-status-text');
+
+    if (currentLicense && currentLicense.token) {
+        licBadge.querySelector('.status-dot').className = 'status-dot green';
+        licText.textContent = 'Licensed';
+    } else {
+        licBadge.querySelector('.status-dot').className = 'status-dot orange';
+        licText.textContent = 'Unlicensed';
+    }
+}
+
+function loadPosPortal() {
+    const overlay = document.getElementById('loading-overlay');
+    const frame = document.getElementById('pos-frame');
+    
+    let targetUrl = currentConfig.domain.trim();
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = 'https://' + targetUrl;
+    }
+
+    overlay.classList.remove('hidden');
+    document.getElementById('loading-text').textContent = `Loading ${currentConfig.domain}...`;
+
+    frame.src = targetUrl;
+    frame.onload = () => {
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+        }, 300);
+    };
+
+    frame.onerror = () => {
+        document.getElementById('loading-text').textContent = `Failed to load ${currentConfig.domain}. Please check domain in settings.`;
+    };
+}
+
+/**
+ * SaNDS License Key Activation via key.sandslab.com
+ */
+async function callActivateApi(licenseKey, domain, ipAddress) {
+    const cleanDomain = domain.replace(/^https?:\/\//, '').split('/')[0];
+    
+    const payload = {
+        license_key: licenseKey.trim(),
+        domain_name: cleanDomain,
+        ip_address: ipAddress ? ipAddress.trim() : ''
+    };
+
+    const response = await fetch(KEY_ACTIVATION_API, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        throw new Error(data.message || 'License activation failed. Please verify your key.');
+    }
+
+    return data;
+}
+
+/**
+ * Handle First Launch Setup
+ */
+async function handleFirstLaunchSetup(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-first-launch');
+    const errBox = document.getElementById('first-launch-error');
+    
+    const licenseKey = document.getElementById('fl-license-key').value.trim();
+    const domain = document.getElementById('fl-domain').value.trim();
+    const printerIp = document.getElementById('fl-printer-ip').value.trim();
+    const printerPort = parseInt(document.getElementById('fl-printer-port').value.trim() || 9100);
+
+    errBox.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = 'Activating License...';
+
+    try {
+        const result = await callActivateApi(licenseKey, domain, printerIp);
+        
+        currentLicense = {
+            licenseKey: licenseKey,
+            token: result.token,
+            publicKey: result.public_key,
+            activatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY_LICENSE, JSON.stringify(currentLicense));
+
+        currentConfig.licenseKey = licenseKey;
+        currentConfig.domain = domain;
+        currentConfig.printerIp = printerIp;
+        currentConfig.printerPort = printerPort;
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
+
+        document.getElementById('first-launch-modal').style.display = 'none';
+        showToast('✅ License Activated Successfully!');
+        updateStatusBadges();
+        loadPosPortal();
+
+    } catch (err) {
+        errBox.style.display = 'block';
+        errBox.textContent = '❌ ' + err.message;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Activate & Launch POS';
+    }
+}
+
+/**
+ * Settings Modal Handlers
+ */
+function openSettingsModal() {
+    document.getElementById('cfg-domain').value = currentConfig.domain;
+    document.getElementById('cfg-printer-ip').value = currentConfig.printerIp;
+    document.getElementById('cfg-printer-port').value = currentConfig.printerPort;
+    document.getElementById('cfg-printer-size').value = currentConfig.printerSize;
+    document.getElementById('cfg-print-mode').value = currentConfig.printMode;
+    document.getElementById('cfg-margin-left').value = currentConfig.marginLeft;
+    document.getElementById('cfg-margin-right').value = currentConfig.marginRight;
+    document.getElementById('cfg-license-key').value = currentConfig.licenseKey || (currentLicense ? currentLicense.licenseKey : '');
+
+    const licBox = document.getElementById('license-info-box');
+    if (currentLicense && currentLicense.token) {
+        licBox.style.display = 'block';
+        licBox.innerHTML = `
+            <div style="font-size: 11px; color: var(--success); font-weight: 600;">
+                ✓ Active License Token Installed
+            </div>
+            <div style="font-size: 10px; color: var(--text-muted); font-family: monospace; margin-top: 4px; word-break: break-all;">
+                Token: ${currentLicense.token.substring(0, 30)}...
+            </div>
+        `;
+    } else {
+        licBox.style.display = 'none';
+    }
+
+    document.getElementById('test-feedback').textContent = '';
+    document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+function handleSaveSettings(e) {
+    e.preventDefault();
+    
+    currentConfig.domain = document.getElementById('cfg-domain').value.trim();
+    currentConfig.printerIp = document.getElementById('cfg-printer-ip').value.trim();
+    currentConfig.printerPort = parseInt(document.getElementById('cfg-printer-port').value.trim() || 9100);
+    currentConfig.printerSize = parseInt(document.getElementById('cfg-printer-size').value);
+    currentConfig.printMode = document.getElementById('cfg-print-mode').value;
+    currentConfig.marginLeft = parseInt(document.getElementById('cfg-margin-left').value || 5);
+    currentConfig.marginRight = parseInt(document.getElementById('cfg-margin-right').value || 5);
+
+    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
+
+    closeSettingsModal();
+    showToast('⚙️ Settings saved and applied!');
+    updateStatusBadges();
+    loadPosPortal();
+}
+
+/**
+ * Activate License Key from Settings Drawer
+ */
+async function activateLicenseKey() {
+    const btn = document.getElementById('btn-activate-key');
+    const key = document.getElementById('cfg-license-key').value.trim();
+    const domain = document.getElementById('cfg-domain').value.trim();
+
+    if (!key) {
+        showToast('Please enter a license key');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '...';
+
+    try {
+        const result = await callActivateApi(key, domain, currentConfig.printerIp);
+        currentLicense = {
+            licenseKey: key,
+            token: result.token,
+            publicKey: result.public_key,
+            activatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY_LICENSE, JSON.stringify(currentLicense));
+        currentConfig.licenseKey = key;
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
+
+        showToast('✅ Key Activated via key.sandslab.com!');
+        updateStatusBadges();
+        openSettingsModal(); // Refresh modal
+    } catch (err) {
+        showToast('❌ ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Activate';
+    }
+}
+
+/**
+ * Test Printer Connection
+ */
+async function testPrinterConnection() {
+    const btn = document.getElementById('btn-modal-test');
+    const fb = document.getElementById('test-feedback');
+    
+    const tempConfig = {
+        ...currentConfig,
+        printerIp: document.getElementById('cfg-printer-ip').value.trim(),
+        printerPort: parseInt(document.getElementById('cfg-printer-port').value.trim() || 9100),
+        printerSize: parseInt(document.getElementById('cfg-printer-size').value),
+        marginLeft: parseInt(document.getElementById('cfg-margin-left').value || 5),
+        marginRight: parseInt(document.getElementById('cfg-margin-right').value || 5),
+        printMode: document.getElementById('cfg-print-mode').value
+    };
+
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Testing...';
+    fb.style.color = 'var(--text-muted)';
+    fb.textContent = `Connecting to ${tempConfig.printerIp}:${tempConfig.printerPort}...`;
+
+    try {
+        const rawReceipt = EscPos.buildTestReceipt(tempConfig);
+        const res = await EscPos.print(rawReceipt, tempConfig);
+
+        if (res.success) {
+            fb.style.color = 'var(--success)';
+            fb.textContent = '✓ Test receipt sent to printer!';
+            showToast('🖨️ Test Print Successful!');
+        } else {
+            fb.style.color = 'var(--danger)';
+            fb.textContent = '✗ ' + (res.error || 'Connection failed');
+        }
+    } catch (err) {
+        fb.style.color = 'var(--danger)';
+        fb.textContent = '✗ ' + err.message;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Test Connection to Printer';
+    }
+}
+
+async function quickTestPrint() {
+    showToast(`⚡ Sending test print to ${currentConfig.printerIp}...`);
+    try {
+        const rawReceipt = EscPos.buildTestReceipt(currentConfig);
+        await EscPos.print(rawReceipt, currentConfig);
+        showToast('✅ Test slip dispatched to EASY+ POS!');
+    } catch (err) {
+        showToast('❌ Print failed: ' + err.message);
+    }
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.warn('Fullscreen error:', err);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.style.display = 'flex';
+    
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+}
