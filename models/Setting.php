@@ -2,6 +2,9 @@
 
 class Setting extends Model {
     public function getSettings() {
+        // Automatically ensure printer columns exist on server
+        $this->ensurePrinterColumns();
+
         $stmt = $this->db->query("SELECT * FROM settings ORDER BY id DESC LIMIT 1");
         $settings = $stmt->fetch();
         if (!$settings) {
@@ -26,6 +29,29 @@ class Setting extends Model {
             ];
         }
         return $settings;
+    }
+
+    private function ensurePrinterColumns() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM settings")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('printer_ip', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN printer_ip VARCHAR(45) NOT NULL DEFAULT '192.168.8.101'");
+            }
+            if (!in_array('printer_port', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN printer_port INT NOT NULL DEFAULT 9100");
+            }
+            if (!in_array('printer_mode', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN printer_mode ENUM('browser', 'network', 'both') NOT NULL DEFAULT 'network'");
+            }
+            if (!in_array('auto_print_kot', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN auto_print_kot TINYINT(1) NOT NULL DEFAULT 1");
+            }
+            if (!in_array('auto_print_bill', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN auto_print_bill TINYINT(1) NOT NULL DEFAULT 1");
+            }
+        } catch (Exception $e) {
+            // ignore if already present
+        }
     }
 
     public function updateSettings($data, $logoPath = null) {

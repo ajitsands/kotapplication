@@ -859,17 +859,22 @@
         function selectSection(id, icon, label) {
             // Switch content pane
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+            const targetPane = document.getElementById(id);
+            if (targetPane) targetPane.classList.add('active');
             // Save state
             localStorage.setItem('admin_active_tab', id);
             // Update dropdown items
             document.querySelectorAll('.nav-dropdown-item').forEach(el => el.classList.remove('active'));
-            document.getElementById('item-' + id).classList.add('active');
+            const targetItem = document.getElementById('item-' + id);
+            if (targetItem) targetItem.classList.add('active');
             // Update trigger label
-            document.getElementById('dropdown-icon').textContent = icon;
-            document.getElementById('dropdown-label').textContent = label;
+            const dIcon = document.getElementById('dropdown-icon');
+            if (dIcon && icon) dIcon.textContent = icon;
+            const dLabel = document.getElementById('dropdown-label');
+            if (dLabel && label) dLabel.textContent = label;
             // Close dropdown
-            document.getElementById('section-dropdown').classList.remove('open');
+            const sDropdown = document.getElementById('section-dropdown');
+            if (sDropdown) sDropdown.classList.remove('open');
             // Fire data-fetch hooks (same as old switchTab)
             if (id === 'closures' && typeof fetchClosures === 'function') fetchClosures();
             else if (id === 'customers' && typeof fetchAdminCustomers === 'function') fetchAdminCustomers();
@@ -3706,6 +3711,8 @@
                     iframe.src = downloadUrl;
                 }
             });
+        }
+
         function testNetworkPrinter() {
             const ip = document.getElementById('printer_ip_input')?.value || '192.168.8.101';
             const port = document.getElementById('printer_port_input')?.value || '9100';
@@ -3714,7 +3721,7 @@
 
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = '⏳ Connecting to ' + ip + '...';
+                btn.innerHTML = '⏳ Testing Connection...';
             }
 
             if (resultBox) {
@@ -3722,7 +3729,7 @@
                 resultBox.style.background = 'rgba(99, 102, 241, 0.1)';
                 resultBox.style.color = '#818cf8';
                 resultBox.style.border = '1px solid rgba(99, 102, 241, 0.3)';
-                resultBox.innerHTML = `Connecting to EASY+ POS printer at <b>${ip}:${port}</b>...`;
+                resultBox.innerHTML = `Attempting ESC/POS socket connection to <b>${ip}:${port}</b>...`;
             }
 
             fetch('/admin/printer/test', {
@@ -3750,17 +3757,33 @@
                         confirmButtonColor: '#10b981'
                     });
                 } else {
+                    const isCloud = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('192.168.');
                     if (resultBox) {
                         resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
                         resultBox.style.color = '#ef4444';
                         resultBox.style.border = '1px solid #ef4444';
-                        resultBox.innerHTML = `❌ <b>Failed:</b> ${data.error || 'Connection timed out'}`;
+                        resultBox.innerHTML = `❌ <b>Socket Notice:</b> ${data.error || 'Connection timed out'}`;
                     }
+                    
+                    let helpHtml = `<p style="font-size: 14px;">Could not connect to printer at <b>${ip}:${port}</b> from server.</p>`;
+                    if (isCloud) {
+                        helpHtml += `<div style="text-align: left; background: rgba(99, 102, 241, 0.08); padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 10px; color: var(--text-color);">
+                            <b>💡 Cloud Server & Local Printer Note:</b><br>
+                            Since this system is hosted on the cloud (<code>${window.location.hostname}</code>), the cloud server cannot reach your private local Wi-Fi IP (<code>${ip}</code>) directly.<br><br>
+                            <b>To print from your Tablet (192.168.8.45) in the restaurant:</b><br>
+                            1. Set <b>Printing Mode</b> to <b>"Browser Print Dialog"</b> or use the <b>RawBT Print Service</b> on your Android Tablet.<br>
+                            2. When you tap Print, your tablet (which is on the same local Wi-Fi) sends the print job straight to your EASY+ POS printer!
+                        </div>`;
+                    } else {
+                        helpHtml += `<p style="font-size: 12px; color: #ef4444;">${data.error || 'Socket connection failed'}</p><p style="font-size: 12px; color: #6b7280;">Ensure the printer is powered ON and connected to Wi-Fi subnet (${ip}).</p>`;
+                    }
+
                     Swal.fire({
-                        icon: 'error',
-                        title: 'Printer Connection Failed',
-                        html: `<p style="font-size: 14px;">Could not connect to printer at <b>${ip}:${port}</b>.</p><p style="font-size: 12px; color: #ef4444;">${data.error || 'Socket connection failed'}</p><p style="font-size: 12px; color: #6b7280;">Ensure the printer is powered ON and connected to Wi-Fi subnet (192.168.8.x).</p>`,
-                        confirmButtonColor: '#ef4444'
+                        icon: isCloud ? 'info' : 'error',
+                        title: isCloud ? 'Local Wi-Fi Printer Configuration' : 'Printer Connection Failed',
+                        html: helpHtml,
+                        confirmButtonColor: '#6366f1',
+                        confirmButtonText: 'Understood'
                     });
                 }
             })
