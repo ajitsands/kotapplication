@@ -182,13 +182,82 @@
             text-align: center;
         }
 
-        /* SaNDS Lab KOT Printer Driver App Download Banner */
+        /* Segmented Auth Tabs */
+        .auth-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 22px;
+            gap: 4px;
+        }
+
+        body.light-theme .auth-tabs {
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        .auth-tab-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 11px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        body.light-theme .auth-tab-btn.active {
+            background: #ffffff;
+            color: #1f2937;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        body:not(.light-theme) .auth-tab-btn.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .auth-tab-badge {
+            font-size: 9.5px;
+            font-weight: 800;
+            background: #22c55e;
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .auth-pane {
+            display: none;
+            animation: fadeInTab 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .auth-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeInTab {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SaNDS Lab KOT Printer Driver & Admin App Download Banners */
         .driver-download-card {
             background: rgba(34, 197, 94, 0.08);
             border: 1px solid rgba(34, 197, 94, 0.3);
             border-radius: 18px;
             padding: 15px;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -352,12 +421,55 @@
                     <div style="width: 60px; height: 60px; border-radius: 14px; background: var(--primary-grad); margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 24px;">G</div>
                 <?php endif; ?>
                 <h1 class="restaurant-title"><?= htmlspecialchars($settings['restaurant_name']) ?></h1>
-                <p class="subtitle">Enter credentials to access dashboard</p>
+                <p class="subtitle">Access POS &amp; Management Dashboard</p>
             </div>
 
-            <!-- Native Android Apps Download Section -->
-            <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
-                <!-- KOT Admin App Card -->
+            <!-- Segmented Switcher Tabs (Login vs Downloads) -->
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-btn-login" onclick="switchAuthTab('login')">
+                    <span>🔐 Sign In</span>
+                </button>
+                <button type="button" class="auth-tab-btn" id="tab-btn-downloads" onclick="switchAuthTab('downloads')">
+                    <span>📱 Downloads</span>
+                    <span class="auth-tab-badge">2 APKs</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: SIGN IN PANE (SELECTED BY DEFAULT) -->
+            <div id="auth-pane-login" class="auth-pane active">
+                <?php if (isset($error)): ?>
+                    <div class="error-message">
+                        <?= htmlspecialchars($error) ?>
+                    </div>
+                <?php endif; ?>
+
+                <form action="login" method="POST">
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username</label>
+                        <input class="form-input" type="text" id="username" name="username" placeholder="e.g. admin" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-submit">Sign In</button>
+                </form>
+
+                <div style="margin-top: 18px; text-align: center;">
+                    <button type="button" onclick="switchAuthTab('downloads')" style="background: none; border: none; color: #16a34a; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit;">
+                        <span>📱 Need Android Apps? Download APKs</span> &rarr;
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: DOWNLOADS PANE (SHOWS BOTH APKS) -->
+            <div id="auth-pane-downloads" class="auth-pane">
+                <div style="margin-bottom: 14px; text-align: left;">
+                    <div style="font-size: 14.5px; font-weight: 800; color: var(--text-color);">Native Android Apps</div>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Download APKs for your Android phones, tablets, and POS devices.</p>
+                </div>
+
+                <!-- 1. KOT Admin App Card -->
                 <div class="driver-download-card">
                     <div class="driver-card-top">
                         <div class="sands-app-icon" title="KOT Admin App for Android">
@@ -373,7 +485,7 @@
                                 <span class="driver-title">KOT Admin App</span>
                                 <span class="driver-badge">Admin APK</span>
                             </div>
-                            <p class="driver-subtitle">Real-time Radar, Collections & Shift Closings</p>
+                            <p class="driver-subtitle">Live Operations, Collections &amp; Shift Closings</p>
                         </div>
                     </div>
                     <a href="/download/admin-apk" class="btn-apk-dl" download="SaNDS-KOT-Admin.apk" title="Download KOT Admin App APK">
@@ -386,8 +498,8 @@
                     </a>
                 </div>
 
-                <!-- SaNDS Lab KOT Printer Driver App -->
-                <div class="driver-download-card">
+                <!-- 2. SaNDS Lab KOT Printer Driver App -->
+                <div class="driver-download-card" style="margin-top: 8px;">
                     <div class="driver-card-top">
                         <div class="sands-app-icon" title="SaNDS Lab KOT Printer Driver App">
                             <!-- Printer Icon -->
@@ -404,7 +516,7 @@
                                 <span class="driver-title">SaNDS KOT Driver</span>
                                 <span class="driver-badge">Driver APK</span>
                             </div>
-                            <p class="driver-subtitle">Install for Thermal POS & Network Printing</p>
+                            <p class="driver-subtitle">Thermal Network POS &amp; Receipt Printing</p>
                         </div>
                     </div>
                     <a href="/download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
@@ -416,25 +528,13 @@
                         <span>Download Driver App (APK)</span>
                     </a>
                 </div>
+
+                <div style="margin-top: 18px; text-align: center;">
+                    <button type="button" onclick="switchAuthTab('login')" style="background: none; border: none; color: #6366f1; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit;">
+                        &larr; <span>Back to Sign In</span>
+                    </button>
+                </div>
             </div>
-
-            <?php if (isset($error)): ?>
-                <div class="error-message">
-                    <?= htmlspecialchars($error) ?>
-                </div>
-            <?php endif; ?>
-
-            <form action="login" method="POST">
-                <div class="form-group">
-                    <label class="form-label" for="username">Username</label>
-                    <input class="form-input" type="text" id="username" name="username" placeholder="e.g. admin" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="password">Password</label>
-                    <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn-submit">Sign In</button>
-            </form>
 
             <div class="login-footer" style="margin-top: 30px; font-size: 12px; color: var(--text-muted);">
                 Powered By <a href="javascript:void(0)" onclick="openSandsModal()" style="color: #818cf8; text-decoration: none; font-weight: 600;">SaNDS Lab</a>. All rights reserved to <?= htmlspecialchars($settings['restaurant_name']) ?>
@@ -480,6 +580,38 @@
     </div>
 
     <script>
+        // Tab Switcher between Login and Downloads
+        function switchAuthTab(tab) {
+            const loginBtn = document.getElementById('tab-btn-login');
+            const dlBtn = document.getElementById('tab-btn-downloads');
+            const loginPane = document.getElementById('auth-pane-login');
+            const dlPane = document.getElementById('auth-pane-downloads');
+
+            if (!loginBtn || !dlBtn || !loginPane || !dlPane) return;
+
+            if (tab === 'downloads') {
+                loginBtn.classList.remove('active');
+                dlBtn.classList.add('active');
+                loginPane.classList.remove('active');
+                dlPane.classList.add('active');
+            } else {
+                dlBtn.classList.remove('active');
+                loginBtn.classList.add('active');
+                dlPane.classList.remove('active');
+                loginPane.classList.add('active');
+                const u = document.getElementById('username');
+                if (u) u.focus();
+            }
+        }
+
+        // Check hash or query param on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (window.location.hash === '#downloads' || urlParams.get('tab') === 'downloads') {
+                switchAuthTab('downloads');
+            }
+        });
+
         function openSandsProductsModal() {
             closeSandsModal();
             document.getElementById('sands-products-modal').style.display = 'flex';
