@@ -40,24 +40,35 @@
             padding: 0;
         }
 
+        html {
+            min-height: 100%;
+        }
+
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg-color);
             background-image: 
                 radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
                 radial-gradient(at 90% 80%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
-            height: 100vh;
+            background-attachment: fixed;
+            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--text-color);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 24px 16px;
         }
 
         .login-container {
             width: 100%;
             max-width: 420px;
-            padding: 20px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .login-card {
@@ -66,18 +77,19 @@
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--card-border);
             border-radius: 24px;
-            padding: 40px 30px;
+            padding: 32px 26px 26px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             text-align: center;
             position: relative;
             overflow: hidden;
-            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            width: 100%;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -86,19 +98,19 @@
         }
 
         .logo-area {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .logo-img {
-            max-width: 80px;
+            max-width: 68px;
             height: auto;
-            border-radius: 16px;
-            margin-bottom: 15px;
+            border-radius: 14px;
+            margin-bottom: 10px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
         }
 
         .restaurant-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             letter-spacing: -0.5px;
             background: var(--primary-grad);
@@ -107,13 +119,13 @@
         }
 
         .subtitle {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-muted);
-            margin-top: 5px;
+            margin-top: 3px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             text-align: left;
         }
 
@@ -407,10 +419,62 @@
         .btn-apk-dl:active {
             transform: translateY(0);
         }
+
+        #theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 1000;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        body.light-theme #theme-toggle {
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px 12px;
+            }
+            .login-card {
+                padding: 24px 18px 20px;
+                border-radius: 20px;
+            }
+            .restaurant-title {
+                font-size: 20px;
+            }
+            .subtitle {
+                font-size: 12px;
+            }
+            .auth-tabs {
+                margin-bottom: 16px;
+            }
+            .form-input {
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+            .btn-submit {
+                padding: 12px;
+                font-size: 15px;
+            }
+        }
     </style>
 </head>
 <body class="light-theme">
-    <button id="theme-toggle" onclick="toggleTheme()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 1000; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">🌓</button>
+    <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">🌓</button>
 
     <div class="login-container">
         <div class="login-card">
@@ -600,7 +664,9 @@
                 dlPane.classList.remove('active');
                 loginPane.classList.add('active');
                 const u = document.getElementById('username');
-                if (u) u.focus();
+                if (u && typeof u.focus === 'function') {
+                    try { u.focus({ preventScroll: true }); } catch (e) { u.focus(); }
+                }
             }
         }
 
