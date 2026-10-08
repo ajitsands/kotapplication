@@ -123,31 +123,64 @@ class AdminAppController extends Controller {
         $activeTakeaways = $db->query($sqlActiveTakeaways)->fetchAll();
         $totalActiveTakeawaysCount = $takeawayOrdersCount + count($activeTakeaways);
 
-        // 4. Collection Summary for Today
+        // 4. Live Real-Time Collections for Dashboard (Includes Today's bills + all Active Cashier Shifts)
+        $sqlLive = "SELECT 
+                        COUNT(DISTINCT b.id) as total_bills,
+                        COUNT(DISTINCT CASE WHEN b.payment_method = 'cash' THEN b.id END) as cash_bills,
+                        COUNT(DISTINCT CASE WHEN b.payment_method = 'card' THEN b.id END) as card_bills,
+                        COUNT(DISTINCT CASE WHEN b.payment_method = 'qr_pay' THEN b.id END) as qr_bills,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                        COALESCE(SUM(b.grand_total), 0) as grand_total,
+                        COALESCE(SUM(b.tax_amount), 0) as total_tax,
+                        COALESCE(SUM(b.discount_amount), 0) as total_discount
+                    FROM bills b
+                    WHERE b.status = 'paid'
+                      AND (
+                          DATE(b.created_at) = ?
+                          OR b.id IN (
+                              SELECT b2.id 
+                              FROM bills b2
+                              JOIN counter_sessions cs ON b2.cashier_id = cs.cashier_id
+                              WHERE b2.status = 'paid' 
+                                AND cs.status IN ('open', 'close_requested')
+                                AND b2.created_at >= cs.opened_at
+                          )
+                      )";
+        $stmtLive = $db->prepare($sqlLive);
+        $stmtLive->execute([$today]);
+        $liveData = $stmtLive->fetch(PDO::FETCH_ASSOC);
+
         $billModel = new Bill();
-        $todayCollection = $billModel->getCollectionSummary($today, $today, null);
-        $todayRefunds = $billModel->getRefundTotal($today, $today);
+        $todayRefunds = (float)$billModel->getRefundTotal($today, $today);
         $todayOnline = $billModel->getOnlineOrdersBreakdown($today, $today);
+        $onlineTotal = (float)($todayOnline['total'] ?? 0);
+
+        $grandTotal = (float)($liveData['grand_total'] ?? 0);
+        $actualTotal = max(0, $grandTotal - $todayRefunds + $onlineTotal);
+
+        $todayCollection = [
+            'cash_total' => (float)$liveData['cash_total'],
+            'card_total' => (float)$liveData['card_total'],
+            'qr_total' => (float)$liveData['qr_total'],
+            'grand_total' => $grandTotal,
+            'refund_total' => $todayRefunds,
+            'online_total' => $onlineTotal,
+            'online_breakdown' => $todayOnline['breakdown'] ?? [],
+            'actual_total' => $actualTotal
+        ];
+
+        $billStats = [
+            'total_bills' => (int)$liveData['total_bills'],
+            'cash_bills' => (int)$liveData['cash_bills'],
+            'card_bills' => (int)$liveData['card_bills'],
+            'qr_bills' => (int)$liveData['qr_bills'],
+            'total_tax' => (float)$liveData['total_tax'],
+            'total_discount' => (float)$liveData['total_discount']
+        ];
+
         $cashiersBreakdown = $billModel->getCashiersBreakdown($today, $today);
-
-        $todayCollection['refund_total'] = (float)$todayRefunds;
-        $todayCollection['online_total'] = (float)$todayOnline['total'];
-        $todayCollection['online_breakdown'] = $todayOnline['breakdown'];
-        $todayCollection['actual_total'] = max(0, (float)$todayCollection['grand_total'] - (float)$todayRefunds + (float)$todayOnline['total']);
-
-        // Today's order counts
-        $sqlStats = "SELECT 
-                        COUNT(DISTINCT id) as total_bills,
-                        COUNT(DISTINCT CASE WHEN payment_method = 'cash' THEN id END) as cash_bills,
-                        COUNT(DISTINCT CASE WHEN payment_method = 'card' THEN id END) as card_bills,
-                        COUNT(DISTINCT CASE WHEN payment_method = 'qr_pay' THEN id END) as qr_bills,
-                        COALESCE(SUM(tax_amount), 0) as total_tax,
-                        COALESCE(SUM(discount_amount), 0) as total_discount
-                     FROM bills 
-                     WHERE status = 'paid' AND DATE(created_at) = ?";
-        $stmtStats = $db->prepare($sqlStats);
-        $stmtStats->execute([$today]);
-        $billStats = $stmtStats->fetch();
 
         // 5. Cashier Closures & Active Shift Sessions
         $csModel = new CounterSession();

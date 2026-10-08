@@ -1210,7 +1210,7 @@
                 <div class="hero-revenue-card">
                     <div class="hero-top-row">
                         <span class="hero-label">
-                            <span>⚡</span> Today's Net Collection
+                            <span>⚡</span> Live Real-Time Collection
                         </span>
                         <span class="hero-date-tag" id="dash-today-date"><?= date('d M Y') ?></span>
                     </div>
@@ -1235,6 +1235,15 @@
                             <div class="hero-chip-val" id="dash-online-val">0.000</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Live Active Cashier Counters Section -->
+                <div id="dash-active-cashiers-section" style="display: none; margin-bottom: 4px;">
+                    <div class="section-header-row">
+                        <h2 class="section-title">🟢 Active Cashier Counters</h2>
+                        <span style="font-size: 12px; color: #10b981; font-weight: 700;">Live Shifts in Progress</span>
+                    </div>
+                    <div id="dash-active-cashiers-list" class="data-card-list"></div>
                 </div>
 
                 <!-- Urgent Pending Cashier Closings Alert Container -->
@@ -1771,6 +1780,45 @@
 
         // Render live tables and orders list
         renderLiveOrders(ops);
+
+        // Render Active Cashier Shifts directly on Dashboard
+        const activeCashiersSection = document.getElementById('dash-active-cashiers-section');
+        const activeCashiersList = document.getElementById('dash-active-cashiers-list');
+        const activeSessions = (data.collection && data.collection.active_sessions) || (closures && closures.active_sessions) || [];
+
+        if (activeCashiersSection && activeCashiersList) {
+            if (activeSessions.length > 0) {
+                activeCashiersSection.style.display = 'block';
+                let cashiersHtml = '';
+                activeSessions.forEach(s => {
+                    const isRequested = s.status === 'close_requested';
+                    cashiersHtml += `
+                        <div class="list-item-card" style="cursor: default; border: 1.5px solid ${isRequested ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}; background: ${isRequested ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)'};">
+                            <div class="list-item-left">
+                                <div class="list-item-badge" style="background: ${isRequested ? 'var(--amber-grad)' : 'var(--emerald-grad)'}; color: #ffffff;">
+                                    ${isRequested ? '⏳' : '🟢'}
+                                </div>
+                                <div>
+                                    <div class="list-item-title" style="display: flex; align-items: center; gap: 6px;">
+                                        <span>${s.cashier_name || 'Cashier'}</span>
+                                        <span style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px; font-weight: 800; background: ${isRequested ? '#f59e0b' : '#10b981'}; color: #fff; text-transform: uppercase;">
+                                            ${isRequested ? 'Close Requested' : 'Live Shift'}
+                                        </span>
+                                    </div>
+                                    <div class="list-item-meta">Shift Started: ${s.opened_at || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                </div>
+                            </div>
+                            <div class="list-item-right">
+                                <div class="list-item-price" style="color: ${isRequested ? '#f59e0b' : '#10b981'};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                activeCashiersList.innerHTML = cashiersHtml;
+            } else {
+                activeCashiersSection.style.display = 'none';
+            }
+        }
     }
 
     // Render Closings View & Urgent Banner
