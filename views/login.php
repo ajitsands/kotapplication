@@ -355,35 +355,67 @@
                 <p class="subtitle">Enter credentials to access dashboard</p>
             </div>
 
-            <!-- SaNDS Lab KOT Printer Driver App Download Banner -->
-            <div class="driver-download-card">
-                <div class="driver-card-top">
-                    <div class="sands-app-icon" title="SaNDS Lab KOT Printer Driver App">
-                        <!-- Printer Icon -->
-                        <svg class="printer-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 9V2h12v7"></path>
-                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                            <path d="M6 14h12v8H6z"></path>
-                        </svg>
-                        <!-- Under Printer ICON Write SaNDS -->
-                        <span class="sands-icon-text">SaNDS</span>
-                    </div>
-                    <div class="driver-info">
-                        <div class="driver-badge-row">
-                            <span class="driver-title">SaNDS KOT Driver</span>
-                            <span class="driver-badge">Android APK</span>
+            <!-- Native Android Apps Download Section -->
+            <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
+                <!-- KOT Admin App Card -->
+                <div class="driver-download-card">
+                    <div class="driver-card-top">
+                        <div class="sands-app-icon" title="KOT Admin App for Android">
+                            <!-- Crown / Admin SVG -->
+                            <svg class="printer-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path>
+                            </svg>
+                            <!-- Under Icon Write KOT ADMIN -->
+                            <span class="sands-icon-text" style="font-size: 8.5px; letter-spacing: 0.5px;">KOT ADMIN</span>
                         </div>
-                        <p class="driver-subtitle">Install for Thermal POS & Network Printing</p>
+                        <div class="driver-info">
+                            <div class="driver-badge-row">
+                                <span class="driver-title">KOT Admin App</span>
+                                <span class="driver-badge">Admin APK</span>
+                            </div>
+                            <p class="driver-subtitle">Real-time Radar, Collections & Shift Closings</p>
+                        </div>
                     </div>
+                    <a href="/download/admin-apk" class="btn-apk-dl" download="SaNDS-KOT-Admin.apk" title="Download KOT Admin App APK">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Download KOT Admin App (APK)</span>
+                    </a>
                 </div>
-                <a href="/download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    <span>Download Android App (APK)</span>
-                </a>
+
+                <!-- SaNDS Lab KOT Printer Driver App -->
+                <div class="driver-download-card">
+                    <div class="driver-card-top">
+                        <div class="sands-app-icon" title="SaNDS Lab KOT Printer Driver App">
+                            <!-- Printer Icon -->
+                            <svg class="printer-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 9V2h12v7"></path>
+                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                <path d="M6 14h12v8H6z"></path>
+                            </svg>
+                            <!-- Under Printer ICON Write SaNDS -->
+                            <span class="sands-icon-text">SaNDS</span>
+                        </div>
+                        <div class="driver-info">
+                            <div class="driver-badge-row">
+                                <span class="driver-title">SaNDS KOT Driver</span>
+                                <span class="driver-badge">Driver APK</span>
+                            </div>
+                            <p class="driver-subtitle">Install for Thermal POS & Network Printing</p>
+                        </div>
+                    </div>
+                    <a href="/download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Download Driver App (APK)</span>
+                    </a>
+                </div>
             </div>
 
             <?php if (isset($error)): ?>
