@@ -1789,7 +1789,13 @@
 
         // Filter: ONLY show open shifts on the Dashboard active counters list.
         // Sessions with status === 'close_requested' are shown in the Shift Closings section / banner.
-        const openSessions = activeSessions.filter(s => s.status === 'open');
+        // If cashier is logged out and has 0.000 total, treat as normal (no shift in progress, no close needed).
+        const openSessions = activeSessions.filter(s => {
+            if (s.status !== 'open') return false;
+            const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
+            const total = parseFloat(s.system_total || s.collected_total || 0);
+            return isOnline || total > 0;
+        });
 
         if (activeCashiersSection && activeCashiersList) {
             if (openSessions.length > 0) {
@@ -2353,11 +2359,17 @@
         const cashiersContainer = document.getElementById('col-cashiers-list');
         let html = '';
 
-        // 1. Show Active Cashier Shifts (Live in Progress / Logged Out / Close Requested)
+        // 1. Show Active Cashier Shifts (Live in Progress / Logged Out with Balance / Close Requested)
         if (data.active_sessions && data.active_sessions.length > 0) {
             data.active_sessions.forEach(s => {
                 const isRequested = s.status === 'close_requested';
                 const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
+                const total = parseFloat(s.system_total || s.collected_total || 0);
+
+                // If cashier is logged out and has 0.000 amount, skip showing as unclosed alert
+                if (!isRequested && !isOnline && total <= 0) {
+                    return;
+                }
                 
                 let badgeHtml = '';
                 let cardBorder = '';
