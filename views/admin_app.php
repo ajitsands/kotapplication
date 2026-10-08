@@ -1818,7 +1818,7 @@
                                         <span style="font-weight: 800;">${s.cashier_name || 'Cashier'}</span>
                                         ${statusBadge}
                                     </div>
-                                    <div class="list-item-meta">Shift Started: ${formatLocalDate(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                    <div class="list-item-meta">Shift Started: ${formatLocalDateTime(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
                                 </div>
                             </div>
                             <div class="list-item-right">
@@ -2180,23 +2180,79 @@
 
     // Helper to format date in Admin Configured Restaurant Timezone (YYYY-MM-DD)
     function formatLocalDate(d, offsetDays = 0) {
-        let targetDate = d;
-        if (offsetDays !== 0) {
-            targetDate = new Date(d.getTime() + (offsetDays * 86400000));
+        if (!d) return '-';
+        let targetDate;
+        if (typeof d === 'string') {
+            const cleanStr = d.replace(' ', 'T');
+            targetDate = new Date(cleanStr);
+            if (isNaN(targetDate.getTime())) {
+                targetDate = new Date(d);
+            }
+            if (isNaN(targetDate.getTime())) {
+                return d;
+            }
+        } else if (d instanceof Date) {
+            targetDate = d;
+        } else {
+            return String(d);
         }
+
+        if (offsetDays !== 0) {
+            targetDate = new Date(targetDate.getTime() + (offsetDays * 86400000));
+        }
+
         try {
             const formatter = new Intl.DateTimeFormat('en-CA', {
-                timeZone: RESTAURANT_TIMEZONE,
+                timeZone: RESTAURANT_TIMEZONE || 'Asia/Bahrain',
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit'
             });
             return formatter.format(targetDate);
         } catch (e) {
-            const year = targetDate.getFullYear();
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            try {
+                const year = targetDate.getFullYear();
+                const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const day = String(targetDate.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            } catch (err) {
+                return typeof d === 'string' ? d : '-';
+            }
+        }
+    }
+
+    // Helper to format human-readable Date & Time in Restaurant Timezone
+    function formatLocalDateTime(d) {
+        if (!d) return '-';
+        let targetDate;
+        if (typeof d === 'string') {
+            const cleanStr = d.replace(' ', 'T');
+            targetDate = new Date(cleanStr);
+            if (isNaN(targetDate.getTime())) {
+                targetDate = new Date(d);
+            }
+            if (isNaN(targetDate.getTime())) {
+                return d;
+            }
+        } else if (d instanceof Date) {
+            targetDate = d;
+        } else {
+            return String(d);
+        }
+
+        try {
+            const formatter = new Intl.DateTimeFormat('en-GB', {
+                timeZone: RESTAURANT_TIMEZONE || 'Asia/Bahrain',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            return formatter.format(targetDate);
+        } catch (e) {
+            return typeof d === 'string' ? d : '-';
         }
     }
 
@@ -2344,7 +2400,7 @@
                                     <span>${s.cashier_name || 'Cashier'}</span>
                                     ${badgeHtml}
                                 </div>
-                                <div class="list-item-meta">Shift Started: ${formatLocalDate(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                <div class="list-item-meta">Shift Started: ${formatLocalDateTime(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
                             </div>
                         </div>
                         <div class="list-item-right">
