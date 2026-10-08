@@ -26,8 +26,48 @@ let currentZoom = parseFloat(localStorage.getItem('sands_pos_zoom')) || 1.0;
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedData();
     applyZoom(currentZoom);
+    startHeaderClock();
     checkInitialState();
 });
+
+// Ordinal suffix helper: 1st, 2nd, 3rd, 4th, 9th, 21st, etc.
+function getOrdinalSuffix(n) {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
+}
+
+// Format date like: "9th Oct 2026 10:20 AM"
+function formatHeaderDateTime(d = new Date()) {
+    const day = d.getDate();
+    const dayWithSuffix = day + getOrdinalSuffix(day);
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    
+    const year = d.getFullYear();
+    
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    return `${dayWithSuffix} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+}
+
+// Real-time Header Clock
+function startHeaderClock() {
+    const el = document.getElementById('header-datetime-text');
+    if (!el) return;
+    
+    const update = () => {
+        el.textContent = formatHeaderDateTime();
+    };
+    
+    update();
+    setInterval(update, 1000);
+}
 
 function applyZoom(zoom) {
     currentZoom = Math.min(1.5, Math.max(0.5, Math.round(zoom * 100) / 100));

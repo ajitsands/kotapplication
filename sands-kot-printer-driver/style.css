@@ -83,6 +83,36 @@ body {
     font-family: 'Fira Code', monospace;
 }
 
+.header-datetime-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--card-border);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-left: 10px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.header-datetime-badge svg {
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .header-datetime-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+        margin-left: 4px;
+    }
+}
+
 .status-indicators {
     display: flex;
     align-items: center;
