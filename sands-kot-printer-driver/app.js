@@ -15,7 +15,8 @@ const defaultConfig = {
     printMode: 'direct',
     marginLeft: 5,
     marginRight: 5,
-    licenseKey: ''
+    licenseKey: '',
+    time_zone: 'Asia/Bahrain'
 };
 
 let currentConfig = { ...defaultConfig };
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedData();
     applyZoom(currentZoom);
     startHeaderClock();
+    fetchServerSettings();
     checkInitialState();
 });
 
@@ -38,22 +40,62 @@ function getOrdinalSuffix(n) {
 }
 
 // Format date like: "9th Oct 2026 10:20 AM"
-function formatHeaderDateTime(d = new Date()) {
-    const day = d.getDate();
-    const dayWithSuffix = day + getOrdinalSuffix(day);
+function formatHeaderDateTime(d = new Date(), timeZone = (currentConfig.time_zone || 'Asia/Bahrain')) {
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: timeZone,
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+        
+        const parts = formatter.formatToParts(d).reduce((acc, p) => {
+            acc[p.type] = p.value;
+            return acc;
+        }, {});
+        
+        const day = parseInt(parts.day, 10);
+        const dayWithSuffix = day + getOrdinalSuffix(day);
+        const month = parts.month;
+        const year = parts.year;
+        const hour = parts.hour;
+        const minute = parts.minute;
+        const dayPeriod = parts.dayPeriod ? parts.dayPeriod.toUpperCase() : (parseInt(parts.hour, 10) >= 12 ? 'PM' : 'AM');
+        
+        return `${dayWithSuffix} ${month} ${year} ${hour}:${minute} ${dayPeriod}`;
+    } catch (e) {
+        const day = d.getDate();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${day}${getOrdinalSuffix(day)} ${months[d.getMonth()]} ${d.getFullYear()} ${hours}:${minutes} ${ampm}`;
+    }
+}
+
+// Fetch Admin configured timezone & settings from POS server
+function fetchServerSettings() {
+    let domain = currentConfig.domain ? currentConfig.domain.trim() : 'kot.sandslab.com';
+    let base = domain;
+    if (!base.startsWith('http://') && !base.startsWith('https://')) {
+        base = (base.includes('localhost') || base.includes('192.168.') || base.includes('127.0.0.1')) ? `http://${base}` : `https://${base}`;
+    }
     
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[d.getMonth()];
-    
-    const year = d.getFullYear();
-    
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    
-    return `${dayWithSuffix} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+    fetch(`${base}/api/settings`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.time_zone) {
+                currentConfig.time_zone = data.time_zone;
+                localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
+            }
+        })
+        .catch(err => {
+            // Keep existing configured timezone
+        });
 }
 
 // Real-time Header Clock
@@ -303,6 +345,7 @@ function handleSaveSettings(e) {
 
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
 
+    fetchServerSettings();
     closeSettingsModal();
     showToast('⚙️ Settings saved and applied!');
     updateStatusBadges();

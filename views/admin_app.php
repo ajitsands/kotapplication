@@ -1556,6 +1556,7 @@
 
 <script>
     const CURRENCY = '<?= htmlspecialchars($settings['currency_code']) ?>';
+    const RESTAURANT_TIMEZONE = '<?= htmlspecialchars($settings['time_zone'] ?? 'Asia/Bahrain') ?>';
     let appSyncTimer = null;
     let syncCountdownSec = 10;
     let currentActiveTab = 'dashboard';
@@ -2165,12 +2166,26 @@
         document.getElementById('order-details-modal').style.display = 'none';
     }
 
-    // Helper to format date in local YYYY-MM-DD
-    function formatLocalDate(d) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+    // Helper to format date in Admin Configured Restaurant Timezone (YYYY-MM-DD)
+    function formatLocalDate(d, offsetDays = 0) {
+        let targetDate = d;
+        if (offsetDays !== 0) {
+            targetDate = new Date(d.getTime() + (offsetDays * 86400000));
+        }
+        try {
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: RESTAURANT_TIMEZONE,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            return formatter.format(targetDate);
+        } catch (e) {
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
     }
 
     // Collection Summary Tab Logic
@@ -2184,23 +2199,19 @@
         let end = '';
 
         if (range === 'today') {
-            start = end = formatLocalDate(today);
+            start = end = formatLocalDate(today, 0);
             document.getElementById('col-range-label').innerText = 'Today';
         } else if (range === 'yesterday') {
-            const y = new Date(today);
-            y.setDate(y.getDate() - 1);
-            start = end = formatLocalDate(y);
+            start = end = formatLocalDate(today, -1);
             document.getElementById('col-range-label').innerText = 'Yesterday';
         } else if (range === 'week') {
-            const w = new Date(today);
-            w.setDate(w.getDate() - 7);
-            start = formatLocalDate(w);
-            end = formatLocalDate(today);
+            start = formatLocalDate(today, -7);
+            end = formatLocalDate(today, 0);
             document.getElementById('col-range-label').innerText = 'Last 7 Days';
         } else if (range === 'month') {
-            const m = new Date(today.getFullYear(), today.getMonth(), 1);
-            start = formatLocalDate(m);
-            end = formatLocalDate(today);
+            const todayStr = formatLocalDate(today, 0);
+            start = todayStr.substring(0, 7) + '-01';
+            end = todayStr;
             document.getElementById('col-range-label').innerText = 'This Month';
         }
 
