@@ -2117,6 +2117,14 @@
         document.getElementById('order-details-modal').style.display = 'none';
     }
 
+    // Helper to format date in local YYYY-MM-DD
+    function formatLocalDate(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     // Collection Summary Tab Logic
     function setCollectionDateFilter(range, btn) {
         document.querySelectorAll('.filter-pills-row .filter-pill').forEach(b => b.classList.remove('active'));
@@ -2128,23 +2136,23 @@
         let end = '';
 
         if (range === 'today') {
-            start = end = today.toISOString().split('T')[0];
+            start = end = formatLocalDate(today);
             document.getElementById('col-range-label').innerText = 'Today';
         } else if (range === 'yesterday') {
             const y = new Date(today);
             y.setDate(y.getDate() - 1);
-            start = end = y.toISOString().split('T')[0];
+            start = end = formatLocalDate(y);
             document.getElementById('col-range-label').innerText = 'Yesterday';
         } else if (range === 'week') {
             const w = new Date(today);
             w.setDate(w.getDate() - 7);
-            start = w.toISOString().split('T')[0];
-            end = today.toISOString().split('T')[0];
+            start = formatLocalDate(w);
+            end = formatLocalDate(today);
             document.getElementById('col-range-label').innerText = 'Last 7 Days';
         } else if (range === 'month') {
             const m = new Date(today.getFullYear(), today.getMonth(), 1);
-            start = m.toISOString().split('T')[0];
-            end = today.toISOString().split('T')[0];
+            start = formatLocalDate(m);
+            end = formatLocalDate(today);
             document.getElementById('col-range-label').innerText = 'This Month';
         }
 
