@@ -29,10 +29,22 @@ class ApiController extends Controller {
             $_SESSION['user_name'] = $name;
             $user['name'] = $name;
 
+            // Track login status
+            $userModel->setLoggedIn($user['id'], 1);
+
             $this->json(['success' => true, 'user' => $user]);
         } else {
             $this->json(['error' => 'Invalid credentials'], 401);
         }
+    }
+
+    public function logout() {
+        if (isset($_SESSION['user_id'])) {
+            $userModel = new User();
+            $userModel->setLoggedIn($_SESSION['user_id'], 0);
+        }
+        session_destroy();
+        $this->json(['success' => true]);
     }
 
     public function user() {

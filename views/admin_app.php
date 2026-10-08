@@ -1782,35 +1782,47 @@
         // Render live tables and orders list
         renderLiveOrders(ops);
 
-        // Render Active Cashier Shifts directly on Dashboard
+        // Render Active Cashier Shifts directly on Dashboard (Open shifts only)
         const activeCashiersSection = document.getElementById('dash-active-cashiers-section');
         const activeCashiersList = document.getElementById('dash-active-cashiers-list');
         const activeSessions = (data.collection && data.collection.active_sessions) || (closures && closures.active_sessions) || [];
 
+        // Filter: ONLY show open shifts on the Dashboard active counters list.
+        // Sessions with status === 'close_requested' are shown in the Shift Closings section / banner.
+        const openSessions = activeSessions.filter(s => s.status === 'open');
+
         if (activeCashiersSection && activeCashiersList) {
-            if (activeSessions.length > 0) {
+            if (openSessions.length > 0) {
                 activeCashiersSection.style.display = 'block';
                 let cashiersHtml = '';
-                activeSessions.forEach(s => {
-                    const isRequested = s.status === 'close_requested';
+                openSessions.forEach(s => {
+                    const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
+                    const statusBadge = isOnline 
+                        ? `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #10b981; color: #fff; text-transform: uppercase; letter-spacing: 0.3px;">🟢 Live</span>`
+                        : `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #ef4444; color: #fff; text-transform: uppercase; letter-spacing: 0.3px;">⚠️ Logged Out without Close</span>`;
+                    
+                    const cardBorder = isOnline ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.45)';
+                    const cardBg = isOnline ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.06)';
+                    const badgeBg = isOnline ? 'var(--emerald-grad)' : 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    const badgeIcon = isOnline ? '🟢' : '⚠️';
+                    const priceColor = isOnline ? '#10b981' : '#ef4444';
+
                     cashiersHtml += `
-                        <div class="list-item-card" style="cursor: default; border: 1.5px solid ${isRequested ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}; background: ${isRequested ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)'};">
+                        <div class="list-item-card" style="cursor: default; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
                             <div class="list-item-left">
-                                <div class="list-item-badge" style="background: ${isRequested ? 'var(--amber-grad)' : 'var(--emerald-grad)'}; color: #ffffff;">
-                                    ${isRequested ? '⏳' : '🟢'}
+                                <div class="list-item-badge" style="background: ${badgeBg}; color: #ffffff;">
+                                    ${badgeIcon}
                                 </div>
                                 <div>
-                                    <div class="list-item-title" style="display: flex; align-items: center; gap: 6px;">
-                                        <span>${s.cashier_name || 'Cashier'}</span>
-                                        <span style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px; font-weight: 800; background: ${isRequested ? '#f59e0b' : '#10b981'}; color: #fff; text-transform: uppercase;">
-                                            ${isRequested ? 'Close Requested' : 'Live Shift'}
-                                        </span>
+                                    <div class="list-item-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                        <span style="font-weight: 800;">${s.cashier_name || 'Cashier'}</span>
+                                        ${statusBadge}
                                     </div>
-                                    <div class="list-item-meta">Shift Started: ${s.opened_at || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                    <div class="list-item-meta">Shift Started: ${formatLocalDate(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
                                 </div>
                             </div>
                             <div class="list-item-right">
-                                <div class="list-item-price" style="color: ${isRequested ? '#f59e0b' : '#10b981'};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                                <div class="list-item-price" style="color: ${priceColor};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
                             </div>
                         </div>
                     `;
@@ -2285,29 +2297,58 @@
         const cashiersContainer = document.getElementById('col-cashiers-list');
         let html = '';
 
-        // 1. Show Active Cashier Shifts (Live in Progress)
+        // 1. Show Active Cashier Shifts (Live in Progress / Logged Out / Close Requested)
         if (data.active_sessions && data.active_sessions.length > 0) {
             data.active_sessions.forEach(s => {
                 const isRequested = s.status === 'close_requested';
+                const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
+                
+                let badgeHtml = '';
+                let cardBorder = '';
+                let cardBg = '';
+                let badgeBg = '';
+                let badgeIcon = '';
+                let priceColor = '';
+
+                if (isRequested) {
+                    badgeHtml = `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #f59e0b; color: #fff; text-transform: uppercase; letter-spacing: 0.3px;">⏳ Close Requested</span>`;
+                    cardBorder = 'rgba(245, 158, 11, 0.4)';
+                    cardBg = 'rgba(245, 158, 11, 0.05)';
+                    badgeBg = 'var(--amber-grad)';
+                    badgeIcon = '⏳';
+                    priceColor = '#f59e0b';
+                } else if (isOnline) {
+                    badgeHtml = `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #10b981; color: #fff; text-transform: uppercase; letter-spacing: 0.3px;">🟢 Live Shift</span>`;
+                    cardBorder = 'rgba(16, 185, 129, 0.4)';
+                    cardBg = 'rgba(16, 185, 129, 0.05)';
+                    badgeBg = 'var(--emerald-grad)';
+                    badgeIcon = '🟢';
+                    priceColor = '#10b981';
+                } else {
+                    badgeHtml = `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #ef4444; color: #fff; text-transform: uppercase; letter-spacing: 0.3px;">⚠️ Logged Out without Close</span>`;
+                    cardBorder = 'rgba(239, 68, 68, 0.45)';
+                    cardBg = 'rgba(239, 68, 68, 0.06)';
+                    badgeBg = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    badgeIcon = '⚠️';
+                    priceColor = '#ef4444';
+                }
+
                 html += `
-                    <div class="list-item-card" style="cursor: default; border: 1.5px solid ${isRequested ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}; background: ${isRequested ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)'};">
+                    <div class="list-item-card" style="cursor: default; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
                         <div class="list-item-left">
-                            <div class="list-item-badge" style="background: ${isRequested ? 'var(--amber-grad)' : 'var(--emerald-grad)'}; color: #ffffff;">
-                                ${isRequested ? '⏳' : '🟢'}
+                            <div class="list-item-badge" style="background: ${badgeBg}; color: #ffffff;">
+                                ${badgeIcon}
                             </div>
                             <div>
-                                <div class="list-item-title" style="display: flex; align-items: center; gap: 6px;">
+                                <div class="list-item-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                     <span>${s.cashier_name || 'Cashier'}</span>
-                                    <span style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px; font-weight: 800; background: ${isRequested ? '#f59e0b' : '#10b981'}; color: #fff; text-transform: uppercase;">
-                                        ${isRequested ? 'Close Requested' : 'Live Shift'}
-                                    </span>
+                                    ${badgeHtml}
                                 </div>
-                                <div class="list-item-meta">Shift Started: ${s.opened_at || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                <div class="list-item-meta">Shift Started: ${formatLocalDate(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
                             </div>
                         </div>
                         <div class="list-item-right">
-                            <div class="list-item-price" style="color: ${isRequested ? '#f59e0b' : '#10b981'};
-">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                            <div class="list-item-price" style="color: ${priceColor};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
                         </div>
                     </div>
                 `;

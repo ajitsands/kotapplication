@@ -129,6 +129,9 @@ class HomeController extends Controller {
             $name = preg_replace('/^waiter\s+/i', '', $name);
             $_SESSION['user_name'] = $name;
 
+            // Track user logged in state
+            $userModel->setLoggedIn($user['id'], 1);
+
             $this->redirect('/');
         } else {
             $settingsModel = new Setting();
@@ -141,6 +144,10 @@ class HomeController extends Controller {
     }
 
     public function logout() {
+        if (isset($_SESSION['user_id'])) {
+            $userModel = new User();
+            $userModel->setLoggedIn($_SESSION['user_id'], 0);
+        }
         session_destroy();
         $this->redirect('/login');
     }

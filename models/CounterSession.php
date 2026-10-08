@@ -180,11 +180,17 @@ class CounterSession extends Model {
     }
 
     /**
-     * Get all active (open or close_requested) cashier sessions with live calculated totals.
+     * Get all active (open or close_requested) cashier sessions with live calculated totals and cashier online status.
      */
     public function getActiveOpenSessions() {
         $stmt = $this->db->query(
-            "SELECT cs.*, u.name as cashier_name
+            "SELECT cs.*, u.name as cashier_name,
+                    COALESCE(u.is_logged_in, 0) as is_logged_in,
+                    u.last_active_at,
+                    (CASE 
+                        WHEN u.is_logged_in = 1 AND (u.last_active_at IS NULL OR u.last_active_at >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)) THEN 1 
+                        ELSE 0 
+                     END) as is_online
              FROM counter_sessions cs
              JOIN users u ON cs.cashier_id = u.id
              WHERE cs.status IN ('open', 'close_requested')
@@ -199,6 +205,8 @@ class CounterSession extends Model {
                 $s['qr_total'] = (float)$totals['qr_total'];
                 $s['system_total'] = (float)$totals['system_total'];
             }
+            $s['is_online'] = (int)($s['is_online'] ?? 0);
+            $s['is_logged_in'] = (int)($s['is_logged_in'] ?? 0);
         }
         return $sessions;
     }

@@ -154,6 +154,8 @@ $router->add('POST', '/counter/refunds/pay/:id', 'CounterController@processRefun
 $router->add('POST', '/counter/refunds/pay-order/:id', 'CounterController@processOrderRefund');
 // Waiter App & Customer API Routes
 $router->add('POST', '/api/login', 'ApiController@login');
+$router->add('POST', '/api/logout', 'ApiController@logout');
+$router->add('GET', '/api/logout', 'ApiController@logout');
 $router->add('GET', '/api/user', 'ApiController@user');
 $router->add('GET', '/api/settings', 'ApiController@settings');
 $router->add('GET', '/api/categories', 'ApiController@categories');

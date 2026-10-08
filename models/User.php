@@ -56,4 +56,42 @@ class User extends Model {
         $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE id = ?");
         return $stmt->execute([$hash, $id]);
     }
+
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM users LIKE 'is_logged_in'")->fetchAll();
+            if (empty($cols)) {
+                $this->db->exec("ALTER TABLE users ADD COLUMN is_logged_in TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active");
+            }
+            $cols2 = $this->db->query("SHOW COLUMNS FROM users LIKE 'last_active_at'")->fetchAll();
+            if (empty($cols2)) {
+                $this->db->exec("ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP NULL DEFAULT NULL AFTER is_logged_in");
+            }
+        } catch (Exception $e) {
+            // Ignore schema errors if already updated or permissions
+        }
+    }
+
+    public function setLoggedIn($userId, $isLoggedIn = 1) {
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET is_logged_in = ?, last_active_at = NOW() WHERE id = ?");
+            return $stmt->execute([(int)$isLoggedIn, (int)$userId]);
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    public function touchActivity($userId) {
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET last_active_at = NOW() WHERE id = ?");
+            return $stmt->execute([(int)$userId]);
+        } catch (Exception $e) {
+            return false;
+        }
+    }
 }
