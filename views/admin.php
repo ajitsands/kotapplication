@@ -996,6 +996,7 @@
         </div>
 
         <div class="header-nav">
+            <a href="/admin-app" class="nav-link" style="background: var(--primary-grad); color: white !important; padding: 6px 14px; border-radius: 8px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">👑 Admin App</a>
             <a href="kot" class="nav-link">KOT Monitor</a>
             <a href="counter" class="nav-link">Billing Counter</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; padding: 6px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px;">📱 Waiter QR</a>

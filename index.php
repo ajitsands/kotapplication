@@ -172,6 +172,19 @@ $router->add('POST', '/api/activate-license', 'ApiController@activateLicense');
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
 $router->add('GET', '/takeaway', 'HomeController@takeawayView');
 
+// Admin Mobile/Web App Routes
+$router->add('GET', '/admin-app', 'AdminAppController@index');
+$router->add('POST', '/api/admin-app/login', 'AdminAppController@login');
+$router->add('GET', '/api/admin-app/dashboard', 'AdminAppController@getDashboardData');
+$router->add('GET', '/api/admin-app/collection', 'AdminAppController@getCollectionSummary');
+$router->add('GET', '/api/admin-app/tables', 'AdminAppController@getEngagedTables');
+$router->add('GET', '/api/admin-app/online-orders', 'AdminAppController@getOnlineOrders');
+$router->add('GET', '/api/admin-app/takeaways', 'AdminAppController@getTakeaways');
+$router->add('GET', '/api/admin-app/closures', 'AdminAppController@getClosures');
+$router->add('POST', '/api/admin-app/closures/approve/:id', 'AdminAppController@approveClosure');
+$router->add('POST', '/api/admin-app/closures/reject/:id', 'AdminAppController@rejectClosure');
+$router->add('GET', '/api/admin-app/order/:id', 'AdminAppController@orderDetails');
+
 // Check for license expiry
 try {
     require_once 'models/Setting.php';
