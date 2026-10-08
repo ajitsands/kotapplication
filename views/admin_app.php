@@ -2222,10 +2222,41 @@
         document.getElementById('pct-qr').innerText = pQr + '%';
         document.getElementById('pct-online').innerText = pOnline + '%';
 
-        // Render Cashiers List
+        // Render Cashiers List & Active Shift Sessions
         const cashiersContainer = document.getElementById('col-cashiers-list');
+        let html = '';
+
+        // 1. Show Active Cashier Shifts (Live in Progress)
+        if (data.active_sessions && data.active_sessions.length > 0) {
+            data.active_sessions.forEach(s => {
+                const isRequested = s.status === 'close_requested';
+                html += `
+                    <div class="list-item-card" style="cursor: default; border: 1.5px solid ${isRequested ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}; background: ${isRequested ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)'};">
+                        <div class="list-item-left">
+                            <div class="list-item-badge" style="background: ${isRequested ? 'var(--amber-grad)' : 'var(--emerald-grad)'}; color: #ffffff;">
+                                ${isRequested ? '⏳' : '🟢'}
+                            </div>
+                            <div>
+                                <div class="list-item-title" style="display: flex; align-items: center; gap: 6px;">
+                                    <span>${s.cashier_name || 'Cashier'}</span>
+                                    <span style="font-size: 9.5px; padding: 2px 6px; border-radius: 6px; font-weight: 800; background: ${isRequested ? '#f59e0b' : '#10b981'}; color: #fff; text-transform: uppercase;">
+                                        ${isRequested ? 'Close Requested' : 'Live Shift'}
+                                    </span>
+                                </div>
+                                <div class="list-item-meta">Shift Started: ${s.opened_at || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                            </div>
+                        </div>
+                        <div class="list-item-right">
+                            <div class="list-item-price" style="color: ${isRequested ? '#f59e0b' : '#10b981'};
+">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 2. Show Date Period Cashier Breakdown
         if (data.cashiers && data.cashiers.length > 0) {
-            let html = '';
             data.cashiers.forEach(c => {
                 html += `
                     <div class="list-item-card" style="cursor: default;">
@@ -2244,9 +2275,12 @@
                     </div>
                 `;
             });
-            cashiersContainer.innerHTML = html;
-        } else {
+        }
+
+        if (html === '') {
             cashiersContainer.innerHTML = '<div class="empty-state">No cashier collections found in selected period.</div>';
+        } else {
+            cashiersContainer.innerHTML = html;
         }
     }
 

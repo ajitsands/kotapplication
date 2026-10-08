@@ -149,10 +149,11 @@ class AdminAppController extends Controller {
         $stmtStats->execute([$today]);
         $billStats = $stmtStats->fetch();
 
-        // 5. Cashier Closures
+        // 5. Cashier Closures & Active Shift Sessions
         $csModel = new CounterSession();
         $pendingClosures = $csModel->getPendingClosures();
         $closureHistory = $csModel->getClosedSessions(15);
+        $activeSessions = $csModel->getActiveOpenSessions();
 
         // Enrich pending closures with variance calculation
         foreach ($pendingClosures as &$pc) {
@@ -181,12 +182,14 @@ class AdminAppController extends Controller {
                 'date' => $today,
                 'summary' => $todayCollection,
                 'stats' => $billStats,
-                'cashiers' => $cashiersBreakdown
+                'cashiers' => $cashiersBreakdown,
+                'active_sessions' => $activeSessions
             ],
             'closures' => [
                 'pending_count' => count($pendingClosures),
                 'pending' => $pendingClosures,
-                'history' => $closureHistory
+                'history' => $closureHistory,
+                'active_sessions' => $activeSessions
             ]
         ]);
     }
@@ -202,6 +205,9 @@ class AdminAppController extends Controller {
         $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
         $onlineData = $billModel->getOnlineOrdersBreakdown($startDate, $endDate);
         $cashiersBreakdown = $billModel->getCashiersBreakdown($startDate, $endDate);
+
+        $csModel = new CounterSession();
+        $activeSessions = $csModel->getActiveOpenSessions();
 
         $summary['refund_total'] = (float)$refundTotal;
         $summary['online_total'] = (float)$onlineData['total'];
@@ -244,6 +250,7 @@ class AdminAppController extends Controller {
             'summary' => $summary,
             'stats' => $stats,
             'cashiers' => $cashiersBreakdown,
+            'active_sessions' => $activeSessions,
             'hourly' => $hourly
         ]);
     }

@@ -178,4 +178,29 @@ class CounterSession extends Model {
         $stmt->execute([$limit]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Get all active (open or close_requested) cashier sessions with live calculated totals.
+     */
+    public function getActiveOpenSessions() {
+        $stmt = $this->db->query(
+            "SELECT cs.*, u.name as cashier_name
+             FROM counter_sessions cs
+             JOIN users u ON cs.cashier_id = u.id
+             WHERE cs.status IN ('open', 'close_requested')
+             ORDER BY cs.opened_at DESC"
+        );
+        $sessions = $stmt->fetchAll();
+        foreach ($sessions as &$s) {
+            $totals = $this->refreshSessionTotals($s['id']);
+            if ($totals) {
+                $s['cash_total'] = (float)$totals['cash_total'];
+                $s['card_total'] = (float)$totals['card_total'];
+                $s['qr_total'] = (float)$totals['qr_total'];
+                $s['system_total'] = (float)$totals['system_total'];
+            }
+        }
+        return $sessions;
+    }
 }
+
