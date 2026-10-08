@@ -184,51 +184,57 @@
 
         /* SaNDS Lab KOT Printer Driver App Download Banner */
         .driver-download-card {
-            background: rgba(34, 197, 94, 0.07);
-            border: 1px solid rgba(34, 197, 94, 0.28);
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
             border-radius: 18px;
-            padding: 14px 16px;
+            padding: 15px;
             margin-bottom: 24px;
             display: flex;
-            align-items: center;
-            gap: 14px;
+            flex-direction: column;
+            gap: 12px;
             text-align: left;
             position: relative;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.1);
+            box-shadow: 0 4px 18px rgba(34, 197, 94, 0.08);
         }
 
         body.light-theme .driver-download-card {
-            background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+            background: linear-gradient(145deg, #f0fdf4, #e8fbf0);
             border: 1px solid rgba(34, 197, 94, 0.35);
-            box-shadow: 0 6px 18px rgba(34, 197, 94, 0.12);
+            box-shadow: 0 6px 18px rgba(34, 197, 94, 0.1);
         }
 
         .driver-download-card:hover {
-            border-color: rgba(34, 197, 94, 0.6);
-            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.25);
-            transform: translateY(-2px);
+            border-color: rgba(34, 197, 94, 0.55);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.18);
+        }
+
+        .driver-card-top {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
         }
 
         .sands-app-icon {
-            width: 60px;
-            height: 60px;
-            min-width: 60px;
-            border-radius: 16px;
+            width: 54px;
+            height: 54px;
+            min-width: 54px;
+            border-radius: 15px;
             background: radial-gradient(circle at 35% 25%, #a3e635 0%, #4ade80 40%, #22c55e 75%, #15803d 100%);
-            box-shadow: 0 8px 22px rgba(34, 197, 94, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.6);
+            box-shadow: 0 6px 18px rgba(34, 197, 94, 0.45), inset 0 2px 3px rgba(255, 255, 255, 0.6);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             position: relative;
             overflow: hidden;
-            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            border: 1.5px solid rgba(255, 255, 255, 0.45);
             color: #ffffff;
             flex-shrink: 0;
-            padding: 4px 2px 2px;
+            padding: 3px 2px 2px;
             transition: transform 0.3s ease;
         }
 
@@ -237,8 +243,8 @@
         }
 
         .sands-app-icon .printer-icon-svg {
-            width: 25px;
-            height: 25px;
+            width: 22px;
+            height: 22px;
             stroke: #ffffff;
             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         }
@@ -246,29 +252,32 @@
         .sands-app-icon .sands-icon-text {
             font-family: 'Outfit', sans-serif;
             font-weight: 900;
-            font-size: 10.5px;
-            letter-spacing: 1px;
+            font-size: 10px;
+            letter-spacing: 0.8px;
             text-transform: uppercase;
             color: #ffffff;
             line-height: 1;
-            margin-top: 3px;
+            margin-top: 2px;
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
         }
 
         .driver-info {
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
         .driver-badge-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 6px;
-            margin-bottom: 2px;
         }
 
         .driver-title {
-            font-size: 13.5px;
+            font-size: 14px;
             font-weight: 800;
             color: var(--text-color);
             letter-spacing: -0.2px;
@@ -280,7 +289,7 @@
         }
 
         .driver-badge {
-            font-size: 9.5px;
+            font-size: 9px;
             font-weight: 800;
             background: #22c55e;
             color: #ffffff;
@@ -288,12 +297,14 @@
             border-radius: 6px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            flex-shrink: 0;
         }
 
         .driver-subtitle {
             font-size: 11.5px;
             color: var(--text-muted);
             line-height: 1.35;
+            margin: 0;
         }
 
         body.light-theme .driver-subtitle {
@@ -301,46 +312,31 @@
         }
 
         .btn-apk-dl {
+            width: 100%;
             background: linear-gradient(135deg, #22c55e, #16a34a);
             color: #ffffff !important;
             text-decoration: none;
-            padding: 9px 13px;
+            padding: 10px 14px;
             border-radius: 12px;
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 700;
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
             transition: all 0.25s ease;
-            flex-shrink: 0;
+            box-sizing: border-box;
         }
 
         .btn-apk-dl:hover {
             background: linear-gradient(135deg, #4ade80, #22c55e);
-            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6);
-            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.55);
+            transform: translateY(-1px);
         }
 
         .btn-apk-dl:active {
-            transform: scale(0.97);
-        }
-
-        @media (max-width: 440px) {
-            .driver-download-card {
-                flex-wrap: wrap;
-                justify-content: center;
-                text-align: center;
-                gap: 10px;
-            }
-            .driver-badge-row {
-                justify-content: center;
-            }
-            .btn-apk-dl {
-                width: 100%;
-                justify-content: center;
-            }
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -361,30 +357,32 @@
 
             <!-- SaNDS Lab KOT Printer Driver App Download Banner -->
             <div class="driver-download-card">
-                <div class="sands-app-icon" title="SaNDS Lab KOT Printer Driver App">
-                    <!-- Printer Icon -->
-                    <svg class="printer-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M6 9V2h12v7"></path>
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                        <path d="M6 14h12v8H6z"></path>
-                    </svg>
-                    <!-- Under Printer ICON Write SaNDS -->
-                    <span class="sands-icon-text">SaNDS</span>
-                </div>
-                <div class="driver-info">
-                    <div class="driver-badge-row">
-                        <span class="driver-title">SaNDS KOT Driver</span>
-                        <span class="driver-badge">Android APK</span>
+                <div class="driver-card-top">
+                    <div class="sands-app-icon" title="SaNDS Lab KOT Printer Driver App">
+                        <!-- Printer Icon -->
+                        <svg class="printer-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9V2h12v7"></path>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                            <path d="M6 14h12v8H6z"></path>
+                        </svg>
+                        <!-- Under Printer ICON Write SaNDS -->
+                        <span class="sands-icon-text">SaNDS</span>
                     </div>
-                    <p class="driver-subtitle">Install for Thermal POS & Network Printing before login</p>
+                    <div class="driver-info">
+                        <div class="driver-badge-row">
+                            <span class="driver-title">SaNDS KOT Driver</span>
+                            <span class="driver-badge">Android APK</span>
+                        </div>
+                        <p class="driver-subtitle">Install for Thermal POS & Network Printing</p>
+                    </div>
                 </div>
                 <a href="/download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Download</span>
+                    <span>Download Android App (APK)</span>
                 </a>
             </div>
 
