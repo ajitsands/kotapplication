@@ -215,4 +215,29 @@ class HomeController extends Controller {
             $this->json(['success' => false, 'error' => 'Current password is incorrect.'], 400);
         }
     }
+
+    public function downloadDriverApk() {
+        $paths = [
+            __DIR__ . '/../downloads/SaNDS-KOT-Printer-Driver.apk',
+            __DIR__ . '/../sands-kot-printer-driver/SaNDS-KOT-Printer-Driver.apk',
+            __DIR__ . '/../SaNDS-KOT-Printer-Driver.apk',
+            __DIR__ . '/../B1-KOT-Printer-Driver.apk'
+        ];
+        foreach ($paths as $path) {
+            if (file_exists($path)) {
+                header('Content-Description: File Transfer');
+                header('Content-Type: application/vnd.android.package-archive');
+                header('Content-Disposition: attachment; filename="SaNDS-KOT-Printer-Driver.apk"');
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+                header('Pragma: public');
+                header('Content-Length: ' . filesize($path));
+                readfile($path);
+                exit;
+            }
+        }
+        http_response_code(404);
+        echo "SaNDS KOT Printer Driver APK file not found.";
+        exit;
+    }
 }

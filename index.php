@@ -29,6 +29,8 @@ $router->add('GET', '/', 'HomeController@index');
 $router->add('GET', '/login', 'HomeController@loginView');
 $router->add('POST', '/login', 'HomeController@loginSubmit');
 $router->add('GET', '/logout', 'HomeController@logout');
+$router->add('GET', '/download/driver-apk', 'HomeController@downloadDriverApk');
+$router->add('GET', '/download-driver', 'HomeController@downloadDriverApk');
 
 // Admin Panel Routes
 $router->add('GET', '/admin', 'AdminController@index');
