@@ -39,6 +39,11 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [servedItems, setServedItems] = useState([]);
 
+  // Product Details Modal State
+  const [viewProduct, setViewProduct] = useState(null);
+  const [modalQty, setModalQty] = useState(1);
+  const [modalNotes, setModalNotes] = useState('');
+
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showSandsModal, setShowSandsModal] = useState(false);
 
@@ -257,6 +262,33 @@ function App() {
         }
       };
     });
+  };
+
+  const openProductDetails = (product, e) => {
+    if (e) e.stopPropagation();
+    setViewProduct(product);
+    setModalQty(1);
+    setModalNotes('');
+  };
+
+  const addModalProductToBasket = () => {
+    if (!viewProduct) return;
+    setBasket(prev => {
+      const existing = prev[viewProduct.id];
+      const currentQty = existing ? existing.quantity : 0;
+      const newNotes = modalNotes.trim() ? (existing && existing.notes ? `${existing.notes}, ${modalNotes.trim()}` : modalNotes.trim()) : (existing ? existing.notes : '');
+      return {
+        ...prev,
+        [viewProduct.id]: {
+          product_id: viewProduct.id,
+          name: viewProduct.name,
+          price: parseFloat(viewProduct.price),
+          quantity: currentQty + modalQty,
+          notes: newNotes
+        }
+      };
+    });
+    setViewProduct(null);
   };
 
   const changeBasketQty = (productId, amount) => {
@@ -634,14 +666,149 @@ function App() {
 
               <div className="products-list-scroll">
                 {filteredProducts.map(prod => (
-                  <div className="product-row-card" key={prod.id} onClick={() => addToBasket(prod)}>
-                    <div>
-                      <div className="product-row-name">{prod.name}</div>
+                  <div className="product-row-card" key={prod.id}>
+                    {/* Item Thumbnail Icon */}
+                    <div 
+                      className="product-thumb-container" 
+                      onClick={(e) => openProductDetails(prod, e)} 
+                      title="Click to view ingredients & details"
+                    >
+                      {prod.image_url ? (
+                        <img 
+                          src={prod.image_url.startsWith('http') ? prod.image_url : (rootPath + '/' + prod.image_url.replace(/^\//, ''))} 
+                          alt={prod.name} 
+                          className="product-thumb-img" 
+                          onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+                        />
+                      ) : null}
+                      <div className="product-thumb-fallback" style={{ display: prod.image_url ? 'none' : 'flex' }}>
+                        🍔
+                      </div>
+                      <span className="product-info-badge" title="View details">ℹ️</span>
+                    </div>
+
+                    <div className="product-info-col" onClick={() => addToBasket(prod)}>
+                      <div className="product-row-name">
+                        {prod.name}
+                        {prod.is_counter_item === 1 && (
+                          <span className="counter-item-pill">Counter</span>
+                        )}
+                      </div>
+                      {prod.description && (
+                        <div className="product-row-desc">{prod.description}</div>
+                      )}
                       <div className="product-row-price">{formatPrice(prod.price)} {currency}</div>
                     </div>
-                    <button className="btn-qty-mini">+</button>
+
+                    <div className="product-action-btns">
+                      <button 
+                        type="button"
+                        className="btn-info-detail" 
+                        onClick={(e) => openProductDetails(prod, e)} 
+                        title="View Details & Ingredients"
+                      >
+                        ℹ️
+                      </button>
+                      <button 
+                        type="button"
+                        className="btn-qty-mini" 
+                        onClick={() => addToBasket(prod)} 
+                        title="Add to order"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Item Details & Ingredients Modal */}
+        {viewProduct && (
+          <div className="product-modal-overlay" onClick={() => setViewProduct(null)}>
+            <div className="product-modal-card" onClick={e => e.stopPropagation()}>
+              <button className="btn-close-modal" onClick={() => setViewProduct(null)}>&times;</button>
+              
+              {/* Image banner */}
+              <div className="product-modal-banner">
+                {viewProduct.image_url ? (
+                  <img 
+                    src={viewProduct.image_url.startsWith('http') ? viewProduct.image_url : (rootPath + '/' + viewProduct.image_url.replace(/^\//, ''))} 
+                    alt={viewProduct.name} 
+                    className="product-modal-img"
+                    onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div className="product-modal-fallback" style={{ display: viewProduct.image_url ? 'none' : 'flex' }}>
+                  🍔
+                </div>
+                <div className="product-modal-category-tag">
+                  {viewProduct.category_name || (categories.find(c => c.id === viewProduct.category_id)?.name) || 'B1 Menu'}
+                </div>
+              </div>
+
+              {/* Modal Body Content */}
+              <div className="product-modal-body">
+                <div className="product-modal-header">
+                  <div className="product-modal-title">{viewProduct.name}</div>
+                  <div className="product-modal-price">{formatPrice(viewProduct.price)} {currency}</div>
+                </div>
+
+                <div className="product-badges-row">
+                  <span className="badge-pill">
+                    {viewProduct.is_counter_item === 1 ? '⚡ Quick Counter Item' : '👨‍🍳 Kitchen Freshly Prepared'}
+                  </span>
+                  <span className="badge-pill" style={{ color: 'var(--accent-green)', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)' }}>
+                    ✓ In Stock & Available
+                  </span>
+                </div>
+
+                {/* Description & Ingredients */}
+                <div className="product-section-block">
+                  <div className="product-section-label">📜 Description & Details</div>
+                  <div className="product-section-text">
+                    {viewProduct.description || 'Freshly prepared signature recipe made with premium selected ingredients.'}
+                  </div>
+                </div>
+
+                {/* Recipe / Components breakdown if available */}
+                {(viewProduct.ingredients || viewProduct.recipe_details) && (
+                  <div className="product-section-block">
+                    <div className="product-section-label">🥗 Ingredients & Recipe</div>
+                    <div className="ingredients-tags-list">
+                      {(viewProduct.ingredients || viewProduct.recipe_details || '').split(',').map((ing, i) => (
+                        <span className="ingredient-tag" key={i}>🌿 {ing.trim()}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Customization & Add to Order */}
+                <div className="product-order-box">
+                  <div className="order-box-top">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>Order Quantity</span>
+                    <div className="modal-qty-control">
+                      <button type="button" className="btn-qty-mini" onClick={() => setModalQty(q => Math.max(1, q - 1))}>-</button>
+                      <span style={{ fontWeight: 800, fontSize: 16, minWidth: 24, textAlign: 'center' }}>{modalQty}</span>
+                      <button type="button" className="btn-qty-mini" onClick={() => setModalQty(q => q + 1)}>+</button>
+                    </div>
+                  </div>
+
+                  <input 
+                    type="text" 
+                    className="modal-notes-input" 
+                    placeholder="Special instructions (e.g. extra sauce, no pickles, well done)..." 
+                    value={modalNotes}
+                    onChange={e => setModalNotes(e.target.value)}
+                  />
+
+                  <button type="button" className="btn-add-modal-order" onClick={addModalProductToBasket}>
+                    <span>Add to Table {selectedTable}</span>
+                    <span>{formatPrice(viewProduct.price * modalQty)} {currency}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

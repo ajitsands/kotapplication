@@ -2,7 +2,15 @@
 
 class Product extends Model {
     public function getAll() {
-        $stmt = $this->db->query("SELECT p.*, c.name as category_name 
+        $stmt = $this->db->query("SELECT p.*, c.name as category_name,
+                                         (SELECT GROUP_CONCAT(CONCAT(i.name, ' (', pr.quantity_required, ' ', i.unit, ')') SEPARATOR ', ')
+                                          FROM product_recipes pr
+                                          JOIN inventory_items i ON pr.inventory_item_id = i.id
+                                          WHERE pr.product_id = p.id) as recipe_details,
+                                         (SELECT GROUP_CONCAT(i.name SEPARATOR ', ')
+                                          FROM product_recipes pr
+                                          JOIN inventory_items i ON pr.inventory_item_id = i.id
+                                          WHERE pr.product_id = p.id) as ingredients
                                   FROM products p 
                                   JOIN categories c ON p.category_id = c.id 
                                   ORDER BY c.name ASC, p.name ASC");
