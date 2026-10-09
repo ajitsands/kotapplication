@@ -309,4 +309,67 @@ class AdminController extends Controller {
         }
         $this->redirect('/admin#platforms');
     }
+
+    /**
+     * Clear all transaction data (Orders, KOTs, Bills, Counter Sessions, Stock Logs)
+     * Preserves Users, Categories, Products, Dining Tables, Settings, and Suppliers
+     * Superadmin Only
+     */
+    public function clearTransactions() {
+        if (($_SESSION['username'] ?? '') !== 'superadmin') {
+            $this->json(['success' => false, 'error' => 'Unauthorized. Superadmin privilege required.'], 403);
+            return;
+        }
+
+        try {
+            $db = Database::getInstance()->getConnection();
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
+            
+            // Wipe transaction-specific tables
+            $db->exec("TRUNCATE TABLE `kot_items`;");
+            $db->exec("TRUNCATE TABLE `kots`;");
+            $db->exec("TRUNCATE TABLE `bills`;");
+            $db->exec("TRUNCATE TABLE `orders`;");
+            $db->exec("TRUNCATE TABLE `counter_sessions`;");
+            $db->exec("TRUNCATE TABLE `inventory_transactions`;");
+
+            // Reset AUTO_INCREMENT on transaction tables
+            $db->exec("ALTER TABLE `orders` AUTO_INCREMENT = 1;");
+            $db->exec("ALTER TABLE `kots` AUTO_INCREMENT = 1;");
+            $db->exec("ALTER TABLE `kot_items` AUTO_INCREMENT = 1;");
+            $db->exec("ALTER TABLE `bills` AUTO_INCREMENT = 1;");
+            $db->exec("ALTER TABLE `counter_sessions` AUTO_INCREMENT = 1;");
+            $db->exec("ALTER TABLE `inventory_transactions` AUTO_INCREMENT = 1;");
+
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+
+            $this->json([
+                'success' => true,
+                'message' => 'All transaction data has been successfully cleared! All tables are now clean and ready for your client.'
+            ]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Generate Master Demo Data for full system testing
+     * Superadmin Only
+     */
+    public function generateDemoData() {
+        if (($_SESSION['username'] ?? '') !== 'superadmin') {
+            $this->json(['success' => false, 'error' => 'Unauthorized. Superadmin privilege required.'], 403);
+            return;
+        }
+
+        ob_start();
+        require_once __DIR__ . '/../seed_demo_data.php';
+        $output = ob_get_clean();
+
+        $this->json([
+            'success' => true,
+            'message' => 'Complete master demo data (products, categories, inventory, recipes, sample orders & KOTs) has been generated successfully!',
+            'log' => $output
+        ]);
+    }
 }

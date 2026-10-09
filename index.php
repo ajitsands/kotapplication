@@ -87,6 +87,13 @@ $router->add('GET', '/admin/analytics/json', 'AdminController@analyticsJson');
 $router->add('GET', '/admin/waiter-performance/json', 'AdminController@waiterPerformanceJson');
 $router->add('POST', '/admin/printer/test', 'AdminController@testPrinter');
 $router->add('GET', '/admin/printer/test', 'AdminController@testPrinter');
+$router->add('POST', '/admin/clear-transactions', 'AdminController@clearTransactions');
+$router->add('POST', '/admin/generate-demo-data', 'AdminController@generateDemoData');
+$router->add('GET', '/admin/generate-demo-data', function() {
+    require_once __DIR__ . '/seed_demo_data.php';
+    exit;
+});
+
 
 // Inventory & Supplier Routes
 $router->add('GET', '/admin/suppliers/list', 'SupplierController@suppliersListJson');

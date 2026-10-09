@@ -1391,6 +1391,46 @@
                                 <input class="form-input" type="date" name="software_expiry_date" value="<?= htmlspecialchars($settings['software_expiry_date'] ?? '2027-12-31') ?>" required style="padding: 10px 14px; border-radius: 12px; font-size: 14px; font-family: inherit;">
                             </div>
                         </div>
+
+                        <!-- Superadmin Data Management Tools -->
+                        <div style="border-top: 1px solid var(--card-border); margin-top: 25px; padding-top: 25px;">
+                            <h4 style="margin: 0 0 12px 0; color: #6366f1; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">⚙️ Master Data & Client Handover Controls (Superadmin)</h4>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 15px;">
+                                <!-- Clear All Transactions Card -->
+                                <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span style="font-size: 20px;">🧹</span>
+                                            <h5 style="margin: 0; color: #ef4444; font-size: 15px; font-weight: 700;">Clear All Transaction Data</h5>
+                                        </div>
+                                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px 0; line-height: 1.5;">
+                                            Wipes all orders, KOTs, bills, cash sessions, and stock logs. <br>
+                                            <strong style="color: var(--text-color);">Preserves:</strong> Users, Menu Categories, Products, Tables & Settings.
+                                        </p>
+                                    </div>
+                                    <button type="button" onclick="confirmClearTransactions()" class="btn-danger" style="background: #ef4444; color: white; padding: 10px 16px; border-radius: 10px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);">
+                                        🗑️ Wipe Transactions (Client Ready)
+                                    </button>
+                                </div>
+
+                                <!-- Generate Master Demo Data Card -->
+                                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span style="font-size: 20px;">🌱</span>
+                                            <h5 style="margin: 0; color: #10b981; font-size: 15px; font-weight: 700;">Generate Master Demo Data</h5>
+                                        </div>
+                                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px 0; line-height: 1.5;">
+                                            Populate 25+ gourmet menu items, raw ingredients, recipes, and 7 days of realistic test orders, KOTs, and bills for client demonstration.
+                                        </p>
+                                    </div>
+                                    <button type="button" onclick="confirmGenerateDemoData()" style="background: #10b981; color: white; padding: 10px 16px; border-radius: 10px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                                        🌱 Seed Test / Demo Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
 
                     <div style="margin-top: 30px;">
@@ -3847,6 +3887,125 @@
                 }
             });
         });
+
+        // Superadmin Data Management Actions
+        function confirmClearTransactions() {
+            Swal.fire({
+                title: '🧹 Wipe All Transaction Data?',
+                html: `
+                    <div style="text-align: left; font-size: 13.5px; line-height: 1.5; color: var(--text-color);">
+                        <p style="color: #ef4444; font-weight: 700; margin-bottom: 10px;">⚠️ This action is IRREVERSIBLE.</p>
+                        <p>This will permanently delete:</p>
+                        <ul style="margin: 8px 0 12px 20px; color: var(--text-muted);">
+                            <li>All Customer & Dine-In Orders</li>
+                            <li>All KOT Tickets & Kitchen Items</li>
+                            <li>All Invoices, Bills & Payment Records</li>
+                            <li>All Counter Cash Shift Sessions</li>
+                            <li>All Raw Material Inventory Consumption Logs</li>
+                        </ul>
+                        <p style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 8px 12px; border-radius: 6px; font-size: 12.5px; color: #10b981;">
+                            ✅ <b>Preserved:</b> Users & Logins, Menu Categories, Products & Prices, Dining Tables, Settings & Recipes will remain 100% intact.
+                        </p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Wipe All Transactions',
+                cancelButtonText: 'Cancel',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return fetch('admin/clear-transactions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to clear transactions');
+                        }
+                        return data;
+                    })
+                    .catch(err => {
+                        Swal.showValidationMessage(`Request failed: ${err.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.success) {
+                    Swal.fire({
+                        title: 'Cleaned Successfully!',
+                        text: result.value.message,
+                        icon: 'success',
+                        confirmButtonColor: '#6366f1',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                }
+            });
+        }
+
+        function confirmGenerateDemoData() {
+            Swal.fire({
+                title: '🌱 Seed Master Demo Data?',
+                html: `
+                    <div style="text-align: left; font-size: 13.5px; line-height: 1.5; color: var(--text-color);">
+                        <p>This will generate a complete restaurant demo environment with:</p>
+                        <ul style="margin: 8px 0 12px 20px; color: var(--text-muted);">
+                            <li>6 Gourmet Categories & 27 Delicious Dishes</li>
+                            <li>Raw Ingredients, Suppliers & Recipe BOMs</li>
+                            <li>35+ Realistic Paid Bills across the last 7 days (for Reports & Charts)</li>
+                            <li>Active live test orders on Table 3, Table 7, and Talabat</li>
+                            <li>Cash Drawer shift sessions</li>
+                        </ul>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Seed Demo Data',
+                cancelButtonText: 'Cancel',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return fetch('admin/generate-demo-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to seed demo data');
+                        }
+                        return data;
+                    })
+                    .catch(err => {
+                        Swal.showValidationMessage(`Request failed: ${err.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.success) {
+                    Swal.fire({
+                        title: 'Demo Data Seeded!',
+                        text: result.value.message,
+                        icon: 'success',
+                        confirmButtonColor: '#6366f1',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                }
+            });
+        }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/spin.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Ladda/1.0.6/ladda.min.js"></script>
