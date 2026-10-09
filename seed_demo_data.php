@@ -1,7 +1,8 @@
 <?php
 /**
  * Master Demo Data Generator & Seed Script
- * For Gourmet Express / SaNDS KOT POS & Billing System
+ * Specifically built for B1 BURGER (b1.restoflow.us)
+ * Extracted from b1Menu/B1_Burger_Menu_With_Food_Pictures.pdf
  * 
  * Usage:
  * CLI: php seed_demo_data.php
@@ -25,11 +26,11 @@ try {
     $db = Database::getInstance()->getConnection();
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    echo (php_sapi_name() === 'cli') ? "--- Starting Demo Data Generation ---\n" : "<div style='font-family: monospace; background: #0b0f19; color: #10b981; padding: 20px; border-radius: 12px;'><h3>🌱 Generating Master Demo Data...</h3><pre>";
+    echo (php_sapi_name() === 'cli') ? "--- Starting B1 Burger Master Menu Seed ---\n" : "<div style='font-family: monospace; background: #0b0f19; color: #10b981; padding: 20px; border-radius: 12px;'><h3>🌱 Generating B1 Burger Master Data...</h3><pre>";
 
     $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
 
-    // 1. Ensure Schema and Missing Columns
+    // 1. Verify Schema Tables
     $schemaTables = [
         "CREATE TABLE IF NOT EXISTS `users` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -45,16 +46,16 @@ try {
 
         "CREATE TABLE IF NOT EXISTS `settings` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `restaurant_name` VARCHAR(100) NOT NULL DEFAULT 'Gourmet Express',
+            `restaurant_name` VARCHAR(100) NOT NULL DEFAULT 'B1 Burger',
             `currency_code` VARCHAR(10) NOT NULL DEFAULT 'BHD',
             `time_zone` VARCHAR(50) NOT NULL DEFAULT 'Asia/Bahrain',
-            `custom_units` VARCHAR(255) DEFAULT 'Nos, Portion, Box, Packet, Gram, KG, Litre, ML, Can, Glass',
+            `custom_units` VARCHAR(255) DEFAULT 'Nos, Meal, Portion, Box, Packet, Gram, KG, Litre, ML, Cup, Can',
             `tax_type` ENUM('VAT', 'GST') NOT NULL DEFAULT 'VAT',
             `vat_percent` DECIMAL(5,2) NOT NULL DEFAULT 10.00,
             `cgst_percent` DECIMAL(5,2) NOT NULL DEFAULT 2.50,
             `sgst_percent` DECIMAL(5,2) NOT NULL DEFAULT 2.50,
             `printer_size` INT NOT NULL DEFAULT 80,
-            `logo_path` VARCHAR(255) DEFAULT NULL,
+            `logo_path` VARCHAR(255) DEFAULT 'uploads/b1_logo.png',
             `software_expiry_date` DATE DEFAULT '2027-12-31',
             `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
@@ -229,18 +230,16 @@ try {
         $db->exec($sql);
     }
 
-    // Ensure utf8mb4 charset across tables
+    // Normalizing table charsets
     $tableNames = ['users', 'settings', 'categories', 'products', 'dining_tables', 'orders', 'kots', 'kot_items', 'customers', 'bills', 'counter_sessions', 'suppliers', 'inventory_items', 'product_recipes', 'inventory_transactions', 'online_platforms'];
     foreach ($tableNames as $tbl) {
         try {
             $db->exec("ALTER TABLE `$tbl` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        } catch (Exception $e) {
-            // Ignore if already set or not permitted
-        }
+        } catch (Exception $e) {}
     }
     echo "✓ Database tables verified.\n";
 
-    // 2. Clear old transactions to ensure a fresh, consistent seed
+    // 2. Wipe Previous Data for Clean B1 Menu Deployment
     $db->exec("TRUNCATE TABLE `kot_items`;");
     $db->exec("TRUNCATE TABLE `kots`;");
     $db->exec("TRUNCATE TABLE `bills`;");
@@ -254,17 +253,18 @@ try {
     $db->exec("TRUNCATE TABLE `suppliers`;");
     $db->exec("TRUNCATE TABLE `customers`;");
 
-    echo "✓ Previous transaction and product tables cleared.\n";
+    echo "✓ Cleaned previous test tables.\n";
 
-    // 3. Settings Setup
+    // 3. Settings Setup for B1 Burger
     $db->exec("INSERT INTO `settings` (`id`, `restaurant_name`, `currency_code`, `time_zone`, `custom_units`, `tax_type`, `vat_percent`, `cgst_percent`, `sgst_percent`, `printer_size`, `logo_path`, `software_expiry_date`) 
-               VALUES (1, 'Gourmet Express - Restaurant & Cafe', 'BHD', 'Asia/Bahrain', 'Nos, Portion, Box, Packet, Gram, KG, Litre, ML, Can, Glass', 'VAT', 10.00, 2.50, 2.50, 80, NULL, '2027-12-31')
+               VALUES (1, 'B1 Burger', 'BHD', 'Asia/Bahrain', 'Nos, Meal, Portion, Box, Packet, Gram, KG, Litre, ML, Cup, Can', 'VAT', 10.00, 2.50, 2.50, 80, 'uploads/b1_logo.png', '2027-12-31')
                ON DUPLICATE KEY UPDATE 
-               `restaurant_name` = 'Gourmet Express - Restaurant & Cafe',
+               `restaurant_name` = 'B1 Burger',
                `currency_code` = 'BHD',
                `tax_type` = 'VAT',
-               `vat_percent` = 10.00;");
-    echo "✓ Settings initialized (Gourmet Express, BHD, 10% VAT).\n";
+               `vat_percent` = 10.00,
+               `logo_path` = 'uploads/b1_logo.png';");
+    echo "✓ Settings initialized (B1 Burger, BHD, 10% VAT, Logo: uploads/b1_logo.png).\n";
 
     // 4. Default Users
     $defaultUsers = [
@@ -273,9 +273,7 @@ try {
         [3, 'waiter2', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter Sarah', 'waiter'],
         [4, 'chef1', '$2y$10$taBABla6.ATOxuS7pY10uu8z4T3d7GNa/bVKiW8ZuoSaXKVWqj0zi', 'Head Chef Mario', 'kot'],
         [5, 'counter1', '$2y$10$rC2bzZxCggfJT0FUHUAKnOdFdHJ3eVNMSdWfj8lm9muu9abOZPtK.', 'Cashier Sam', 'counter'],
-        [6, 'superadmin', '$2y$10$GIlyTrYJ3QAvz5vzgYjh2.QZV5HJYep7yvez8ay5dgyYs5HXoa3Nq', 'SaNDS Lab Super Admin', 'admin'],
-        [7, 'waiter3', '$2y$10$Zm8osWJRVu6LWa9MH/wZ4.tZxFD.2yivpg0QRGSr2azhal5DgXd5C', 'Waiter Alex', 'waiter'],
-        [8, 'chef2', '$2y$10$taBABla6.ATOxuS7pY10uu8z4T3d7GNa/bVKiW8ZuoSaXKVWqj0zi', 'Chef Luigi', 'kot']
+        [6, 'superadmin', '$2y$10$GIlyTrYJ3QAvz5vzgYjh2.QZV5HJYep7yvez8ay5dgyYs5HXoa3Nq', 'SaNDS Lab Super Admin', 'admin']
     ];
 
     $stmtUser = $db->prepare("INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`, `is_active`) VALUES (?, ?, ?, ?, ?, 1)
@@ -283,7 +281,7 @@ try {
     foreach ($defaultUsers as $u) {
         $stmtUser->execute($u);
     }
-    echo "✓ Users seeded (admin, superadmin, waiter1, waiter2, waiter3, chef1, chef2, counter1).\n";
+    echo "✓ Users configured.\n";
 
     // 5. Dining Tables (1 to 20)
     for ($t = 1; $t <= 20; $t++) {
@@ -291,19 +289,19 @@ try {
     }
     echo "✓ 20 Dining Tables initialized.\n";
 
-    // 6. Online Platforms
+    // 6. Online Delivery Platforms
     $platforms = ['Talabat', 'Jahez', 'Hungerstation', 'Deliveroo', 'Ahlan', 'UberEats'];
     $stmtPlat = $db->prepare("INSERT IGNORE INTO `online_platforms` (`id`, `name`, `status`) VALUES (?, ?, 'active')");
     foreach ($platforms as $idx => $pname) {
         $stmtPlat->execute([$idx + 1, $pname]);
     }
-    echo "✓ Online Platforms seeded.\n";
+    echo "✓ Delivery Platforms seeded.\n";
 
     // 7. Suppliers
     $suppliers = [
-        ['Bahrain Fresh Poultry & Meats', 'Ahmed Al-Khalifa', '+973 33112233', 'poultry@bahrainfresh.bh', 'Manama Central Market'],
-        ['Gulf Dairy & Spices Traders', 'Mohammed Hassan', '+973 39887766', 'orders@gulfspices.com', 'Salmabad Industrial Area'],
-        ['Golden Harvest Produce & Bakery', 'Suresh Kumar', '+973 36554433', 'sales@goldenharvest.bh', 'Tubli Commercial Zone']
+        ['Bahrain Prime Meats & Poultry', 'Ahmed Al-Doseri', '+973 33112233', 'orders@b1prime.bh', 'Manama Central Market'],
+        ['Gulf Bakery & Sauce Traders', 'Khalid Hassan', '+973 39887766', 'sales@gulfbakery.com', 'Salmabad Industrial Area'],
+        ['Fresh Beverage & Dairy Supplies', 'Ali Mansoor', '+973 36554433', 'beverages@freshbh.com', 'Tubli Commercial Zone']
     ];
     $stmtSupp = $db->prepare("INSERT INTO `suppliers` (`name`, `contact_person`, `phone`, `email`, `address`) VALUES (?, ?, ?, ?, ?)");
     foreach ($suppliers as $s) {
@@ -311,78 +309,105 @@ try {
     }
     echo "✓ Suppliers seeded.\n";
 
-    // 8. Inventory Items (Raw Materials)
+    // 8. Raw Material Inventory Items
     $inventoryItems = [
-        ['Fresh Chicken Breast', 'KG', 85.000, 15.000, 1.800, 2.500],
-        ['Prime Mutton Cuts', 'KG', 45.000, 10.000, 3.600, 4.800],
-        ['Basmati Royal Rice', 'KG', 150.000, 30.000, 0.750, 1.200],
-        ['Mozzarella & Cheddar Blend', 'KG', 35.000, 8.000, 2.400, 3.500],
-        ['Cooking Oil & Pure Ghee', 'Litre', 90.000, 20.000, 0.950, 1.400],
-        ['Specialty Espresso Beans', 'KG', 25.000, 5.000, 6.500, 9.000],
-        ['Fresh Full Cream Milk', 'Litre', 60.000, 15.000, 0.450, 0.700],
-        ['Pizza Dough & Flour', 'KG', 70.000, 20.000, 0.400, 0.800],
-        ['French Fries (Frozen)', 'KG', 60.000, 15.000, 0.800, 1.400],
-        ['Assorted Spices & Herbs', 'KG', 20.000, 4.000, 4.200, 6.000]
+        ['Fresh Angus Beef Patty Mix', 'KG', 120.000, 20.000, 2.200, 3.400],
+        ['Fresh Chicken Fillet & Strips', 'KG', 90.000, 15.000, 1.600, 2.600],
+        ['Artisan Brioche Burger Buns', 'Nos', 350.000, 50.000, 0.120, 0.250],
+        ['B1 Signature House Sauce', 'Litre', 40.000, 10.000, 1.800, 3.000],
+        ['Melted Cheddar Cheese Sauce', 'Litre', 35.000, 8.000, 2.200, 3.500],
+        ['Premium Skin-On Fries (Frozen)', 'KG', 100.000, 25.000, 0.650, 1.200],
+        ['Fresh Iceberg Lettuce & Veggies', 'KG', 30.000, 5.000, 0.400, 0.800],
+        ['Mojito Puree & Sparkling Mix', 'Litre', 45.000, 10.000, 1.200, 2.200],
+        ['Milkshake Ice Cream Base & Milk', 'Litre', 50.000, 12.000, 0.900, 1.800],
+        ['Assorted Dip Sauces', 'Litre', 30.000, 5.000, 1.500, 2.500]
     ];
     $stmtInv = $db->prepare("INSERT INTO `inventory_items` (`name`, `unit`, `current_stock`, `min_stock_level`, `buying_price_per_unit`, `selling_price`) VALUES (?, ?, ?, ?, ?, ?)");
     foreach ($inventoryItems as $item) {
         $stmtInv->execute($item);
     }
-    echo "✓ Raw Material Inventory items seeded.\n";
+    echo "✓ Raw Material Inventory items configured.\n";
 
-    // 9. Categories & Products
-    $categoriesData = [
-        ['name' => 'Starters & Appetizers', 'products' => [
-            ['Crispy Calamari Rings', 'Golden fried calamari served with tartare sauce and lemon wedge', 2.200, 0],
-            ['Garlic Parmesan Chicken Wings', 'Crispy tossed wings coated with garlic butter and aged parmesan', 2.500, 0],
-            ['Truffle Parmesan Fries', 'Hand-cut potato fries drizzled with aromatic white truffle oil', 1.800, 0],
-            ['Dynamite Shrimp Cups', 'Tempura fried shrimp coated in spicy creamy dynamite glaze', 2.800, 0],
-            ['Hummus with Warm Pita', 'Creamy chickpea puree with tahini, extra virgin olive oil and warm pita', 1.500, 0]
-        ]],
-        ['name' => 'Burgers & Sandwiches', 'products' => [
-            ['Wagyu Classic Cheeseburger', 'Juicy 180g Wagyu beef patty, cheddar, lettuce, tomato and secret sauce', 3.500, 0],
-            ['Crispy Buttermilk Chicken Burger', 'Fried chicken fillet with spicy coleslaw, pickles and brioche bun', 2.800, 0],
-            ['Truffle Swiss Mushroom Burger', 'Grilled beef patty topped with sautéed portobello mushrooms and swiss cheese', 3.200, 0],
-            ['Smoky BBQ Beef Bacon Burger', 'Angus patty with beef bacon, smoked cheddar and hickory BBQ sauce', 3.600, 0]
-        ]],
-        ['name' => 'Artisan Pizzas', 'products' => [
-            ['Classic Margherita Pizza', 'San Marzano tomato base, fresh buffalo mozzarella, fresh basil and olive oil', 3.200, 0],
-            ['Pepperoni Supreme Pizza', 'Double beef pepperoni, rich tomato sauce, mozzarella and oregano', 3.800, 0],
-            ['Wild Truffle & Mushroom Pizza', 'Creamy white base, wild mushrooms, mozzarella, truffle glaze', 4.200, 0],
-            ['BBQ Smoked Chicken Pizza', 'Grilled chicken breast, red onions, sweet corn, cilantro and smoky BBQ', 3.900, 0]
-        ]],
-        ['name' => 'Biryani & Main Course', 'products' => [
-            ['Royal Chicken Dum Biryani', 'Slow-cooked aromatic basmati rice with tender chicken, fried onions & saffron', 3.600, 0],
-            ['Hyderabadi Mutton Biryani', 'Fragrant basmati rice layered with spiced baby mutton and fresh mint', 4.500, 0],
-            ['Butter Chicken with Garlic Naan', 'Tender chicken tikka simmered in creamy makhani gravy with freshly baked naan', 3.800, 0],
-            ['Grilled Atlantic Salmon Fillet', 'Herb-crusted salmon with creamy mashed potato and lemon butter caper sauce', 5.200, 0],
-            ['Penne Creamy Alfredo Chicken', 'Al dente penne pasta tossed in rich parmesan cream sauce with grilled chicken', 3.400, 0]
-        ]],
-        ['name' => 'Hot & Cold Beverages', 'products' => [
-            ['Signature Spanish Latte', 'Rich espresso layered with sweetened condensed milk and silky foam', 1.800, 0],
-            ['Iced Caramel Frappuccino', 'Blended iced coffee with creamy caramel swirl and whipped cream', 2.200, 0],
-            ['Passionfruit Mint Mojito', 'Crushed lime, fresh mint leaves, passionfruit pulp and sparkling soda', 1.600, 0],
-            ['Fresh Orange Juice', '100% pure freshly squeezed Valencia oranges (no added sugar)', 1.400, 0],
-            ['Mineral Water 500ml', 'Chilled premium mineral drinking water bottle', 0.500, 1] // Counter item
-        ]],
-        ['name' => 'Gourmet Desserts', 'products' => [
-            ['Lotus Biscoff Cheesecake', 'Creamy baked cheesecake infused with Lotus spread on speculoos biscuit crust', 2.400, 0],
-            ['Warm Molten Chocolate Lava', 'Decadent chocolate cake with warm gooey center, served with vanilla bean ice cream', 2.600, 0],
-            ['Pistachio Saffron Milk Cake', 'Spongy tres leches cake soaked in rich pistachio saffron infused milk', 2.800, 0],
-            ['Traditional Kunafa with Gelato', 'Crispy golden shredded phyllo dough layered with sweet cheese and rose syrup', 3.000, 0]
-        ]]
+    // 9. Exact B1 Burger Menu Categories & Products with Pictures
+    $b1Categories = [
+        [
+            'name' => 'Burgers (Smashed to perfection)',
+            'image_url' => 'uploads/cat_burgers.jpg',
+            'products' => [
+                ['B1 Classic Burger', 'Smashed beef patty, B1 sauce', 1.000, 'uploads/b1_classic_burger.jpg', 0],
+                ['B1 Classic Burger (Meal)', 'Smashed beef patty, B1 sauce (Includes Fries & Drink)', 2.000, 'uploads/b1_classic_burger.jpg', 0],
+                ['B1 Double Burger', 'Smashed double patties, B1 sauce, lettuce, onion, tomato', 1.500, 'uploads/b1_double_burger.jpg', 0],
+                ['B1 Double Burger (Meal)', 'Smashed double patties, B1 sauce, lettuce, onion, tomato (Includes Fries & Drink)', 2.500, 'uploads/b1_double_burger.jpg', 0],
+                ['B1 Signature Burger', 'Smashed patty, B1 sauce, lettuce, onion rings, tomato, pickles toppings', 2.000, 'uploads/b1_signature_burger.jpg', 0],
+                ['B1 Signature Burger (Meal)', 'Smashed patty, B1 sauce, lettuce, onion rings, tomato, pickles toppings (Includes Fries & Drink)', 3.000, 'uploads/b1_signature_burger.jpg', 0],
+                ['B1 Chicken Sando Burger', 'Chicken deep fry, B1 sauce', 1.000, 'uploads/b1_chicken_sando.jpg', 0],
+                ['B1 Chicken Sando Burger (Meal)', 'Chicken deep fry, B1 sauce (Includes Fries & Drink)', 2.000, 'uploads/b1_chicken_sando.jpg', 0],
+                ['B1 Chicken Nashville Burger', 'Chicken, B1 spicy sauce, lettuce, onion, tomato', 1.500, 'uploads/b1_chicken_nashville.jpg', 0],
+                ['B1 Chicken Nashville Burger (Meal)', 'Chicken, B1 spicy sauce, lettuce, onion, tomato (Includes Fries & Drink)', 2.500, 'uploads/b1_chicken_nashville.jpg', 0],
+                ['B1 Chicken Signature', 'B1 special chicken, B1 sauce, lettuce, tomato, pickles, cheese', 2.000, 'uploads/b1_chicken_signature.jpg', 0],
+                ['B1 Chicken Signature (Meal)', 'B1 special chicken, B1 sauce, lettuce, tomato, pickles, cheese (Includes Fries & Drink)', 3.000, 'uploads/b1_chicken_signature.jpg', 0]
+            ]
+        ],
+        [
+            'name' => 'Kids Meals',
+            'image_url' => 'uploads/cat_kids_meals.jpg',
+            'products' => [
+                ['Kids Meal - 4 Nuggets', '4 Crispy Chicken Nuggets, Fries, Drink', 1.300, 'uploads/kids_meal_nuggets.jpg', 0],
+                ['Kids Meal - 4 Chicken Strips', '4 Tender Chicken Strips, Fries, Drink', 1.500, 'uploads/kids_meal_strips.jpg', 0]
+            ]
+        ],
+        [
+            'name' => 'Sides',
+            'image_url' => 'uploads/cat_sides.jpg',
+            'products' => [
+                ['B1 Crispy Fries', 'Golden seasoned crispy potato fries', 0.600, 'uploads/b1_fries.jpg', 0],
+                ['B1 Loaded Fries', 'Chicken, Fries, B1 Special Sauce, Cheese drizzle', 1.500, 'uploads/b1_loaded_fries.jpg', 0]
+            ]
+        ],
+        [
+            'name' => 'Wraps',
+            'image_url' => 'uploads/cat_wraps.jpg',
+            'products' => [
+                ['B1 Lettuce Chicken Wrap', 'Crisp lettuce wrapped, grilled chicken bites, B1 special sauce', 1.600, 'uploads/b1_wrap.jpg', 0]
+            ]
+        ],
+        [
+            'name' => 'Drinks & Shakes',
+            'image_url' => 'uploads/cat_drinks_shakes.jpg',
+            'products' => [
+                ['Mojito - Passion Fruit', 'Refreshing passion fruit mojito with fresh mint and lime', 1.000, 'uploads/b1_mojitos.jpg', 0],
+                ['Mojito - Watermelon', 'Fresh sweet watermelon mojito with mint and lime', 1.000, 'uploads/b1_mojitos.jpg', 0],
+                ['Mojito - Strawberry', 'Berry delicious strawberry mojito with fresh mint', 1.000, 'uploads/b1_mojitos.jpg', 0],
+                ['Mojito - Pineapple', 'Tropical pineapple mojito with fresh mint and lime', 1.000, 'uploads/b1_mojitos.jpg', 0],
+                ['Mojito - Lemon Mint', 'Classic zesty lemon & fresh crushed mint mojito', 1.000, 'uploads/b1_mojitos.jpg', 0],
+                ['Milkshake - Vanilla', 'Thick creamy vanilla bean shake topped with whipped cream & chocolate drizzle', 1.500, 'uploads/b1_milkshakes.jpg', 0],
+                ['Milkshake - Strawberry', 'Rich creamy strawberry milkshake with whipped cream', 1.500, 'uploads/b1_milkshakes.jpg', 0]
+            ]
+        ],
+        [
+            'name' => 'Add Ons & Sauces',
+            'image_url' => 'uploads/cat_addons.jpg',
+            'products' => [
+                ['B1 House Sauce', 'Signature B1 burger sauce cup', 0.250, 'uploads/b1_sauce.jpg', 1],
+                ['Garlic Mayo Sauce', 'Rich creamy garlic mayonnaise dipping sauce', 0.250, 'uploads/garlic_mayo_sauce.jpg', 1],
+                ['Warm Cheese Sauce', 'Melted golden cheddar cheese sauce cup', 0.250, 'uploads/cheese_sauce.jpg', 1],
+                ['B1 Spicy Chili Sauce', 'Extra spicy B1 chili dipping sauce', 0.250, 'uploads/b1_spicy_sauce.jpg', 1],
+                ['Extra Smashed Beef Patty', 'Fresh smashed grilled beef patty add-on', 0.700, 'uploads/beef_patty.jpg', 0],
+                ['Extra Crispy Chicken Patty', 'Crispy fried chicken breast patty add-on', 0.650, 'uploads/chicken_patty.jpg', 0]
+            ]
+        ]
     ];
 
     $productIds = [];
-    $stmtCat = $db->prepare("INSERT INTO `categories` (`name`) VALUES (?)");
-    $stmtProd = $db->prepare("INSERT INTO `products` (`category_id`, `name`, `description`, `price`, `is_available`, `is_counter_item`) VALUES (?, ?, ?, ?, 1, ?)");
+    $stmtCat = $db->prepare("INSERT INTO `categories` (`name`, `image_url`) VALUES (?, ?)");
+    $stmtProd = $db->prepare("INSERT INTO `products` (`category_id`, `name`, `description`, `price`, `image_url`, `is_available`, `is_counter_item`) VALUES (?, ?, ?, ?, ?, 1, ?)");
 
-    foreach ($categoriesData as $cat) {
-        $stmtCat->execute([$cat['name']]);
+    foreach ($b1Categories as $cat) {
+        $stmtCat->execute([$cat['name'], $cat['image_url']]);
         $catId = $db->lastInsertId();
 
         foreach ($cat['products'] as $prod) {
-            $stmtProd->execute([$catId, $prod[0], $prod[1], $prod[2], $prod[3]]);
+            $stmtProd->execute([$catId, $prod[0], $prod[1], $prod[2], $prod[3], $prod[4]]);
             $productIds[] = [
                 'id' => $db->lastInsertId(),
                 'name' => $prod[0],
@@ -390,7 +415,7 @@ try {
             ];
         }
     }
-    echo "✓ 6 Menu Categories and " . count($productIds) . " Gourmet Products seeded.\n";
+    echo "✓ " . count($b1Categories) . " B1 Categories and " . count($productIds) . " B1 Products with exact PDF food pictures seeded.\n";
 
     // 10. Sample Customers
     $customers = [
@@ -409,11 +434,10 @@ try {
     }
     echo "✓ Sample Customers seeded.\n";
 
-    // 11. Generate Realistic Historical Paid Transactions (Last 7 Days)
+    // 11. Generate Realistic Historical Paid Transactions for B1 Burger (Last 7 Days)
     echo "🌱 Generating historical paid bills and KOTs for reports & dashboard...\n";
 
-    $waiterIds = [2, 3, 7];
-    $chefIds = [4, 8];
+    $waiterIds = [2, 3];
     $cashierId = 5;
     $paymentMethods = ['cash', 'card', 'qr_pay', 'card', 'cash'];
 
@@ -422,7 +446,7 @@ try {
     $kotItemInsert = $db->prepare("INSERT INTO `kot_items` (`kot_id`, `product_id`, `quantity`, `status`, `notes`) VALUES (?, ?, ?, 'dispatched', ?)");
     $billInsert = $db->prepare("INSERT INTO `bills` (`order_id`, `subtotal`, `tax_amount`, `discount_percent`, `discount_amount`, `grand_total`, `payment_method`, `status`, `cashier_id`, `customer_id`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)");
 
-    $totalHistoricalOrders = 35;
+    $totalHistoricalOrders = 36;
     $orderCounter = 100;
 
     for ($i = 0; $i < $totalHistoricalOrders; $i++) {
@@ -449,7 +473,7 @@ try {
             $orderType = 'online';
             $tableNum = null;
             $platformId = rand(1, 4);
-            $platformOrderNo = 'ORD-' . strtoupper(substr(uniqid(), -6));
+            $platformOrderNo = 'TAL-' . strtoupper(substr(uniqid(), -5));
             $tokenNum = 'OL-' . str_pad(rand(1, 99), 2, '0', STR_PAD_LEFT);
         }
 
@@ -465,91 +489,88 @@ try {
         $kotInsert->execute([$orderId, $wId, $kotNum, $timeStr]);
         $kotId = $db->lastInsertId();
 
-        // Add 2 to 5 random items
-        $itemCount = rand(2, 5);
+        // 2 to 4 random B1 items
+        $itemCount = rand(2, 4);
         $subtotal = 0.0;
         $selectedKeys = (array)array_rand($productIds, $itemCount);
 
         foreach ($selectedKeys as $k) {
             $p = $productIds[$k];
-            $qty = rand(1, 3);
+            $qty = rand(1, 2);
             $itemSubtotal = $p['price'] * $qty;
             $subtotal += $itemSubtotal;
-            $kotItemInsert->execute([$kotId, $p['id'], $qty, (rand(0, 1) ? 'Less spicy' : null)]);
+            $kotItemInsert->execute([$kotId, $p['id'], $qty, (rand(0, 1) ? 'Extra sauce' : null)]);
         }
 
-        // Tax & Discount calculation
         $vatPercent = 10.00;
         $taxAmount = round($subtotal * ($vatPercent / 100), 3);
-        $discountPercent = (rand(1, 5) === 1) ? 10.00 : 0.00;
+        $discountPercent = (rand(1, 6) === 1) ? 10.00 : 0.00;
         $discountAmount = round(($subtotal + $taxAmount) * ($discountPercent / 100), 3);
         $grandTotal = round(($subtotal + $taxAmount) - $discountAmount, 3);
         $pm = $paymentMethods[array_rand($paymentMethods)];
 
         $billInsert->execute([$orderId, $subtotal, $taxAmount, $discountPercent, $discountAmount, $grandTotal, $pm, $cashierId, $cId, $timeStr]);
     }
-    echo "✓ $totalHistoricalOrders Paid orders & bills generated across the last 7 days.\n";
+    echo "✓ $totalHistoricalOrders Paid B1 Burger orders & bills generated across the last 7 days.\n";
 
-    // 12. Create 3 Active Live Orders for Testing
-    echo "🌱 Creating active live orders on tables & delivery for instant testing...\n";
+    // 12. Create Live Active Orders for Testing
+    echo "🌱 Creating active live B1 orders for testing...\n";
 
-    // Active Order 1: Dine-in on Table 3 (Preparing state in Kitchen)
+    // Table 2: Active Dine-In order
     $db->exec("INSERT INTO `orders` (`table_number`, `status`, `order_type`, `waiter_id`, `customer_name`, `created_at`) 
-               VALUES (3, 'active', 'dine_in', 2, 'Family Table', NOW())");
+               VALUES (2, 'active', 'dine_in', 2, 'Table 2 Guests', NOW())");
     $actOrder1 = $db->lastInsertId();
     $db->exec("INSERT INTO `kots` (`order_id`, `waiter_id`, `kot_number`, `status`, `created_at`) 
-               VALUES ($actOrder1, 2, 'KOT-" . date('Ymd') . "-LIVE01', 'preparing', NOW())");
+               VALUES ($actOrder1, 2, 'KOT-" . date('Ymd') . "-B101', 'preparing', NOW())");
     $actKot1 = $db->lastInsertId();
     $db->exec("INSERT INTO `kot_items` (`kot_id`, `product_id`, `quantity`, `status`, `notes`) VALUES 
-               ($actKot1, {$productIds[5]['id']}, 2, 'preparing', 'Medium Well'),
-               ($actKot1, {$productIds[2]['id']}, 1, 'preparing', 'Extra dip'),
-               ($actKot1, {$productIds[18]['id']}, 2, 'ready', 'Less ice')");
+               ($actKot1, {$productIds[4]['id']}, 2, 'preparing', 'B1 Signature Burger - No onion'),
+               ($actKot1, {$productIds[13]['id']}, 1, 'preparing', 'Loaded Fries - Extra Cheese'),
+               ($actKot1, {$productIds[16]['id']}, 2, 'ready', 'Passion Fruit Mojito')");
 
-    // Active Order 2: Dine-in on Table 7 (Ready state in Kitchen for Waiter Dispatch)
+    // Table 5: Active Dine-In order (Ready in kitchen)
     $db->exec("INSERT INTO `orders` (`table_number`, `status`, `order_type`, `waiter_id`, `customer_name`, `created_at`) 
-               VALUES (7, 'active', 'dine_in', 3, 'VIP Guests', NOW())");
+               VALUES (5, 'active', 'dine_in', 3, 'VIP Booth', NOW())");
     $actOrder2 = $db->lastInsertId();
     $db->exec("INSERT INTO `kots` (`order_id`, `waiter_id`, `kot_number`, `status`, `created_at`) 
-               VALUES ($actOrder2, 3, 'KOT-" . date('Ymd') . "-LIVE02', 'ready', NOW())");
+               VALUES ($actOrder2, 3, 'KOT-" . date('Ymd') . "-B102', 'ready', NOW())");
     $actKot2 = $db->lastInsertId();
     $db->exec("INSERT INTO `kot_items` (`kot_id`, `product_id`, `quantity`, `status`, `notes`) VALUES 
-               ($actKot2, {$productIds[13]['id']}, 2, 'ready', 'Extra raita'),
-               ($actKot2, {$productIds[14]['id']}, 1, 'ready', 'Spicy'),
-               ($actKot2, {$productIds[24]['id']}, 2, 'ready', 'Serve warm')");
+               ($actKot2, {$productIds[2]['id']}, 2, 'ready', 'B1 Double Burger'),
+               ($actKot2, {$productIds[8]['id']}, 1, 'ready', 'B1 Chicken Nashville (Meal)'),
+               ($actKot2, {$productIds[21]['id']}, 2, 'ready', 'Vanilla Milkshake')");
 
-    // Active Order 3: Talabat Online Order (Pending kitchen pickup)
+    // Talabat Online order
     $db->exec("INSERT INTO `orders` (`status`, `order_type`, `platform_id`, `platform_order_number`, `customer_name`, `customer_mobile`, `token_number`, `created_at`) 
-               VALUES ('active', 'online', 1, 'TAL-98231', 'Rashid Al-Doseri', '+973 39998811', 'OL-05', NOW())");
+               VALUES ('active', 'online', 1, 'TAL-58210', 'Hamad Al-Khalifa', '+973 39887711', 'OL-08', NOW())");
     $actOrder3 = $db->lastInsertId();
     $db->exec("INSERT INTO `kots` (`order_id`, `waiter_id`, `kot_number`, `status`, `created_at`) 
-               VALUES ($actOrder3, 2, 'KOT-" . date('Ymd') . "-TAL01', 'preparing', NOW())");
+               VALUES ($actOrder3, 2, 'KOT-" . date('Ymd') . "-TAL88', 'preparing', NOW())");
     $actKot3 = $db->lastInsertId();
     $db->exec("INSERT INTO `kot_items` (`kot_id`, `product_id`, `quantity`, `status`, `notes`) VALUES 
-               ($actKot3, {$productIds[9]['id']}, 1, 'preparing', 'Extra cheese'),
-               ($actKot3, {$productIds[20]['id']}, 2, 'preparing', 'Packed separately')");
+               ($actKot3, {$productIds[5]['id']}, 1, 'preparing', 'B1 Signature Meal'),
+               ($actKot3, {$productIds[17]['id']}, 1, 'preparing', 'Watermelon Mojito')");
 
-    echo "✓ Active live test orders created for Table 3, Table 7, and Talabat Delivery.\n";
+    echo "✓ Active live orders configured on Table 2, Table 5, and Talabat Online Delivery.\n";
 
-    // 13. Counter Sessions (Cash Drawer Reconciliation)
-    // Yesterday's closed session
+    // 13. Counter Sessions
     $db->exec("INSERT INTO `counter_sessions` 
         (`cashier_id`, `opened_at`, `closed_at`, `cash_total`, `card_total`, `qr_total`, `system_total`, `collected_cash`, `collected_card`, `collected_qr`, `collected_total`, `cashier_notes`, `status`, `approved_by`) 
         VALUES 
-        (5, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 18 HOUR), 48.500, 72.800, 15.400, 136.700, 48.500, 72.800, 15.400, 136.700, 'Shift closed with zero variance. All cash counted.', 'closed', 1)");
+        (5, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 18 HOUR), 35.000, 58.500, 12.500, 106.000, 35.000, 58.500, 12.500, 106.000, 'B1 Burger day close. Shift balanced.', 'closed', 1)");
 
-    // Today's open session
     $db->exec("INSERT INTO `counter_sessions` 
         (`cashier_id`, `opened_at`, `cash_total`, `card_total`, `qr_total`, `system_total`, `status`) 
         VALUES 
-        (5, NOW(), 22.400, 38.600, 12.000, 73.000, 'open')");
+        (5, NOW(), 18.000, 32.500, 8.500, 59.000, 'open')");
 
-    echo "✓ Cash drawer and counter shift sessions seeded.\n";
+    echo "✓ Cash drawer sessions seeded.\n";
 
     $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
-    echo "\n🎉 SUCCESS! Complete Demo Data successfully seeded.\n";
+    echo "\n🎉 SUCCESS! B1 Burger Master Menu & Food Pictures seeded successfully.\n";
     echo "--------------------------------------------------------\n";
-    echo "📋 Test Credentials:\n";
+    echo "📋 B1 Burger System Credentials:\n";
     echo "  • Superadmin: superadmin / (existing)\n";
     echo "  • Admin:      admin / admin123\n";
     echo "  • Waiter:     waiter1 / waiter123\n";
