@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SaNDS KOT Printer Driver & POS Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=4.5">
+</head>
+<body>
+    <!-- App Header & Status Bar -->
+    <header class="app-header" id="app-header">
+        <div class="brand-group">
+            <div class="brand-logo">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="2" y="6" width="20" height="8" rx="1"></rect>
+                    <path d="M17 14v7H7v-7"></path>
+                    <path d="M17 6V3H7v3"></path>
+                </svg>
+            </div>
+            <div class="brand-info">
+                <span class="brand-title">SaNDS KOT Printer Driver</span>
+                <span class="brand-subtitle" id="status-portal-url">kot.sandslab.com</span>
+            </div>
+            <div class="header-datetime-badge" id="header-datetime-badge" title="Current Date & Time">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span id="header-datetime-text">Loading...</span>
+            </div>
+        </div>
+
+        <div class="status-indicators">
+            <div class="status-badge" id="license-badge">
+                <span class="status-dot green"></span>
+                <span id="license-status-text">Licensed</span>
+            </div>
+
+            <!-- Viewport Zoom Controls (+ and -) -->
+            <div class="zoom-pill" title="Scale / Resize Window Content">
+                <button type="button" class="zoom-btn" id="btn-zoom-out" onclick="adjustZoom(-0.05)" title="Make Smaller (−)">−</button>
+                <button type="button" class="zoom-display" id="btn-zoom-reset" onclick="resetZoom()" title="Reset to 100%">
+                    <span id="zoom-level-text">100%</span>
+                </button>
+                <button type="button" class="zoom-btn" id="btn-zoom-in" onclick="adjustZoom(+0.05)" title="Make Bigger (+)">+</button>
+            </div>
+
+            <div class="status-badge" id="printer-badge">
+                <span class="status-dot green"></span>
+                <span id="printer-status-text">Printer: 192.168.8.101</span>
+            </div>
+            <button class="btn-icon" id="btn-quick-test" title="Quick Test Print" onclick="quickTestPrint()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </button>
+            <button class="btn-icon" id="btn-open-settings" title="Settings & Setup" onclick="openSettingsModal()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+            <button class="btn-icon btn-exit-app" id="btn-exit-app" title="Exit / Close App" onclick="openExitAppModal()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container: Embedded POS Kiosk / Webview -->
+    <main class="app-main">
+        <div class="iframe-container" id="iframe-wrapper">
+            <iframe id="pos-frame" src="about:blank" allow="camera; microphone; geolocation"></iframe>
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
+                <p id="loading-text">Connecting to SaNDS POS System...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Settings & Setup Modal -->
+    <div class="modal-overlay" id="settings-modal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">⚙️</span>
+                    <h3>SaNDS KOT Driver Settings</h3>
+                </div>
+                <button class="btn-close" onclick="closeSettingsModal()">&times;</button>
+            </div>
+
+            <form id="settings-form" onsubmit="handleSaveSettings(event)">
+                <div class="modal-body">
+                    <!-- Section 1: Server & Domain -->
+                    <div class="form-section">
+                        <h4 class="section-title">🌐 Application Server</h4>
+                        <div class="form-group">
+                            <label>Domain / Server URL</label>
+                            <input type="text" id="cfg-domain" class="form-control" placeholder="e.g. kot.sandslab.com or https://kot.sandslab.com" required>
+                            <span class="form-hint">Address of your cloud or local KOT portal</span>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Network Thermal Printer -->
+                    <div class="form-section">
+                        <h4 class="section-title">🖨️ ESC/POS Thermal Network Printer</h4>
+                        <div class="form-row">
+                            <div class="form-group flex-2">
+                                <label>Printer IP Address</label>
+                                <input type="text" id="cfg-printer-ip" class="form-control" placeholder="192.168.8.101" required>
+                                <span class="form-hint">EASY+ POS Local IP</span>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label>Port</label>
+                                <input type="number" id="cfg-printer-port" class="form-control" placeholder="9100" required>
+                                <span class="form-hint">Default: 9100</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Paper Roll Width</label>
+                                <select id="cfg-printer-size" class="form-control">
+                                    <option value="80">80 MM Standard Width</option>
+                                    <option value="58">58 MM Compact Width</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label>Print Delivery Mode</label>
+                                <select id="cfg-print-mode" class="form-control">
+                                    <option value="direct">Direct ESC/POS TCP (Zero Watermarks)</option>
+                                    <option value="rawbt">RawBT Intent Bridge</option>
+                                    <option value="browser">Browser Print Dialog</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Margin Controls -->
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Left Margin (mm)</label>
+                                <input type="number" id="cfg-margin-left" class="form-control" min="0" max="30" value="5">
+                            </div>
+                            <div class="form-group flex-1">
+                                <label>Right Margin (mm)</label>
+                                <input type="number" id="cfg-margin-right" class="form-control" min="0" max="30" value="5">
+                            </div>
+                        </div>
+
+                        <div class="test-printer-row">
+                            <button type="button" class="btn btn-secondary" onclick="testPrinterConnection()" id="btn-modal-test">
+                                ⚡ Test Connection to Printer
+                            </button>
+                            <span class="test-feedback" id="test-feedback"></span>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: SaNDS Key Authentication -->
+                    <div class="form-section">
+                        <div class="section-title-between">
+                            <h4 class="section-title">🔑 SaNDS License Key Activation</h4>
+                            <span class="key-server-tag">key.sandslab.com</span>
+                        </div>
+                        <div class="form-group">
+                            <label>License Key</label>
+                            <div class="input-with-action">
+                                <input type="text" id="cfg-license-key" class="form-control monospace" placeholder="INV-XXXXXX-XXXXXX-XXXXXX-XXXXXX">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="activateLicenseKey()" id="btn-activate-key">Activate</button>
+                            </div>
+                            <span class="form-hint" id="license-hint">Protected by SaNDS Lab Asymmetric Verification</span>
+                        </div>
+                        <div class="license-info-box" id="license-info-box" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- First Time License Setup Modal -->
+    <div class="modal-overlay" id="first-launch-modal" style="display: none;">
+        <div class="modal-card first-launch-card">
+            <div class="welcome-header text-center">
+                <div class="welcome-logo">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1C8DCD" stroke-width="2.5">
+                        <rect x="2" y="6" width="20" height="8" rx="1"></rect>
+                        <path d="M17 14v7H7v-7"></path>
+                        <path d="M17 6V3H7v3"></path>
+                    </svg>
+                </div>
+                <h2>SaNDS KOT Printer Driver</h2>
+                <p>Activate your License Key & Configure your EASY+ POS Network Printer</p>
+            </div>
+
+            <form id="first-launch-form" onsubmit="handleFirstLaunchSetup(event)">
+                <div class="form-group">
+                    <label>License Key <span class="required">*</span></label>
+                    <input type="text" id="fl-license-key" class="form-control monospace" placeholder="INV-XXXXXX-XXXXXX-XXXXXX-XXXXXX" required>
+                    <span class="form-hint">Issued from key.sandslab.com</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Server Domain / URL <span class="required">*</span></label>
+                    <input type="text" id="fl-domain" class="form-control" value="kot.sandslab.com" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label>Printer IP Address <span class="required">*</span></label>
+                        <input type="text" id="fl-printer-ip" class="form-control" value="192.168.8.101" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label>Port</label>
+                        <input type="number" id="fl-printer-port" class="form-control" value="9100" required>
+                    </div>
+                </div>
+
+                <div id="first-launch-error" class="error-banner" style="display: none;"></div>
+
+                <div class="welcome-footer">
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-first-launch">
+                        Activate & Launch POS
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Exit App / Logout Confirmation Modal -->
+    <div class="modal-overlay" id="exit-modal" style="display: none;">
+        <div class="modal-card exit-modal-card">
+            <div class="exit-modal-glow-top"></div>
+            <div class="exit-modal-header">
+                <div class="exit-icon-glow">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </div>
+            </div>
+            <div class="exit-modal-body">
+                <h3 class="exit-modal-title">Close SaNDS KOT Driver?</h3>
+                <p class="exit-modal-description">
+                    Are you sure you want to exit the application? Background network printer services and POS terminal will be closed.
+                </p>
+                <div class="exit-modal-notice">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>You can reopen the app anytime from your tablet home screen.</span>
+                </div>
+            </div>
+            <div class="exit-modal-footer">
+                <button type="button" class="btn btn-secondary btn-exit-cancel" onclick="closeExitAppModal()">
+                    Stay in App
+                </button>
+                <button type="button" class="btn btn-danger btn-exit-confirm" id="btn-confirm-exit" onclick="confirmExitApp()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                    <span>Yes, Exit App</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast" style="display: none;"></div>
+
+    <script src="escpos-engine.js?v=4.5"></script>
+    <script src="app.js?v=4.5"></script>
+</body>
+</html>

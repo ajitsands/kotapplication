@@ -65,6 +65,13 @@ public class MainActivity extends Activity {
             webView.reload();
         });
 
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void openSettings() {
+                runOnUiThread(() -> showServerUrlDialog());
+            }
+        }, "AdminAppBridge");
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
@@ -81,6 +88,17 @@ public class MainActivity extends Activity {
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 swipeRefresh.setRefreshing(false);
+                
+                if (request.isForMainFrame()) {
+                    String failedUrl = request.getUrl().toString();
+                    String html = "<html><body style='background:#0b0f19;color:#fff;font-family:sans-serif;text-align:center;padding:40px 20px;'>"
+                        + "<div style='font-size:48px;margin-bottom:15px;'>🌐</div>"
+                        + "<h2 style='font-size:22px;margin-bottom:8px;'>Cannot Connect to Server</h2>"
+                        + "<p style='color:#94a3b8;font-size:14px;word-break:break-all;margin-bottom:25px;'>" + failedUrl + "</p>"
+                        + "<button onclick='AdminAppBridge.openSettings()' style='background:#6366f1;color:#fff;border:none;padding:12px 24px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(99,102,241,0.4);'>⚙️ Change Server Domain</button>"
+                        + "</body></html>";
+                    view.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+                }
             }
         });
 
@@ -96,18 +114,24 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Load saved server domain
-        String serverUrl = prefs.getString(PREF_SERVER_URL, DEFAULT_URL);
-        webView.loadUrl(serverUrl);
+        // If first launch without configured domain, ask user
+        if (!prefs.contains(PREF_SERVER_URL)) {
+            showServerUrlDialog();
+        } else {
+            String serverUrl = prefs.getString(PREF_SERVER_URL, DEFAULT_URL);
+            webView.loadUrl(serverUrl);
+        }
     }
 
     public void showServerUrlDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Server Portal URL");
-        builder.setMessage("Enter the URL of your Restaurant Admin portal:");
+        builder.setTitle("Connect to Restaurant Server");
+        builder.setMessage("Enter your server domain (e.g. b1.restoflow.us or kot.sandslab.com):");
 
         final EditText input = new EditText(this);
-        input.setText(prefs.getString(PREF_SERVER_URL, DEFAULT_URL));
+        input.setHint("e.g. b1.restoflow.us");
+        String currentUrl = prefs.getString(PREF_SERVER_URL, "https://b1.restoflow.us/admin-app");
+        input.setText(currentUrl.replace("https://", "").replace("/admin-app", ""));
         input.setSelection(input.getText().length());
         
         LinearLayout container = new LinearLayout(this);
@@ -131,7 +155,12 @@ public class MainActivity extends Activity {
             }
         });
 
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            dialog.cancel();
+            if (webView.getUrl() == null) {
+                webView.loadUrl(prefs.getString(PREF_SERVER_URL, "https://b1.restoflow.us/admin-app"));
+            }
+        });
         builder.show();
     }
 

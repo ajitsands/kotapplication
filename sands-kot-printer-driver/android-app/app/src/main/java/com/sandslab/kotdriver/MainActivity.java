@@ -40,6 +40,9 @@ public class MainActivity extends Activity {
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setLoadsImagesAutomatically(true);
         settings.setUserAgentString(settings.getUserAgentString() + " SaNDS-KOT-Printer-Driver/1.0");
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -59,8 +62,8 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Load Driver Portal
-        webView.loadUrl("https://kot.sandslab.com/sands-kot-printer-driver/");
+        // Load Driver Portal locally from assets (100% offline resilient)
+        webView.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
