@@ -553,7 +553,7 @@
                             <p class="driver-subtitle">Live Operations, Collections &amp; Shift Closings</p>
                         </div>
                     </div>
-                    <a href="/download/admin-apk" class="btn-apk-dl" download="SaNDS-KOT-Admin.apk" title="Download KOT Admin App APK">
+                    <a href="download/admin-apk" class="btn-apk-dl" download="SaNDS-KOT-Admin.apk" title="Download KOT Admin App APK">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
@@ -584,7 +584,7 @@
                             <p class="driver-subtitle">Thermal Network POS &amp; Receipt Printing</p>
                         </div>
                     </div>
-                    <a href="/download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
+                    <a href="download/driver-apk" class="btn-apk-dl" download="SaNDS-KOT-Printer-Driver.apk" title="Download SaNDS KOT Driver APK">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>

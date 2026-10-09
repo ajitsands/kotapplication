@@ -7,6 +7,13 @@ require_once __DIR__ . '/../models/Order.php';
 
 class HomeController extends Controller {
     public function index() {
+        if (isset($_GET['driver_app'])) {
+            if (!isset($_SESSION['user_id'])) {
+                $this->redirect('/login?driver_app=1');
+                return;
+            }
+        }
+
         $showcase = isset($_GET['showcase']) && $_GET['showcase'] == '1';
 
         if ($showcase || !isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {

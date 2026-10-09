@@ -34,6 +34,36 @@ $router->add('GET', '/download-driver', 'HomeController@downloadDriverApk');
 $router->add('GET', '/download/admin-apk', 'HomeController@downloadAdminApk');
 $router->add('GET', '/download-admin', 'HomeController@downloadAdminApk');
 
+// Waiter App & Driver Direct Routes
+$router->add('GET', '/waiter-app', function() {
+    $file = file_exists(__DIR__ . '/waiter-app-dist/index.html') ? __DIR__ . '/waiter-app-dist/index.html' : __DIR__ . '/waiter-app/dist/index.html';
+    header('Content-Type: text/html; charset=utf-8');
+    readfile($file);
+    exit;
+});
+$router->add('GET', '/waiter', function() {
+    header('Location: /waiter-app');
+    exit;
+});
+$router->add('GET', '/sands-kot-printer-driver', function() {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/sands-kot-printer-driver/index.html');
+    exit;
+});
+$router->add('GET', '/driver', function() {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/sands-kot-printer-driver/index.html');
+    exit;
+});
+$router->add('POST', '/sands-kot-printer-driver/activate.php', function() {
+    require __DIR__ . '/sands-kot-printer-driver/activate.php';
+    exit;
+});
+$router->add('POST', '/sands-kot-printer-driver/activate', function() {
+    require __DIR__ . '/sands-kot-printer-driver/activate.php';
+    exit;
+});
+
 // Admin Panel Routes
 $router->add('GET', '/admin', 'AdminController@index');
 $router->add('GET', '/admin/products/list', 'AdminController@productsListJson');

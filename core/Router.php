@@ -46,6 +46,48 @@ class Router {
             }
         }
 
+        // Check for static file or index in subdirectories (e.g. sands-kot-printer-driver, waiter-app, uploads)
+        $relPath = ltrim($path, '/');
+        $baseDir = dirname(__DIR__);
+        $candidate = $baseDir . '/' . $relPath;
+
+        if (is_dir($candidate)) {
+            if (file_exists($candidate . '/index.html')) {
+                $candidate .= '/index.html';
+            } elseif (file_exists($candidate . '/index.php')) {
+                require $candidate . '/index.php';
+                return;
+            }
+        }
+
+        if (is_file($candidate)) {
+            $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+            if ($ext === 'php') {
+                require $candidate;
+                return;
+            }
+            $mimes = [
+                'html' => 'text/html',
+                'css'  => 'text/css',
+                'js'   => 'application/javascript',
+                'json' => 'application/json',
+                'png'  => 'image/png',
+                'jpg'  => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'gif'  => 'image/gif',
+                'svg'  => 'image/svg+xml',
+                'apk'  => 'application/vnd.android.package-archive',
+                'woff' => 'font/woff',
+                'woff2'=> 'font/woff2',
+                'ttf'  => 'font/ttf'
+            ];
+            $mime = $mimes[$ext] ?? 'application/octet-stream';
+            header('Content-Type: ' . $mime);
+            header('Content-Length: ' . filesize($candidate));
+            readfile($candidate);
+            return;
+        }
+
         // Check if API or view to return appropriate 404
         if (strpos($path, '/api/') === 0) {
             header("Content-Type: application/json");
@@ -53,7 +95,7 @@ class Router {
             echo json_encode(['error' => 'Endpoint not found', 'path' => $path]);
         } else {
             header("HTTP/1.0 404 Not Found");
-            echo "<h1>404 Not Found</h1><p>The page you requested was not found.</p>";
+            echo "<h1>404 Not Found</h1><p>The page you requested was not found: " . htmlspecialchars($path) . "</p>";
         }
     }
 
