@@ -46,10 +46,28 @@ class Router {
             }
         }
 
-        // Check for static file or index in subdirectories (e.g. sands-kot-printer-driver, waiter-app, uploads)
+        // Check for static file or index in subdirectories (e.g. sands-kot-printer-driver, waiter-app, waiter-app-dist, uploads, assets)
         $relPath = ltrim($path, '/');
         $baseDir = dirname(__DIR__);
         $candidate = $baseDir . '/' . $relPath;
+
+        // Check fallback locations if candidate not found in root
+        if (!file_exists($candidate)) {
+            $fallbacks = [
+                $baseDir . '/waiter-app-dist/' . $relPath,
+                $baseDir . '/waiter-app-dist/' . preg_replace('#^waiter-app/#', '', $relPath),
+                $baseDir . '/waiter-app/dist/' . $relPath,
+                $baseDir . '/waiter-app/dist/' . preg_replace('#^waiter-app/#', '', $relPath),
+                $baseDir . '/sands-kot-printer-driver/' . preg_replace('#^(driver|sands-kot-printer-driver)/#', '', $relPath),
+                $baseDir . '/assets/' . preg_replace('#^(waiter-app/assets|assets)/#', '', $relPath),
+            ];
+            foreach ($fallbacks as $fb) {
+                if (file_exists($fb) && !is_dir($fb)) {
+                    $candidate = $fb;
+                    break;
+                }
+            }
+        }
 
         if (is_dir($candidate)) {
             if (file_exists($candidate . '/index.html')) {
@@ -67,15 +85,17 @@ class Router {
                 return;
             }
             $mimes = [
-                'html' => 'text/html',
-                'css'  => 'text/css',
-                'js'   => 'application/javascript',
+                'html' => 'text/html; charset=utf-8',
+                'css'  => 'text/css; charset=utf-8',
+                'js'   => 'application/javascript; charset=utf-8',
+                'mjs'  => 'application/javascript; charset=utf-8',
                 'json' => 'application/json',
                 'png'  => 'image/png',
                 'jpg'  => 'image/jpeg',
                 'jpeg' => 'image/jpeg',
                 'gif'  => 'image/gif',
                 'svg'  => 'image/svg+xml',
+                'ico'  => 'image/x-icon',
                 'apk'  => 'application/vnd.android.package-archive',
                 'woff' => 'font/woff',
                 'woff2'=> 'font/woff2',
