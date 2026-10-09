@@ -508,6 +508,7 @@
                 <?php endif; ?>
 
                 <form action="login" method="POST">
+                    <input type="hidden" name="is_printer_driver" id="is_printer_driver" value="0">
                     <div class="form-group">
                         <label class="form-label" for="username">Username</label>
                         <input class="form-input" type="text" id="username" name="username" placeholder="e.g. admin" required autocomplete="off">
@@ -670,11 +671,32 @@
             }
         }
 
-        // Check hash or query param on page load
+        // Check hash or query param on page load & detect Printer Driver client
         window.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (window.location.hash === '#downloads' || urlParams.get('tab') === 'downloads') {
                 switchAuthTab('downloads');
+            }
+
+            // Detect if running inside SaNDS KOT Printer Driver App or iframe
+            var isDriver = false;
+            if (urlParams.get('driver_app') === '1' || urlParams.get('driver_client') === '1' || urlParams.get('is_printer_driver') === '1') {
+                isDriver = true;
+            } else if (window.self !== window.top) {
+                isDriver = true;
+            } else if (window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge)) {
+                isDriver = true;
+            } else if (navigator.userAgent && navigator.userAgent.indexOf('SaNDS-KOT-Printer-Driver') !== -1) {
+                isDriver = true;
+            }
+
+            var driverInput = document.getElementById('is_printer_driver');
+            if (isDriver) {
+                if (driverInput) driverInput.value = '1';
+                document.cookie = "is_printer_driver=1; path=/; SameSite=Lax";
+            } else {
+                if (driverInput) driverInput.value = '0';
+                document.cookie = "is_printer_driver=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
             }
         });
 

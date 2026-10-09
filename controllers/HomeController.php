@@ -108,6 +108,22 @@ class HomeController extends Controller {
                 'settings' => $settings
             ]);
         } elseif ($user) {
+            // Block waiter logins originating from the SaNDS KOT Printer Driver App
+            $isPrinterDriver = !empty($_POST['is_printer_driver']) 
+                || (isset($_COOKIE['is_printer_driver']) && $_COOKIE['is_printer_driver'] == '1')
+                || (isset($_GET['driver_app']) && $_GET['driver_app'] == '1')
+                || (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'SaNDS-KOT-Printer-Driver') !== false);
+
+            if ($user['role'] === 'waiter' && $isPrinterDriver) {
+                $settingsModel = new Setting();
+                $settings = $settingsModel->getSettings();
+                $this->render('login', [
+                    'error' => 'Waiter accounts cannot log in through the SaNDS KOT Printer Driver App. Please log in via mobile browser or scan your table QR code.',
+                    'settings' => $settings
+                ]);
+                return;
+            }
+
             // Check if software has expired and this is not the superadmin user
             $settingsModel = new Setting();
             $settings = $settingsModel->getSettings();

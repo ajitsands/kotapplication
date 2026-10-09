@@ -19,6 +19,16 @@ class ApiController extends Controller {
         if ($user === 'deactivated') {
             $this->json(['error' => 'Account is deactivated. Please contact the administrator.'], 403);
         } elseif ($user) {
+            $isPrinterDriver = !empty($data['is_printer_driver']) 
+                || (isset($_COOKIE['is_printer_driver']) && $_COOKIE['is_printer_driver'] == '1')
+                || (isset($_GET['driver_app']) && $_GET['driver_app'] == '1')
+                || (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'SaNDS-KOT-Printer-Driver') !== false);
+
+            if ($user['role'] === 'waiter' && $isPrinterDriver) {
+                $this->json(['error' => 'Waiter accounts cannot log in through the SaNDS KOT Printer Driver App. Please log in via mobile browser or scan table QR code.'], 403);
+                return;
+            }
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_role'] = $user['role'];

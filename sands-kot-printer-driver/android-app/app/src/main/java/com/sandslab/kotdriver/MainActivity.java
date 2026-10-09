@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setLoadsImagesAutomatically(true);
+        settings.setUserAgentString(settings.getUserAgentString() + " SaNDS-KOT-Printer-Driver/1.0");
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         // Expose Native TCP Socket Printer Bridge to JavaScript

@@ -186,10 +186,13 @@ function loadPosPortal() {
         targetUrl = 'https://' + targetUrl;
     }
 
+    let separator = targetUrl.includes('?') ? '&' : '?';
+    let framedUrl = targetUrl + separator + 'driver_app=1';
+
     overlay.classList.remove('hidden');
     document.getElementById('loading-text').textContent = `Loading ${currentConfig.domain}...`;
 
-    frame.src = targetUrl;
+    frame.src = framedUrl;
     frame.onload = () => {
         applyZoom(currentZoom);
         setTimeout(() => {
