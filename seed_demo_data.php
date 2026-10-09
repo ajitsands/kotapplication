@@ -441,10 +441,13 @@ try {
     $cashierId = 5;
     $paymentMethods = ['cash', 'card', 'qr_pay', 'card', 'cash'];
 
-    $orderInsert = $db->prepare("INSERT INTO `orders` (`table_number`, `status`, `order_type`, `platform_id`, `platform_order_number`, `customer_name`, `customer_mobile`, `token_number`, `waiter_id`, `created_at`, `updated_at`) VALUES (?, 'closed', ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $orderInsert = $db->prepare("INSERT INTO `orders` (`table_number`, `status`, `order_type`, `platform_id`, `platform_order_number`, `customer_name`, `customer_mobile`, `token_number`, `waiter_id`, `created_at`, `updated_at`) VALUES (?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $kotInsert = $db->prepare("INSERT INTO `kots` (`order_id`, `waiter_id`, `kot_number`, `status`, `created_at`) VALUES (?, ?, ?, 'dispatched', ?)");
     $kotItemInsert = $db->prepare("INSERT INTO `kot_items` (`kot_id`, `product_id`, `quantity`, `status`, `notes`) VALUES (?, ?, ?, 'dispatched', ?)");
     $billInsert = $db->prepare("INSERT INTO `bills` (`order_id`, `subtotal`, `tax_amount`, `discount_percent`, `discount_amount`, `grand_total`, `payment_method`, `status`, `cashier_id`, `customer_id`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)");
+
+    // Auto-fix any previous seed data where paid bills were linked to 'closed' orders
+    $db->exec("UPDATE orders o JOIN bills b ON b.order_id = o.id SET o.status = 'completed' WHERE b.status = 'paid' AND o.status = 'closed'");
 
     $totalHistoricalOrders = 36;
     $orderCounter = 100;

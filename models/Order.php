@@ -5,7 +5,10 @@ class Order extends Model {
         $stmt = $this->db->prepare("SELECT o.*, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                                     FROM orders o 
                                     LEFT JOIN users u ON o.waiter_id = u.id 
-                                    WHERE o.table_number = ? AND o.status = 'active'");
+                                    LEFT JOIN bills b ON b.order_id = o.id
+                                    WHERE o.table_number = ? AND o.status IN ('active', 'closed')
+                                      AND (b.id IS NULL OR b.status = 'pending')
+                                    ORDER BY o.id DESC LIMIT 1");
         $stmt->execute([$tableNumber]);
         return $stmt->fetch();
     }
@@ -160,11 +163,14 @@ class Order extends Model {
     }
 
     public function getTablesState() {
-        // Query active or closed orders to map state, joining user's name as waiter_name
+        // Query active or closed orders with pending bills to map state, joining user's name as waiter_name
         $stmt = $this->db->query("SELECT o.table_number, o.status, o.id, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                                   FROM orders o 
                                   LEFT JOIN users u ON o.waiter_id = u.id 
-                                  WHERE o.status IN ('active', 'closed')");
+                                  LEFT JOIN bills b ON b.order_id = o.id
+                                  WHERE o.status IN ('active', 'closed')
+                                    AND (b.id IS NULL OR b.status = 'pending')
+                                  ORDER BY o.id ASC");
         $activeOrders = $stmt->fetchAll();
         
         // Fetch all tables from dining_tables
