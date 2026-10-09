@@ -556,3 +556,151 @@ body {
     font-size: 12px;
     margin: 12px 0;
 }
+
+/* Exit App Button in Header */
+.btn-exit-app {
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.btn-exit-app:hover {
+    background: rgba(239, 68, 68, 0.25) !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Exit Confirmation Modal */
+.exit-modal-card {
+    max-width: 420px;
+    padding: 0;
+    text-align: center;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(239, 68, 68, 0.15);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #182235 0%, #0f172a 100%);
+    border-radius: 18px;
+}
+
+.exit-modal-glow-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #ef4444);
+}
+
+.exit-modal-header {
+    padding: 28px 24px 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: none;
+}
+
+.exit-icon-glow {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.05) 70%);
+    border: 2px solid rgba(239, 68, 68, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ef4444;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+    animation: exitPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes exitPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(239, 68, 68, 0.35); }
+    50% { transform: scale(1.06); box-shadow: 0 0 35px rgba(239, 68, 68, 0.55); }
+}
+
+.exit-modal-body {
+    padding: 0 26px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.exit-modal-title {
+    font-size: 19px;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.exit-modal-description {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.exit-modal-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    text-align: left;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.exit-modal-notice svg {
+    flex-shrink: 0;
+}
+
+.exit-modal-footer {
+    padding: 16px 24px 22px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.btn-exit-cancel {
+    flex: 1;
+    padding: 10px 16px;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+.btn-exit-confirm {
+    flex: 1.2;
+    padding: 10px 16px;
+    font-weight: 700;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-exit-confirm:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+

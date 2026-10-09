@@ -448,6 +448,50 @@ async function quickTestPrint() {
     }
 }
 
+function openExitAppModal() {
+    const modal = document.getElementById('exit-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeExitAppModal() {
+    const modal = document.getElementById('exit-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function confirmExitApp() {
+    closeExitAppModal();
+    showToast('👋 Exiting SaNDS KOT Driver...');
+    
+    setTimeout(() => {
+        if (window.AndroidPrintBridge && typeof window.AndroidPrintBridge.exitApp === 'function') {
+            window.AndroidPrintBridge.exitApp();
+        } else if (window.AndroidPrintBridge && typeof window.AndroidPrintBridge.navigateBack === 'function') {
+            window.AndroidPrintBridge.navigateBack();
+        } else {
+            // Web browser fallback
+            try {
+                window.close();
+            } catch (e) {
+                console.warn('Window close blocked by browser:', e);
+            }
+            document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0b0f19;color:#f8fafc;font-family:'Outfit',sans-serif;text-align:center;padding:24px;">
+                    <div style="width:72px;height:72px;border-radius:50%;background:rgba(239,68,68,0.15);border:2px solid rgba(239,68,68,0.4);display:flex;align-items:center;justify-content:center;color:#ef4444;margin-bottom:20px;box-shadow:0 0 30px rgba(239,68,68,0.25);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </div>
+                    <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;letter-spacing:-0.3px;">Driver Application Exited</h2>
+                    <p style="color:#94a3b8;font-size:14px;max-width:380px;line-height:1.5;margin-bottom:24px;">You can safely close this browser window or tab.</p>
+                    <button onclick="location.reload()" style="background:linear-gradient(135deg,#1c8dcd,#0284c7);color:#fff;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 4px 15px rgba(28,141,205,0.4);">Restart KOT Driver</button>
+                </div>
+            `;
+        }
+    }, 250);
+}
+
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {

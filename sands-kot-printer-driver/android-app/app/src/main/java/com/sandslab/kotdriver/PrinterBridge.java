@@ -100,4 +100,13 @@ public class PrinterBridge {
             });
         }
     }
+
+    @JavascriptInterface
+    public void exitApp() {
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                activity.finishAffinity();
+            });
+        }
+    }
 }
