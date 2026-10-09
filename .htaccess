@@ -8,6 +8,11 @@
     # Disable directory browsing
     Options -Indexes
 
+    # Route sub-app entry points through index.php regardless of directory presence
+    RewriteRule ^waiter-app(/.*)?$ index.php [QSA,L]
+    RewriteRule ^waiter/?$ index.php [QSA,L]
+    RewriteRule ^driver/?$ index.php [QSA,L]
+
     # Direct access to physical files or folders (uploads, assets) bypasses rewrite
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
@@ -15,3 +20,4 @@
     # Redirect all virtual routing endpoints to index.php
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
+
