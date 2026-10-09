@@ -228,6 +228,16 @@ try {
     foreach ($schemaTables as $sql) {
         $db->exec($sql);
     }
+
+    // Ensure utf8mb4 charset across tables
+    $tableNames = ['users', 'settings', 'categories', 'products', 'dining_tables', 'orders', 'kots', 'kot_items', 'customers', 'bills', 'counter_sessions', 'suppliers', 'inventory_items', 'product_recipes', 'inventory_transactions', 'online_platforms'];
+    foreach ($tableNames as $tbl) {
+        try {
+            $db->exec("ALTER TABLE `$tbl` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } catch (Exception $e) {
+            // Ignore if already set or not permitted
+        }
+    }
     echo "✓ Database tables verified.\n";
 
     // 2. Clear old transactions to ensure a fresh, consistent seed
@@ -322,40 +332,40 @@ try {
 
     // 9. Categories & Products
     $categoriesData = [
-        ['name' => '🍲 Starters & Appetizers', 'products' => [
+        ['name' => 'Starters & Appetizers', 'products' => [
             ['Crispy Calamari Rings', 'Golden fried calamari served with tartare sauce and lemon wedge', 2.200, 0],
             ['Garlic Parmesan Chicken Wings', 'Crispy tossed wings coated with garlic butter and aged parmesan', 2.500, 0],
             ['Truffle Parmesan Fries', 'Hand-cut potato fries drizzled with aromatic white truffle oil', 1.800, 0],
             ['Dynamite Shrimp Cups', 'Tempura fried shrimp coated in spicy creamy dynamite glaze', 2.800, 0],
             ['Hummus with Warm Pita', 'Creamy chickpea puree with tahini, extra virgin olive oil and warm pita', 1.500, 0]
         ]],
-        ['name' => '🍔 Burgers & Sandwiches', 'products' => [
+        ['name' => 'Burgers & Sandwiches', 'products' => [
             ['Wagyu Classic Cheeseburger', 'Juicy 180g Wagyu beef patty, cheddar, lettuce, tomato and secret sauce', 3.500, 0],
             ['Crispy Buttermilk Chicken Burger', 'Fried chicken fillet with spicy coleslaw, pickles and brioche bun', 2.800, 0],
             ['Truffle Swiss Mushroom Burger', 'Grilled beef patty topped with sautéed portobello mushrooms and swiss cheese', 3.200, 0],
             ['Smoky BBQ Beef Bacon Burger', 'Angus patty with beef bacon, smoked cheddar and hickory BBQ sauce', 3.600, 0]
         ]],
-        ['name' => '🍕 Artisan Pizzas', 'products' => [
+        ['name' => 'Artisan Pizzas', 'products' => [
             ['Classic Margherita Pizza', 'San Marzano tomato base, fresh buffalo mozzarella, fresh basil and olive oil', 3.200, 0],
             ['Pepperoni Supreme Pizza', 'Double beef pepperoni, rich tomato sauce, mozzarella and oregano', 3.800, 0],
             ['Wild Truffle & Mushroom Pizza', 'Creamy white base, wild mushrooms, mozzarella, truffle glaze', 4.200, 0],
             ['BBQ Smoked Chicken Pizza', 'Grilled chicken breast, red onions, sweet corn, cilantro and smoky BBQ', 3.900, 0]
         ]],
-        ['name' => '🍛 Biryani & Main Course', 'products' => [
+        ['name' => 'Biryani & Main Course', 'products' => [
             ['Royal Chicken Dum Biryani', 'Slow-cooked aromatic basmati rice with tender chicken, fried onions & saffron', 3.600, 0],
             ['Hyderabadi Mutton Biryani', 'Fragrant basmati rice layered with spiced baby mutton and fresh mint', 4.500, 0],
             ['Butter Chicken with Garlic Naan', 'Tender chicken tikka simmered in creamy makhani gravy with freshly baked naan', 3.800, 0],
             ['Grilled Atlantic Salmon Fillet', 'Herb-crusted salmon with creamy mashed potato and lemon butter caper sauce', 5.200, 0],
             ['Penne Creamy Alfredo Chicken', 'Al dente penne pasta tossed in rich parmesan cream sauce with grilled chicken', 3.400, 0]
         ]],
-        ['name' => '☕ Hot & Cold Beverages', 'products' => [
+        ['name' => 'Hot & Cold Beverages', 'products' => [
             ['Signature Spanish Latte', 'Rich espresso layered with sweetened condensed milk and silky foam', 1.800, 0],
             ['Iced Caramel Frappuccino', 'Blended iced coffee with creamy caramel swirl and whipped cream', 2.200, 0],
             ['Passionfruit Mint Mojito', 'Crushed lime, fresh mint leaves, passionfruit pulp and sparkling soda', 1.600, 0],
             ['Fresh Orange Juice', '100% pure freshly squeezed Valencia oranges (no added sugar)', 1.400, 0],
             ['Mineral Water 500ml', 'Chilled premium mineral drinking water bottle', 0.500, 1] // Counter item
         ]],
-        ['name' => '🍰 Gourmet Desserts', 'products' => [
+        ['name' => 'Gourmet Desserts', 'products' => [
             ['Lotus Biscoff Cheesecake', 'Creamy baked cheesecake infused with Lotus spread on speculoos biscuit crust', 2.400, 0],
             ['Warm Molten Chocolate Lava', 'Decadent chocolate cake with warm gooey center, served with vanilla bean ice cream', 2.600, 0],
             ['Pistachio Saffron Milk Cake', 'Spongy tres leches cake soaked in rich pistachio saffron infused milk', 2.800, 0],
