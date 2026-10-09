@@ -507,8 +507,8 @@
                     </div>
                 <?php endif; ?>
 
-                <form action="login" method="POST">
-                    <input type="hidden" name="is_printer_driver" id="is_printer_driver" value="0">
+                <form action="/login<?= (isset($_GET['driver_app']) || isset($_GET['is_printer_driver'])) ? '?driver_app=1' : '' ?>" method="POST" id="loginForm">
+                    <input type="hidden" name="is_printer_driver" id="is_printer_driver" value="<?= (isset($_GET['driver_app']) || isset($_GET['is_printer_driver'])) ? '1' : '0' ?>">
                     <div class="form-group">
                         <label class="form-label" for="username">Username</label>
                         <input class="form-input" type="text" id="username" name="username" placeholder="e.g. admin" required autocomplete="off">
@@ -691,12 +691,17 @@
             }
 
             var driverInput = document.getElementById('is_printer_driver');
+            var loginForm = document.getElementById('loginForm');
             if (isDriver) {
                 if (driverInput) driverInput.value = '1';
-                document.cookie = "is_printer_driver=1; path=/; SameSite=Lax";
+                if (loginForm && loginForm.action && loginForm.action.indexOf('driver_app=1') === -1) {
+                    var sep = loginForm.action.indexOf('?') === -1 ? '?' : '&';
+                    loginForm.action += sep + 'driver_app=1';
+                }
+                var sec = window.location.protocol === 'https:' ? '; Secure; SameSite=None' : '; SameSite=Lax';
+                document.cookie = "is_printer_driver=1; path=/" + sec;
             } else {
                 if (driverInput) driverInput.value = '0';
-                document.cookie = "is_printer_driver=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
             }
         });
 

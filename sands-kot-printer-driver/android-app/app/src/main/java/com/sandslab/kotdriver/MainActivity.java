@@ -32,8 +32,10 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         );
 
-        webView = new WebView(this);
-        setContentView(webView);
+        // Enable Cookies & Third-Party Cookies (vital for iframe POS terminal sessions)
+        android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        cookieManager.setAcceptThirdPartyCookies(webView, true);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
