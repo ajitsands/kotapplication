@@ -3918,7 +3918,7 @@
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
                 showLoaderOnConfirm: true,
                 preConfirm: () => {
-                    return fetch('admin/clear-transactions', {
+                    return fetch('/admin/clear-transactions', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     })
@@ -3975,7 +3975,7 @@
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
                 showLoaderOnConfirm: true,
                 preConfirm: () => {
-                    return fetch('admin/generate-demo-data', {
+                    return fetch('/admin/generate-demo-data', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     })

@@ -362,14 +362,19 @@ class AdminController extends Controller {
             return;
         }
 
-        ob_start();
-        require_once __DIR__ . '/../seed_demo_data.php';
-        $output = ob_get_clean();
+        try {
+            ob_start();
+            require __DIR__ . '/../seed_demo_data.php';
+            $output = ob_get_clean();
 
-        $this->json([
-            'success' => true,
-            'message' => 'Complete master demo data (products, categories, inventory, recipes, sample orders & KOTs) has been generated successfully!',
-            'log' => $output
-        ]);
+            $this->json([
+                'success' => true,
+                'message' => 'Complete master demo data (products, categories, inventory, recipes, sample orders & KOTs) has been generated successfully!',
+                'log' => $output
+            ]);
+        } catch (Exception $e) {
+            ob_end_clean();
+            $this->json(['success' => false, 'error' => 'Error generating demo data: ' . $e->getMessage()], 500);
+        }
     }
 }

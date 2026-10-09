@@ -557,4 +557,5 @@ try {
         $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
     }
     echo "❌ Error during demo data generation: " . $e->getMessage() . "\n";
+    throw $e;
 }
