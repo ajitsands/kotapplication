@@ -11,69 +11,76 @@ class HomeController extends Controller {
             if (!isset($_SESSION['user_id'])) {
                 $this->redirect('/login?driver_app=1');
                 return;
+            } else {
+                $role = $_SESSION['user_role'] ?? 'counter';
+                if ($role === 'admin') {
+                    $this->redirect('/counter?driver_app=1');
+                } elseif ($role === 'kot') {
+                    $this->redirect('/kot');
+                } else {
+                    $this->redirect('/counter?driver_app=1');
+                }
+                return;
             }
         }
 
         $showcase = isset($_GET['showcase']) && $_GET['showcase'] == '1';
 
-        if ($showcase || !isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {
-            $settingsModel = new Setting();
-            $settings = $settingsModel->getSettings();
-
-            $db = Database::getInstance()->getConnection();
-            $stats = [
-                'total_products' => 0,
-                'total_categories' => 0,
-                'total_tables' => 0,
-                'total_orders' => 0
-            ];
-
-            try {
-                $stats['total_products'] = (int)$db->query("SELECT COUNT(*) FROM products")->fetchColumn();
-                $stats['total_categories'] = (int)$db->query("SELECT COUNT(*) FROM categories")->fetchColumn();
-                $stats['total_tables'] = (int)$db->query("SELECT COUNT(*) FROM dining_tables")->fetchColumn();
-                $stats['total_orders'] = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
-                
-                // Fallbacks if database is empty
-                if ($stats['total_products'] === 0) $stats['total_products'] = 24;
-                if ($stats['total_categories'] === 0) $stats['total_categories'] = 6;
-                if ($stats['total_tables'] === 0) $stats['total_tables'] = 10;
-                if ($stats['total_orders'] === 0) $stats['total_orders'] = 120;
-            } catch (Exception $e) {
-                $stats = [
-                    'total_products' => 24,
-                    'total_categories' => 6,
-                    'total_tables' => 10,
-                    'total_orders' => 120
-                ];
+        if (!$showcase && isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
+            $role = $_SESSION['user_role'];
+            switch ($role) {
+                case 'admin':
+                    $this->redirect('/admin');
+                    return;
+                case 'kot':
+                    $this->redirect('/kot');
+                    return;
+                case 'counter':
+                    $this->redirect('/counter');
+                    return;
+                case 'waiter':
+                    $this->redirect('/waiter-app');
+                    return;
             }
-
-            $this->render('home', [
-                'settings' => $settings,
-                'stats' => $stats,
-                'isLoggedIn' => isset($_SESSION['user_id'])
-            ]);
-            return;
         }
 
-        $role = $_SESSION['user_role'];
-        switch ($role) {
-            case 'admin':
-                $this->redirect('/admin');
-                break;
-            case 'kot':
-                $this->redirect('/kot');
-                break;
-            case 'counter':
-                $this->redirect('/counter');
-                break;
-            case 'waiter':
-                // Redirect to waiter app (served out of public/waiter or React route)
-                $this->redirect('/waiter-app/dist/index.html');
-                break;
-            default:
-                $this->redirect('/login');
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+
+        $db = Database::getInstance()->getConnection();
+        $stats = [
+            'total_products' => 0,
+            'total_categories' => 0,
+            'total_tables' => 0,
+            'total_orders' => 0
+        ];
+
+        try {
+            $stats['total_products'] = (int)$db->query("SELECT COUNT(*) FROM products")->fetchColumn();
+            $stats['total_categories'] = (int)$db->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+            $stats['total_tables'] = (int)$db->query("SELECT COUNT(*) FROM dining_tables")->fetchColumn();
+            $stats['total_orders'] = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
+            
+            // Fallbacks if database is empty
+            if ($stats['total_products'] === 0) $stats['total_products'] = 24;
+            if ($stats['total_categories'] === 0) $stats['total_categories'] = 6;
+            if ($stats['total_tables'] === 0) $stats['total_tables'] = 10;
+            if ($stats['total_orders'] === 0) $stats['total_orders'] = 120;
+        } catch (Exception $e) {
+            $stats = [
+                'total_products' => 24,
+                'total_categories' => 6,
+                'total_tables' => 10,
+                'total_orders' => 120
+            ];
         }
+
+        $this->render('home', [
+            'settings' => $settings,
+            'stats' => $stats,
+            'isLoggedIn' => isset($_SESSION['user_id'])
+        ]);
+        return;
     }
 
     public function loginView() {
@@ -85,9 +92,24 @@ class HomeController extends Controller {
             $isSuperAdmin = isset($_SESSION['username']) && $_SESSION['username'] === 'superadmin';
 
             if (!$isExpired || $isSuperAdmin) {
-                $validRoles = ['admin', 'waiter', 'kot', 'counter'];
-                if (in_array($_SESSION['user_role'], $validRoles)) {
-                    $this->redirect('/');
+                $role = $_SESSION['user_role'];
+                if (isset($_GET['driver_app'])) {
+                    $this->redirect('/counter?driver_app=1');
+                    return;
+                }
+                switch ($role) {
+                    case 'admin':
+                        $this->redirect('/admin');
+                        return;
+                    case 'kot':
+                        $this->redirect('/kot');
+                        return;
+                    case 'counter':
+                        $this->redirect('/counter');
+                        return;
+                    case 'waiter':
+                        $this->redirect('/waiter-app');
+                        return;
                 }
             } else {
                 // Clear session so user can log in as superadmin
@@ -155,7 +177,30 @@ class HomeController extends Controller {
             // Track user logged in state
             $userModel->setLoggedIn($user['id'], 1);
 
-            $this->redirect('/');
+            // Direct role-based redirection to avoid extra redirects
+            if ($isPrinterDriver) {
+                $this->redirect('/counter?driver_app=1');
+                return;
+            }
+
+            switch ($user['role']) {
+                case 'admin':
+                    $this->redirect('/admin');
+                    break;
+                case 'kot':
+                    $this->redirect('/kot');
+                    break;
+                case 'counter':
+                    $this->redirect('/counter');
+                    break;
+                case 'waiter':
+                    $this->redirect('/waiter-app');
+                    break;
+                default:
+                    $this->redirect('/admin');
+                    break;
+            }
+            return;
         } else {
             $settingsModel = new Setting();
             $settings = $settingsModel->getSettings();

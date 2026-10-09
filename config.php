@@ -38,16 +38,35 @@ define('DB_USER', $dbUser);
 define('DB_PASS', $dbPass);
 define('DB_NAME', $dbName);
 
-// Configure local session directory to bypass broken cPanel session save paths
+// Configure local session directory and robust cookie parameters
 if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+        || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) 
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 86400 * 30,
+            'path' => '/',
+            'domain' => '',
+            'secure' => $isHttps,
+            'httponly' => true,
+            'samesite' => $isHttps ? 'None' : 'Lax'
+        ]);
+    } else {
+        session_set_cookie_params(86400 * 30, '/; SameSite=' . ($isHttps ? 'None' : 'Lax') . ($isHttps ? '; Secure' : ''), '', $isHttps, true);
+    }
+
     $sessionDir = dirname(__FILE__) . '/sessions';
     if (!file_exists($sessionDir)) {
-        mkdir($sessionDir, 0777, true);
-        // Secure sessions folder with .htaccess
-        file_put_contents($sessionDir . '/.htaccess', "Deny from all\n");
+        @mkdir($sessionDir, 0777, true);
+        @chmod($sessionDir, 0777);
+        @file_put_contents($sessionDir . '/.htaccess', "Deny from all\n");
     }
-    session_save_path($sessionDir);
-    session_start();
+    if (is_dir($sessionDir) && is_writable($sessionDir)) {
+        session_save_path($sessionDir);
+    }
+    @session_start();
 }
 
 // Global settings helper
