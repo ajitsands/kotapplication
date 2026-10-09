@@ -180,7 +180,7 @@
         </div>
     </div>
 
-    <!-- First Time License Setup Modal -->
+    <!-- First Time Configuration & License Setup Modal -->
     <div class="modal-overlay" id="first-launch-modal" style="display: none;">
         <div class="modal-card first-launch-card">
             <div class="welcome-header text-center">
@@ -191,20 +191,21 @@
                         <path d="M17 6V3H7v3"></path>
                     </svg>
                 </div>
-                <h2>SaNDS KOT Printer Driver</h2>
-                <p>Activate your License Key & Configure your EASY+ POS Network Printer</p>
+                <h2>Initial Setup & Configuration</h2>
+                <p>Configure your Restaurant Server Domain, License Key & Thermal Printer</p>
             </div>
 
             <form id="first-launch-form" onsubmit="handleFirstLaunchSetup(event)">
                 <div class="form-group">
-                    <label>License Key <span class="required">*</span></label>
-                    <input type="text" id="fl-license-key" class="form-control monospace" placeholder="INV-XXXXXX-XXXXXX-XXXXXX-XXXXXX" required>
-                    <span class="form-hint">Issued from key.sandslab.com</span>
+                    <label>Server Domain / URL <span class="required">*</span></label>
+                    <input type="text" id="fl-domain" class="form-control" placeholder="e.g. b1.restoflow.us or kot.sandslab.com" required>
+                    <span class="form-hint">Enter your cloud subdomain or server address (e.g. b1.restoflow.us)</span>
                 </div>
 
                 <div class="form-group">
-                    <label>Server Domain / URL <span class="required">*</span></label>
-                    <input type="text" id="fl-domain" class="form-control" value="kot.sandslab.com" required>
+                    <label>License Key <span style="font-size: 11px; color: var(--text-muted);">(Optional / key.sandslab.com)</span></label>
+                    <input type="text" id="fl-license-key" class="form-control monospace" placeholder="INV-XXXXXX-XXXXXX-XXXXXX-XXXXXX">
+                    <span class="form-hint">Enter your activation key if issued, or leave blank to continue</span>
                 </div>
 
                 <div class="form-row">
@@ -218,11 +219,28 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label>Paper Size</label>
+                        <select id="fl-printer-size" class="form-control">
+                            <option value="80" selected>80mm (Standard)</option>
+                            <option value="58">58mm (Small)</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label>Print Mode</label>
+                        <select id="fl-print-mode" class="form-control">
+                            <option value="direct" selected>Direct (ESC/POS)</option>
+                            <option value="browser">Browser Print</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div id="first-launch-error" class="error-banner" style="display: none;"></div>
 
                 <div class="welcome-footer">
                     <button type="submit" class="btn btn-primary btn-block" id="btn-first-launch">
-                        Activate & Launch POS
+                        💾 Save Configuration & Launch POS
                     </button>
                 </div>
             </form>

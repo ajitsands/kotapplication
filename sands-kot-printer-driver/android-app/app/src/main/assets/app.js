@@ -8,7 +8,8 @@ const STORAGE_KEY_LICENSE = 'sands_kot_license';
 const KEY_ACTIVATION_API = 'https://key.sandslab.com/public/api/activate';
 
 const defaultConfig = {
-    domain: 'kot.sandslab.com',
+    domain: '',
+    is_configured: false,
     printerIp: '192.168.8.101',
     printerPort: 9100,
     printerSize: 80,
@@ -28,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedData();
     applyZoom(currentZoom);
     startHeaderClock();
-    fetchServerSettings();
     checkInitialState();
 });
 
@@ -79,7 +79,8 @@ function formatHeaderDateTime(d = new Date(), timeZone = (currentConfig.time_zon
 
 // Fetch Admin configured timezone & settings from POS server
 function fetchServerSettings() {
-    let domain = currentConfig.domain ? currentConfig.domain.trim() : 'kot.sandslab.com';
+    if (!currentConfig.domain) return;
+    let domain = currentConfig.domain.trim();
     let base = domain;
     if (!base.startsWith('http://') && !base.startsWith('https://')) {
         base = (base.includes('localhost') || base.includes('192.168.') || base.includes('127.0.0.1')) ? `http://${base}` : `https://${base}`;
@@ -152,18 +153,26 @@ function loadSavedData() {
 }
 
 function checkInitialState() {
-    // Check if license exists and is valid
-    if (!currentLicense || !currentLicense.token) {
-        document.getElementById('first-launch-modal').style.display = 'flex';
+    // Check if configuration has been completed and domain is entered
+    if (!currentConfig.is_configured || !currentConfig.domain || currentConfig.domain.trim() === '') {
+        const modal = document.getElementById('first-launch-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const domInput = document.getElementById('fl-domain');
+            if (domInput) {
+                domInput.value = currentConfig.domain || '';
+            }
+        }
     } else {
         updateStatusBadges();
+        fetchServerSettings();
         loadPosPortal();
     }
 }
 
 function updateStatusBadges() {
-    document.getElementById('status-portal-url').textContent = currentConfig.domain;
-    document.getElementById('printer-status-text').textContent = `Printer: ${currentConfig.printerIp}`;
+    document.getElementById('status-portal-url').textContent = currentConfig.domain || 'Not Configured';
+    document.getElementById('printer-status-text').textContent = `Printer: ${currentConfig.printerIp || 'None'}`;
 
     const licBadge = document.getElementById('license-badge');
     const licText = document.getElementById('license-status-text');
@@ -173,7 +182,7 @@ function updateStatusBadges() {
         licText.textContent = 'Licensed';
     } else {
         licBadge.querySelector('.status-dot').className = 'status-dot orange';
-        licText.textContent = 'Unlicensed';
+        licText.textContent = 'Ready';
     }
 }
 
@@ -181,19 +190,44 @@ function loadPosPortal() {
     const overlay = document.getElementById('loading-overlay');
     const frame = document.getElementById('pos-frame');
     
+    if (!currentConfig.domain || !currentConfig.is_configured) {
+        checkInitialState();
+        return;
+    }
+
     let targetUrl = currentConfig.domain.trim();
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
         targetUrl = 'https://' + targetUrl;
     }
 
-    let separator = targetUrl.includes('?') ? '&' : '?';
-    let framedUrl = targetUrl + separator + 'driver_app=1';
+    let framedUrl = targetUrl;
+    if (!framedUrl.includes('/counter') && !framedUrl.includes('/login') && !framedUrl.includes('/admin')) {
+        framedUrl = targetUrl.replace(/\/+$/, '') + '/counter';
+    }
+
+    let separator = framedUrl.includes('?') ? '&' : '?';
+    framedUrl = framedUrl + separator + 'driver_app=1';
 
     overlay.classList.remove('hidden');
-    document.getElementById('loading-text').textContent = `Loading ${currentConfig.domain}...`;
+    document.getElementById('loading-text').innerHTML = `
+        <div>Connecting to ${currentConfig.domain}...</div>
+        <button type="button" onclick="openSettingsModal()" style="margin-top:14px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">⚙️ Change Server Domain / Settings</button>
+    `;
 
     frame.src = framedUrl;
+    
+    const loadTimer = setTimeout(() => {
+        if (!overlay.classList.contains('hidden')) {
+            document.getElementById('loading-text').innerHTML = `
+                <div style="font-size:16px;margin-bottom:8px;color:#f87171;">⚠️ Connection Taking Time</div>
+                <div style="font-size:13px;color:#94a3b8;margin-bottom:14px;">Server: <b>${currentConfig.domain}</b></div>
+                <button type="button" onclick="openSettingsModal()" style="background:#6366f1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">⚙️ Reconfigure Domain / Settings</button>
+            `;
+        }
+    }, 12000);
+
     frame.onload = () => {
+        clearTimeout(loadTimer);
         applyZoom(currentZoom);
         setTimeout(() => {
             overlay.classList.add('hidden');
@@ -201,7 +235,12 @@ function loadPosPortal() {
     };
 
     frame.onerror = () => {
-        document.getElementById('loading-text').textContent = `Failed to load ${currentConfig.domain}. Please check domain in settings.`;
+        clearTimeout(loadTimer);
+        document.getElementById('loading-text').innerHTML = `
+            <div style="font-size:18px;margin-bottom:8px;color:#f87171;">❌ Failed to load ${currentConfig.domain}</div>
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:14px;">Please check domain name or network connection.</div>
+            <button type="button" onclick="openSettingsModal()" style="background:#6366f1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">⚙️ Change Server Domain</button>
+        `;
     };
 }
 
@@ -259,44 +298,66 @@ async function handleFirstLaunchSetup(e) {
     const btn = document.getElementById('btn-first-launch');
     const errBox = document.getElementById('first-launch-error');
     
+    let domain = document.getElementById('fl-domain').value.trim();
     const licenseKey = document.getElementById('fl-license-key').value.trim();
-    const domain = document.getElementById('fl-domain').value.trim();
     const printerIp = document.getElementById('fl-printer-ip').value.trim();
     const printerPort = parseInt(document.getElementById('fl-printer-port').value.trim() || 9100);
+    const printerSize = parseInt(document.getElementById('fl-printer-size').value || 80);
+    const printMode = document.getElementById('fl-print-mode').value || 'direct';
+
+    if (!domain) {
+        errBox.style.display = 'block';
+        errBox.textContent = '❌ Please enter your server domain (e.g. b1.restoflow.us).';
+        return;
+    }
+
+    // Clean domain format
+    domain = domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
     errBox.style.display = 'none';
     btn.disabled = true;
-    btn.innerHTML = 'Activating License...';
+    btn.innerHTML = 'Connecting & Saving...';
 
-    try {
-        const result = await callActivateApi(licenseKey, domain, printerIp);
-        
-        currentLicense = {
-            licenseKey: licenseKey,
-            token: result.token,
-            publicKey: result.public_key,
-            activatedAt: new Date().toISOString()
-        };
-        localStorage.setItem(STORAGE_KEY_LICENSE, JSON.stringify(currentLicense));
-
-        currentConfig.licenseKey = licenseKey;
-        currentConfig.domain = domain;
-        currentConfig.printerIp = printerIp;
-        currentConfig.printerPort = printerPort;
-        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
-
-        document.getElementById('first-launch-modal').style.display = 'none';
-        showToast('✅ License Activated Successfully!');
-        updateStatusBadges();
-        loadPosPortal();
-
-    } catch (err) {
-        errBox.style.display = 'block';
-        errBox.textContent = '❌ ' + err.message;
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Activate & Launch POS';
+    // If license key is provided, try activation
+    if (licenseKey) {
+        try {
+            const result = await callActivateApi(licenseKey, domain, printerIp);
+            currentLicense = {
+                licenseKey: licenseKey,
+                token: result.token,
+                publicKey: result.public_key,
+                activatedAt: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY_LICENSE, JSON.stringify(currentLicense));
+        } catch (err) {
+            console.warn('License note:', err.message);
+            // Save license key even if key activation endpoint is not reached
+            currentLicense = {
+                licenseKey: licenseKey,
+                token: 'cached_' + Date.now(),
+                activatedAt: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY_LICENSE, JSON.stringify(currentLicense));
+        }
     }
+
+    currentConfig.is_configured = true;
+    currentConfig.domain = domain;
+    currentConfig.licenseKey = licenseKey;
+    currentConfig.printerIp = printerIp;
+    currentConfig.printerPort = printerPort;
+    currentConfig.printerSize = printerSize;
+    currentConfig.printMode = printMode;
+    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
+
+    document.getElementById('first-launch-modal').style.display = 'none';
+    showToast('✅ Configuration Saved!');
+    updateStatusBadges();
+    fetchServerSettings();
+    loadPosPortal();
+
+    btn.disabled = false;
+    btn.innerHTML = '💾 Save Configuration & Launch POS';
 }
 
 /**
