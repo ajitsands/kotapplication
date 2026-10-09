@@ -5,29 +5,38 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Detect environment (Server vs Local)
-$isServer = false;
-// Check if running on cPanel server folder or domain
-if (strpos(dirname(__FILE__), '/home/sandsl23/') !== false) {
-    $isServer = true;
-} elseif (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'sandslab.com') !== false) {
-    $isServer = true;
-} elseif (php_sapi_name() === 'cli' && (strpos(dirname(__FILE__), 'kotapplication') === false || strpos(dirname(__FILE__), 'sandslab') !== false)) {
-    $isServer = true;
+$dbHost = '127.0.0.1';
+$dbPort = '3306';
+$dbUser = 'root';
+$dbPass = 'S@nds1@b';
+$dbName = 'kot_billing';
+
+$scriptDir = dirname(__FILE__);
+$httpHost = $_SERVER['HTTP_HOST'] ?? '';
+
+// Check b1.restoflow.us and restoflow domains/paths
+if (strpos($httpHost, 'b1.restoflow.us') !== false || strpos($scriptDir, 'b1burger') !== false || strpos($scriptDir, 'restoflow') !== false || strpos($httpHost, 'restoflow') !== false) {
+    $dbHost = 'localhost';
+    $dbUser = 'restoflow_b1burger_user';
+    $dbPass = 'S@nds1@b';
+    $dbName = 'restoflow_b1burger_db';
+} elseif (strpos($scriptDir, '/home/sandsl23/') !== false || strpos($httpHost, 'sandslab.com') !== false) {
+    $dbHost = 'localhost';
+    $dbUser = 'sandsl23_kot_user';
+    $dbPass = 'S@nds1@b';
+    $dbName = 'sandsl23_kot_db';
+} elseif (php_sapi_name() === 'cli' && (strpos($scriptDir, 'kotapplication') === false || strpos($scriptDir, 'sandslab') !== false)) {
+    $dbHost = 'localhost';
+    $dbUser = 'sandsl23_kot_user';
+    $dbPass = 'S@nds1@b';
+    $dbName = 'sandsl23_kot_db';
 }
 
-if ($isServer) {
-    define('DB_HOST', 'localhost');
-    define('DB_PORT', '3306');
-    define('DB_USER', 'sandsl23_kot_user');
-    define('DB_PASS', 'S@nds1@b');
-    define('DB_NAME', 'sandsl23_kot_db');
-} else {
-    define('DB_HOST', '127.0.0.1');
-    define('DB_PORT', '3306');
-    define('DB_USER', 'root');
-    define('DB_PASS', 'S@nds1@b');
-    define('DB_NAME', 'kot_billing');
-}
+define('DB_HOST', $dbHost);
+define('DB_PORT', $dbPort);
+define('DB_USER', $dbUser);
+define('DB_PASS', $dbPass);
+define('DB_NAME', $dbName);
 
 // Configure local session directory to bypass broken cPanel session save paths
 if (session_status() === PHP_SESSION_NONE) {
