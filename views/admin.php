@@ -1001,9 +1001,9 @@
             <a href="counter" class="nav-link">Billing Counter</a>
             <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); color: #818cf8; padding: 6px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px;">📱 Waiter QR</a>
             <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 6px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px;">🛍️ Take Away QR</a>
-            <a href="javascript:void(0)" onclick="changeOwnPasswordPrompt()" class="nav-link" style="margin-right: 5px;">🔑 Change Password</a>
-            <button onclick="toggleTheme()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 10px; transition: all 0.3s;">🌓</button>
-            <a href="logout" class="btn-logout">Logout</a>
+            <button type="button" onclick="changeOwnPasswordPrompt()" title="Change Password" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px; transition: all 0.3s;">🔑</button>
+            <button type="button" onclick="toggleTheme()" title="Toggle Dark/Light Theme" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px; transition: all 0.3s;">🌓</button>
+            <a href="logout" class="btn-logout" title="Logout" style="width: 34px; height: 34px; border-radius: 50%; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 15px;">🚪</a>
         </div>
     </header>
 

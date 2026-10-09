@@ -1192,6 +1192,9 @@
                 <button class="btn-icon" id="btn-refresh-data" onclick="triggerManualSync()" title="Refresh Data">
                     🔄
                 </button>
+                <button class="btn-icon" onclick="changeOwnPasswordPrompt()" title="Change Password">
+                    🔑
+                </button>
                 <button class="btn-icon" onclick="toggleAppTheme()" title="Toggle Dark/Light Theme">
                     🌓
                 </button>
@@ -1661,6 +1664,53 @@
         .finally(() => {
             btn.innerText = 'Sign In to Admin App';
             btn.disabled = false;
+        });
+    }
+
+    function changeOwnPasswordPrompt() {
+        Swal.fire({
+            title: 'Change Password',
+            html: '<input id="swal-current-password" class="swal2-input" type="password" placeholder="Current Password">' +
+                  '<input id="swal-new-password" class="swal2-input" type="password" placeholder="New Password">',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Change Password',
+            confirmButtonColor: '#6366f1',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                const currentPassword = document.getElementById('swal-current-password').value;
+                const newPassword = document.getElementById('swal-new-password').value;
+                if (!currentPassword || !newPassword) {
+                    Swal.showValidationMessage('Both fields are required');
+                    return false;
+                }
+                return fetch('/user/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+                })
+                .then(response => {
+                    return response.json().then(data => {
+                        if (!response.ok) {
+                            throw new Error(data.error || response.statusText);
+                        }
+                        return data;
+                    });
+                })
+                .catch(error => {
+                    Swal.showValidationMessage(`Request failed: ${error.message || error}`);
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed && result.value && result.value.success) {
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Your password has been successfully changed.',
+                    icon: 'success',
+                    confirmButtonColor: '#6366f1'
+                });
+            }
         });
     }
 

@@ -499,10 +499,11 @@ function App() {
           <span className="app-title">{settings ? settings.restaurant_name : 'Gourmet Express'}</span>
           <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>WAITER CONSOLE</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="waiter-badge" onClick={changePasswordPrompt} style={{ cursor: 'pointer' }} title="Change Password">🔑 {user.name}</span>
-          <button onClick={toggleTheme} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'var(--text-color)', cursor: 'pointer', fontSize: 13, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>🌓</button>
-          <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 'bold', fontSize: 13, cursor: 'pointer' }}>Exit</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="waiter-badge">{user.name}</span>
+          <button onClick={changePasswordPrompt} title="Change Password" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'var(--text-color)', cursor: 'pointer', fontSize: 13, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>🔑</button>
+          <button onClick={toggleTheme} title="Toggle Theme" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'var(--text-color)', cursor: 'pointer', fontSize: 13, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>🌓</button>
+          <button onClick={handleLogout} title="Logout" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', fontSize: 13, width: 28, height: 28, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>🚪</button>
         </div>
       </header>
 
