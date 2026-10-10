@@ -581,16 +581,16 @@ window.addEventListener('message', async (event) => {
     
     if (event.data.action === 'sands_print_escpos' && event.data.base64) {
         try {
-            const ip = currentConfig.printerIp || '192.168.8.101';
-            const port = parseInt(currentConfig.printerPort || 9100);
+            const ip = currentConfig.printerIp || event.data.printer_ip || '192.168.8.101';
+            const port = parseInt(currentConfig.printerPort || event.data.printer_port || 9100);
             
             if (window.AndroidPrintBridge && typeof window.AndroidPrintBridge.printTcp === 'function') {
                 const res = window.AndroidPrintBridge.printTcp(ip, port, event.data.base64);
                 const parsed = JSON.parse(res);
                 if (parsed.success) {
-                    showToast('🖨️ Receipt Printed to EASY+ POS!');
+                    showToast('🖨️ Receipt Printed to EASY+ POS (' + ip + ')');
                 } else {
-                    showToast('❌ Printer: ' + (parsed.error || 'Print failed'));
+                    showToast('❌ Printer (' + ip + '): ' + (parsed.error || 'Print failed'));
                 }
             } else if (currentConfig.printMode === 'rawbt') {
                 window.location.href = "rawbt:data:application/octet-stream;base64," + event.data.base64;

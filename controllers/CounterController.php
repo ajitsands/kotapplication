@@ -249,7 +249,9 @@ class CounterController extends Controller {
     public function directPrintBill($params) {
         require_once __DIR__ . '/../services/PrinterService.php';
         $billId = (int)($params['id'] ?? 0);
-        $result = PrinterService::printBill($billId);
+        $ip = $_POST['printer_ip'] ?? $_GET['printer_ip'] ?? null;
+        $port = $_POST['printer_port'] ?? $_GET['printer_port'] ?? null;
+        $result = PrinterService::printBill($billId, $ip, $port);
         $this->json($result);
     }
 
@@ -263,7 +265,9 @@ class CounterController extends Controller {
     public function directPrintOrder($params) {
         require_once __DIR__ . '/../services/PrinterService.php';
         $orderId = (int)($params['id'] ?? 0);
-        $result = PrinterService::printOrder($orderId);
+        $ip = $_POST['printer_ip'] ?? $_GET['printer_ip'] ?? null;
+        $port = $_POST['printer_port'] ?? $_GET['printer_port'] ?? null;
+        $result = PrinterService::printOrder($orderId, $ip, $port);
         $this->json($result);
     }
 

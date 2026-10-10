@@ -75,7 +75,9 @@ class KotController extends Controller {
     public function directPrint($params) {
         require_once __DIR__ . '/../services/PrinterService.php';
         $kotId = (int)($params['id'] ?? 0);
-        $result = PrinterService::printKot($kotId);
+        $ip = $_POST['printer_ip'] ?? $_GET['printer_ip'] ?? null;
+        $port = $_POST['printer_port'] ?? $_GET['printer_port'] ?? null;
+        $result = PrinterService::printKot($kotId, $ip, $port);
         $this->json($result);
     }
 

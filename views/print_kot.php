@@ -228,8 +228,42 @@
 
     <script>
         const kotId = <?= (int)($kot['id'] ?? 0) ?>;
-        const printerIp = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
-        const printerPort = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+
+        function getEffectivePrinterConfig() {
+            let ip = '';
+            let port = 0;
+            try {
+                if (window.parent && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
+                    ip = String(window.parent.currentConfig.printerIp).trim();
+                    port = parseInt(window.parent.currentConfig.printerPort) || 0;
+                }
+            } catch (e) {}
+            if (!ip) {
+                try {
+                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
+                    if (localCfg && localCfg.printerIp) {
+                        ip = String(localCfg.printerIp).trim();
+                        port = parseInt(localCfg.printerPort) || 0;
+                    }
+                } catch (e) {}
+            }
+            if (!ip) {
+                try {
+                    const savedIp = localStorage.getItem('sands_printer_ip');
+                    if (savedIp) {
+                        ip = savedIp.trim();
+                        port = parseInt(localStorage.getItem('sands_printer_port') || '0') || 0;
+                    }
+                } catch (e) {}
+            }
+            if (!ip) {
+                ip = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+            }
+            if (!port) {
+                port = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+            }
+            return { ip, port };
+        }
 
         function showNotification(type, title, message) {
             if (typeof Swal !== 'undefined') {
@@ -254,6 +288,9 @@
             const btn = document.querySelector('.btn-print');
             if (btn) btn.innerText = '⏳ Sending...';
 
+            const effective = getEffectivePrinterConfig();
+            const printerIp = effective.ip;
+            const printerPort = effective.port;
             const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
 
             fetch('/kot/escpos/' + kotId)
@@ -273,13 +310,13 @@
                         }
                     } else {
                         // Trigger server direct-print
-                        fetch('/kot/direct-print/' + kotId)
+                        fetch('/kot/direct-print/' + kotId + '?printer_ip=' + encodeURIComponent(printerIp) + '&printer_port=' + printerPort)
                             .then(r => r.json())
                             .then(d => {
                                 if (d.success) {
-                                    showNotification('success', '🖨️ KOT Printed to EASY+ POS', 'Direct network print successful');
+                                    showNotification('success', '🖨️ KOT Printed to EASY+ POS', 'Direct network print successful (' + printerIp + ')');
                                 } else if (d.base64 && window.parent && window.parent !== window) {
-                                    window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64 }, '*');
+                                    window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
                                     showNotification('success', '🖨️ Sent to Driver', 'Dispatched to printer');
                                 } else {
                                     window.print();

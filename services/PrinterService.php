@@ -287,7 +287,7 @@ class PrinterService {
     /**
      * Print KOT Slip directly to ESC/POS network printer
      */
-    public static function printKot($kotId) {
+    public static function printKot($kotId, $ip = null, $port = null) {
         $kotModel = new Kot();
         $kot = $kotModel->getKotDetails((int)$kotId);
 
@@ -296,7 +296,7 @@ class PrinterService {
         }
 
         $data = self::buildKotEscPos($kot);
-        return self::sendToPrinter($data);
+        return self::sendToPrinter($data, $ip, $port);
     }
 
     /**
@@ -470,7 +470,7 @@ class PrinterService {
     /**
      * Print Bill / Receipt directly to ESC/POS network printer
      */
-    public static function printBill($billId) {
+    public static function printBill($billId, $ip = null, $port = null) {
         $billModel = new Bill();
         $bill = $billModel->getBillDetails((int)$billId);
 
@@ -479,7 +479,7 @@ class PrinterService {
         }
 
         $data = self::buildBillEscPos($bill);
-        return self::sendToPrinter($data);
+        return self::sendToPrinter($data, $ip, $port);
     }
 
     /**
@@ -560,7 +560,7 @@ class PrinterService {
     /**
      * Print Order directly as Bill / Receipt
      */
-    public static function printOrder($orderId) {
+    public static function printOrder($orderId, $ip = null, $port = null) {
         $orderModel = new Order();
         $order = $orderModel->getOrderDetails((int)$orderId);
 
@@ -569,7 +569,7 @@ class PrinterService {
         }
 
         $data = self::buildOrderEscPos($order);
-        return self::sendToPrinter($data);
+        return self::sendToPrinter($data, $ip, $port);
     }
 
     /**
