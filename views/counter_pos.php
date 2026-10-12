@@ -1733,7 +1733,8 @@
         function printQrPoster(url, title, subtitle) {
             const qr1000 = 'https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&format=png&margin=10&data=' + encodeURIComponent(url);
             const restName = '<?= addslashes(htmlspecialchars($settings['restaurant_name'] ?? 'Restaurant')) ?>';
-            const logoUrl = '<?= !empty($settings['logo_path']) ? '/' . ltrim(addslashes(htmlspecialchars($settings['logo_path'])), '/') : '' ?>';
+            const logoPath = '<?= !empty($settings['logo_path']) ? '/' . ltrim(addslashes(htmlspecialchars($settings['logo_path'])), '/') : '' ?>';
+            const logoHtml = logoPath ? '<img src="' + logoPath + '" class="logo-img">' : '';
 
             const printWin = window.open('', '_blank', 'width=700,height=900');
             if (!printWin) {
@@ -1745,10 +1746,11 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>\${title} - \${restName}</title>
+                    <title>${title} - ${restName}</title>
                     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
                     <style>
                         @page { size: auto; margin: 12mm; }
+                        * { box-sizing: border-box; }
                         body {
                             font-family: 'Outfit', sans-serif;
                             text-align: center;
@@ -1762,7 +1764,7 @@
                             margin: 0 auto;
                             border: 3px solid #111827;
                             border-radius: 28px;
-                            padding: 40px 30px;
+                            padding: 35px 25px;
                             box-shadow: 0 10px 40px rgba(0,0,0,0.06);
                         }
                         .logo-img { max-height: 55px; margin-bottom: 12px; object-fit: contain; }
@@ -1775,7 +1777,7 @@
                             font-weight: 700;
                             padding: 7px 20px;
                             border-radius: 20px;
-                            margin: 12px 0 24px;
+                            margin: 10px 0 20px;
                             letter-spacing: 0.3px;
                         }
                         .qr-frame {
@@ -1787,10 +1789,10 @@
                             box-shadow: 0 12px 30px rgba(0,0,0,0.08);
                         }
                         .qr-frame img { width: 300px; height: 300px; display: block; border-radius: 8px; }
-                        .scan-note { font-size: 16px; font-weight: 700; color: #374151; margin-top: 24px; line-height: 1.4; }
+                        .scan-note { font-size: 16px; font-weight: 700; color: #374151; margin-top: 22px; line-height: 1.4; }
                         .scan-subnote { font-size: 13px; color: #6b7280; margin-top: 6px; }
                         .url-box {
-                            margin-top: 18px;
+                            margin-top: 16px;
                             background: #f3f4f6;
                             padding: 10px 16px;
                             border-radius: 12px;
@@ -1800,31 +1802,47 @@
                             word-break: break-all;
                             border: 1px solid #e5e7eb;
                         }
+                        .no-print-bar {
+                            margin-bottom: 20px;
+                            display: flex;
+                            justify-content: center;
+                            gap: 10px;
+                        }
+                        .btn-print-action {
+                            background: #111827;
+                            color: white;
+                            border: none;
+                            padding: 10px 22px;
+                            border-radius: 10px;
+                            font-family: inherit;
+                            font-weight: 700;
+                            font-size: 14px;
+                            cursor: pointer;
+                        }
                         @media print {
                             body { padding: 0; }
-                            .poster-card { box-shadow: none; }
+                            .poster-card { box-shadow: none; border-color: #000; }
+                            .no-print-bar { display: none; }
                         }
                     </style>
                 </head>
                 <body>
+                    <div class="no-print-bar">
+                        <button class="btn-print-action" onclick="window.print()">🖨️ Print Now</button>
+                    </div>
                     <div class="poster-card">
-                        \${logoUrl ? \`<img src="\${logoUrl}" class="logo-img">\` : ''}
-                        <div class="restaurant-title">\${restName}</div>
-                        <div class="poster-badge">\${title}</div>
+                        ${logoHtml}
+                        <div class="restaurant-title">${restName}</div>
+                        <div class="poster-badge">${title}</div>
                         <div>
                             <div class="qr-frame">
-                                <img src="\${qr1000}" alt="QR Code">
+                                <img src="${qr1000}" alt="QR Code" onload="setTimeout(() => window.print(), 350)">
                             </div>
                         </div>
-                        <div class="scan-note">\${subtitle}</div>
+                        <div class="scan-note">${subtitle}</div>
                         <div class="scan-subnote">Open your phone camera & scan to start</div>
-                        <div class="url-box">\${url}</div>
+                        <div class="url-box">${url}</div>
                     </div>
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() { window.print(); }, 450);
-                        };
-                    <\/script>
                 </body>
                 </html>
             `);
