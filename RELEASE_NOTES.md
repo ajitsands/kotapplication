@@ -1,11 +1,31 @@
 # SaNDS KOT & POS Billing System - Release Notes
 
-## 🔒 Production Milestone: Multi-Device Station Printing & Version Locked
+## 🔒 Production Milestone: Counter POS Order Taking & High-Res QR Edition
 - **Target Server**: `https://b1.restoflow.us`
-- **Milestone Status**: 🟢 **Version Locked & Ready for Production Deployment**
+- **Milestone Status**: 🟢 **Production Ready & Tested**
 - **Branch**: `v5`
-- **Release Version**: `v5.3` (Multi-Device Thermal Printing & Dynamic Station Routing Edition)
-- **Tag**: `v5.3` / `v5.3.0-locked`
+- **Release Version**: `v5.4` (Counter POS Order Taking & QR Standee Edition)
+- **Tag**: `v5.4` / `v5.4.0`
+
+---
+
+## 🏷️ Release Version: v5.4 (Counter POS Order Taking, QR Standee & Header Submenu)
+- **Branch**: `v5`
+- **Release Status**: 🟢 **Verified & Production Ready**
+
+### 🌟 New in v5.4
+1. **Cashier POS Order Taking Screen (`/counter/pos`)**:
+   - Modern full-screen product catalog with live search and category chips filter.
+   - 3-Way Order Types: **Take Away**, **Dine-In** (with Table picker), and **Online Orders** (with platform selection & order reference ID).
+   - Instant dispatch to Kitchen Display System (KDS) & thermal printer with optional immediate checkout (**Pay Now**).
+2. **Streamlined Header Navigation (`QR & Other ▾`)**:
+   - Consolidates rarely clicked tools (*Table Status, Waiter QR, Take Away QR, Online Order*) into a clean dropdown.
+   - Added prominent top navigation button: **`🛒 New Order (POS)`**.
+3. **High-Resolution QR Downloads & Standee Printing**:
+   - Direct download of crisp **1000 &times; 1000 px PNG QR codes** for professional print shops and stickers.
+   - Built-in **Print Standee** generator that creates a formatted poster card with restaurant branding and instructions for placing outside.
+4. **Kitchen Display System (KDS) Integration**:
+   - Staff-initiated takeaway and online orders immediately appear in the kitchen monitor ticket stream.
 
 ---
 
@@ -15,7 +35,7 @@
 
 ---
 
-## 🚀 Key Modules & Feature Highlights
+## 🚀 Key Modules & Feature Highlights (v5.3)
 
 ### 1. Dynamic Multi-Device Printer IP Routing (v5.3 New)
 - **Device-Level Priority (`getEffectivePrinterConfig()`)**:
