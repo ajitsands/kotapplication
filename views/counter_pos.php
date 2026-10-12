@@ -854,6 +854,65 @@
             background: var(--primary-grad);
             color: white;
         }
+
+        /* SweetAlert2 Styling overrides */
+        .swal2-popup {
+            font-family: 'Outfit', sans-serif !important;
+            border-radius: 24px !important;
+            background: #111827 !important;
+            color: #f3f4f6 !important;
+            border: 1px solid var(--card-border) !important;
+        }
+        body.light-theme .swal2-popup {
+            background: #ffffff !important;
+            color: #1f2937 !important;
+            border-color: rgba(0,0,0,0.08) !important;
+        }
+        .swal2-title {
+            color: inherit !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .swal2-html-container {
+            color: var(--text-muted) !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .swal2-input {
+            font-family: 'Outfit', sans-serif !important;
+            border: 1px solid var(--card-border) !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            color: var(--text-color) !important;
+            border-radius: 12px !important;
+            font-size: 14px !important;
+            padding: 10px 14px !important;
+            box-shadow: none !important;
+            margin-top: 10px !important;
+        }
+        body.light-theme .swal2-input {
+            background: rgba(0, 0, 0, 0.03) !important;
+            color: #1f2937 !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        .swal2-confirm {
+            background: var(--primary-grad) !important;
+            border-radius: 12px !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            padding: 10px 24px !important;
+        }
+        .swal2-cancel {
+            border-radius: 12px !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            padding: 10px 24px !important;
+        }
+        .swal2-validation-message {
+            background: rgba(239, 68, 68, 0.1) !important;
+            color: var(--accent-red) !important;
+            border-radius: 10px !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
     </style>
 </head>
 <body>
@@ -1588,22 +1647,58 @@
 
         // Utilities from counter_display (QR modals & Table Status)
         function showWaiterLoginQr() {
-            const url = window.location.origin + '/login';
-            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(url);
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot).*$/, '');
+            const loginUrl = protocol + '//' + host + rootPath + '/login';
+            
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(loginUrl);
+            
             Swal.fire({
                 title: '📱 Waiter Login Link',
-                html: `<img src="${qrUrl}" style="width:200px; height:200px; border-radius:12px; margin:10px 0;"><br><small style="color:var(--text-muted);">${url}</small>`,
-                confirmButtonColor: '#6366f1'
+                html: `
+                    <div style="margin: 15px 0;">
+                        <img src="${qrImageUrl}" alt="Login QR Code" style="width: 220px; height: 220px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid white;">
+                        <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Scan this QR code with a waiter's phone camera to quickly access the system login page.</p>
+                        <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
+                            ${loginUrl}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
         }
 
         function showTakeawayQr() {
-            const url = window.location.origin + '/order';
-            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(url);
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const rootPath = basePath.replace(/\/(admin|counter|kot).*$/, '');
+            const takeawayUrl = protocol + '//' + host + rootPath + '/takeaway';
+            
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(takeawayUrl);
+            
             Swal.fire({
-                title: '🛍️ Take Away Ordering QR',
-                html: `<img src="${qrUrl}" style="width:200px; height:200px; border-radius:12px; margin:10px 0;"><br><small style="color:var(--text-muted);">${url}</small>`,
-                confirmButtonColor: '#f59e0b'
+                title: '🛍️ Take Away Menu Link',
+                html: `
+                    <div style="margin: 15px 0;">
+                        <img src="${qrImageUrl}" alt="Take Away QR Code" style="width: 220px; height: 220px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid white;">
+                        <p style="font-size: 13px; margin-top: 15px; color: var(--text-muted);">Customers can scan this QR code to access the take-away menu and place an order.</p>
+                        <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
+                            ${takeawayUrl}
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'Done',
+                confirmButtonColor: '#6366f1',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
         }
 
@@ -1612,7 +1707,12 @@
         }
 
         function showOnlineOrderModal() {
-            window.location.href = '/counter';
+            setOrderType('online');
+            const platSelect = document.getElementById('pos-platform-select');
+            if (platSelect) {
+                platSelect.focus();
+                platSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
     </script>
 </body>
