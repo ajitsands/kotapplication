@@ -43,7 +43,162 @@ class CounterController extends Controller {
             'sessionId' => $sessionId,
             'pendingApproval' => $pendingApproval,
             'activeSession' => $activeSession,
-            'platforms' => $platforms
+            'platforms' => $platforms,
+            'activePage' => 'billing'
+        ]);
+    }
+
+    public function posIndex() {
+        require_once __DIR__ . '/../models/Category.php';
+        require_once __DIR__ . '/../models/Product.php';
+        require_once __DIR__ . '/../models/OnlinePlatform.php';
+
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+
+        $categoryModel = new Category();
+        $categories = $categoryModel->getAll();
+
+        $productModel = new Product();
+        $products = $productModel->getAll();
+
+        $orderModel = new Order();
+        $tables = $orderModel->getTablesState();
+
+        // Ensure an active shift session exists for cashier users
+        $cashierId = $_SESSION['user_id'] ?? null;
+        $sessionId = null;
+        $pendingApproval = false;
+        $activeSession = null;
+
+        if ($cashierId && ($_SESSION['user_role'] ?? '') === 'counter') {
+            $csModel = new CounterSession();
+            $activeSession = $csModel->getActiveSession($cashierId);
+            if ($activeSession && $activeSession['status'] === 'close_requested') {
+                $pendingApproval = true;
+                unset($_SESSION['counter_session_id']);
+            } else {
+                $sessionId = $csModel->ensureSession($cashierId);
+                $_SESSION['counter_session_id'] = $sessionId;
+                $activeSession = $csModel->getSession($sessionId);
+            }
+        }
+
+        $platformModel = new OnlinePlatform();
+        $platforms = $platformModel->getAllActive();
+
+        $this->render('counter_pos', [
+            'settings'        => $settings,
+            'categories'      => $categories,
+            'products'        => $products,
+            'tables'          => $tables,
+            'sessionId'       => $sessionId,
+            'pendingApproval' => $pendingApproval,
+            'activeSession'   => $activeSession,
+            'platforms'       => $platforms,
+            'activePage'      => 'pos'
+        ]);
+    }
+
+    public function createPosOrder() {
+        require_once __DIR__ . '/../models/Kot.php';
+        require_once __DIR__ . '/../services/PrinterService.php';
+
+        $data = $this->getJsonInput();
+        $orderType = $data['order_type'] ?? 'take_away';
+        $tableNumber = (int)($data['table_number'] ?? 0);
+        $customerName = trim($data['customer_name'] ?? '');
+        $customerMobile = trim($data['customer_mobile'] ?? '');
+        $items = $data['items'] ?? [];
+        $payNow = !empty($data['pay_now']);
+        $paymentMethod = $data['payment_method'] ?? 'cash';
+        $discountPercent = (float)($data['discount_percent'] ?? 0);
+        $gender = trim($data['gender'] ?? '');
+        $printerIp = $data['printer_ip'] ?? null;
+        $printerPort = $data['printer_port'] ?? null;
+
+        if (empty($items)) {
+            $this->json(['success' => false, 'error' => 'Cart is empty. Please select products.'], 400);
+            return;
+        }
+
+        if ($orderType === 'dine_in' && $tableNumber <= 0) {
+            $this->json(['success' => false, 'error' => 'Please select a valid table for Dine-In.'], 400);
+            return;
+        }
+
+        $cashierId = $_SESSION['user_id'] ?? null;
+
+        $orderModel = new Order();
+        $orderId = $orderModel->createOrder(
+            $tableNumber,
+            $cashierId,
+            $orderType,
+            $customerName !== '' ? $customerName : null,
+            $customerMobile !== '' ? $customerMobile : null
+        );
+
+        if (!$orderId) {
+            $this->json(['success' => false, 'error' => 'Failed to initialize order.'], 500);
+            return;
+        }
+
+        $kotModel = new Kot();
+        $kotId = $kotModel->createKot($orderId, $cashierId, $items);
+
+        if (!$kotId) {
+            $this->json(['success' => false, 'error' => 'Failed to generate KOT ticket.'], 500);
+            return;
+        }
+
+        // Print KOT to kitchen printer
+        $printResult = null;
+        try {
+            $settingsModel = new Setting();
+            $settings = $settingsModel->getSettings();
+            if (($settings['printer_mode'] ?? 'network') !== 'browser') {
+                $printResult = PrinterService::printKot($kotId, $printerIp, $printerPort);
+            }
+        } catch (Exception $e) {
+            // Silently continue if printer offline
+        }
+
+        // If Takeaway or Dine-in with immediate pay, close order to generate bill
+        $billId = null;
+        if ($orderType === 'take_away' || $payNow) {
+            $orderModel->closeOrder($orderId);
+            $db = Database::getInstance()->getConnection();
+            $stmtBill = $db->prepare("SELECT id FROM bills WHERE order_id = ? ORDER BY id DESC LIMIT 1");
+            $stmtBill->execute([$orderId]);
+            $billRow = $stmtBill->fetch();
+            if ($billRow) {
+                $billId = (int)$billRow['id'];
+            }
+        }
+
+        // If Pay Now is selected
+        if ($payNow && $billId) {
+            $billModel = new Bill();
+            $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+            
+            try {
+                if (($settings['printer_mode'] ?? 'network') !== 'browser') {
+                    PrinterService::printBill($billId, $printerIp, $printerPort);
+                }
+            } catch (Exception $e) {}
+        }
+
+        $orderInfo = $orderModel->getOrderDetails($orderId);
+
+        $this->json([
+            'success'      => true,
+            'order_id'     => $orderId,
+            'kot_id'       => $kotId,
+            'bill_id'      => $billId,
+            'token_number' => $orderInfo['token_number'] ?? null,
+            'paid'         => $payNow,
+            'print_result' => $printResult,
+            'message'      => $payNow ? 'Order placed, sent to KOT, and payment completed!' : 'Order sent to KOT successfully!'
         ]);
     }
 

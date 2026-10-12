@@ -150,6 +150,8 @@ $router->add('POST', '/kot/products/toggle/:id', 'KotController@toggleProductAva
 
 // Counter & Billing Routes
 $router->add('GET', '/counter', 'CounterController@index');
+$router->add('GET', '/counter/pos', 'CounterController@posIndex');
+$router->add('POST', '/counter/order/create-pos', 'CounterController@createPosOrder');
 $router->add('GET', '/counter/bills', 'CounterController@billsList');
 $router->add('GET', '/counter/summary', 'CounterController@summary');
 $router->add('GET', '/counter/bill/:id', 'CounterController@billDetails');

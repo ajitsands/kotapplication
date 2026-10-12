@@ -189,6 +189,99 @@
             color: var(--text-color);
         }
 
+        .header-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .header-dropdown-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            font-family: inherit;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 500;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .header-dropdown-btn:hover {
+            color: var(--text-color);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .header-dropdown-content {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 200px;
+            background: #111827;
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            padding: 8px 0;
+            backdrop-filter: blur(12px);
+            animation: fadeInDrop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInDrop {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header-dropdown.open .header-dropdown-content {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            padding-left: 22px;
+        }
+
+        body.light-theme .header-dropdown-content {
+            background: #ffffff;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12);
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        body.light-theme .header-dropdown-btn {
+            color: #4b5563;
+        }
+
+        body.light-theme .header-dropdown-btn:hover {
+            color: #111827;
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        body.light-theme .dropdown-item {
+            color: #374151;
+        }
+
+        body.light-theme .dropdown-item:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: #111827;
+        }
+
         .btn-logout {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid rgba(239, 68, 68, 0.2);
@@ -785,11 +878,23 @@
             <?php if (($_SESSION['user_role'] ?? '') === 'counter' && !$pendingApproval): ?>
                 <button onclick="openCloseCounterModal()" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--accent-red); padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; margin-right: 10px; transition: all 0.3s;">🔒 Close Counter</button>
             <?php endif; ?>
-            <a href="counter" class="nav-link active">Billing Counter</a>
-            <a href="javascript:void(0)" onclick="showEngagedTablesModal()" class="nav-link">🍽️ Table Status</a>
-            <a href="javascript:void(0)" onclick="showWaiterLoginQr()" class="nav-link">📱 Waiter QR</a>
-            <a href="javascript:void(0)" onclick="showTakeawayQr()" class="nav-link" style="color: #f59e0b;">🛍️ Take Away QR</a>
-            <a href="javascript:void(0)" onclick="showOnlineOrderModal()" class="nav-link" style="color: #10b981;">🌐 Online Order</a>
+            <a href="counter/pos" class="nav-link" style="background: var(--primary-grad); color: white !important; font-weight: 700; border-radius: 10px; padding: 7px 15px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35); display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">🛒 New Order (POS)</a>
+            <a href="counter" class="nav-link active">💳 Billing Counter</a>
+            
+            <!-- QR & Other Sub Menu -->
+            <div class="header-dropdown" id="qr-tools-dropdown">
+                <button type="button" class="header-dropdown-btn" onclick="toggleQrDropdown(event)">
+                    <span>📱 QR & Other</span>
+                    <span style="font-size: 10px; transition: transform 0.2s;" id="qr-dropdown-arrow">▼</span>
+                </button>
+                <div class="header-dropdown-content" id="qr-dropdown-menu">
+                    <a href="javascript:void(0)" onclick="showEngagedTablesModal(); closeQrDropdown();" class="dropdown-item">🍽️ Table Status</a>
+                    <a href="javascript:void(0)" onclick="showWaiterLoginQr(); closeQrDropdown();" class="dropdown-item">📱 Waiter QR</a>
+                    <a href="javascript:void(0)" onclick="showTakeawayQr(); closeQrDropdown();" class="dropdown-item" style="color: #f59e0b;">🛍️ Take Away QR</a>
+                    <a href="javascript:void(0)" onclick="showOnlineOrderModal(); closeQrDropdown();" class="dropdown-item" style="color: #10b981;">🌐 Online Order</a>
+                </div>
+            </div>
+
             <div style="display: inline-flex; align-items: center; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 20px; padding: 2px 4px; gap: 3px; margin-right: 6px;">
                 <button type="button" onclick="adjustPageZoom(-0.05)" title="Zoom Out (−)" style="width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: var(--text-color); font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
                 <span id="page-zoom-text" onclick="resetPageZoom()" title="Click to Reset 100%" style="font-size: 11px; font-family: monospace; color: var(--text-muted); cursor: pointer; padding: 0 4px; font-weight: 600;">100%</span>
@@ -1499,6 +1604,23 @@
         let currentOpenOrderId = null;
         let counterProducts = [];
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
+
+        function toggleQrDropdown(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('qr-tools-dropdown');
+            if (dropdown) dropdown.classList.toggle('open');
+        }
+
+        function closeQrDropdown() {
+            const dropdown = document.getElementById('qr-tools-dropdown');
+            if (dropdown) dropdown.classList.remove('open');
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('#qr-tools-dropdown')) {
+                closeQrDropdown();
+            }
+        });
 
         function fetchBills() {
             fetch(basePath + '/bills')
