@@ -3257,6 +3257,14 @@
                         <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
                             ${loginUrl}
                         </div>
+                        <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                            <button type="button" onclick="downloadQrDirectly('${loginUrl}', 'Waiter_Login_QR.png', '1000x1000')" style="background: var(--primary-grad); color: white; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(99,102,241,0.3); transition: transform 0.15s;">
+                                <span>📥 Download High-Res QR (PNG)</span>
+                            </button>
+                            <button type="button" onclick="printQrPoster('${loginUrl}', '📱 Waiter Login', 'Scan with phone camera to log in to system')" style="background: rgba(255,255,255,0.08); border: 1px solid var(--card-border); color: var(--text-color); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.15s;">
+                                <span>🖨️ Print Standee</span>
+                            </button>
+                        </div>
                     </div>
                 `,
                 showConfirmButton: true,
@@ -3285,6 +3293,14 @@
                         <div style="background: rgba(0,0,0,0.05); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-family: monospace; word-break: break-all; color: var(--text-color); border: 1px solid var(--card-border); margin-top: 10px;">
                             ${takeawayUrl}
                         </div>
+                        <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                            <button type="button" onclick="downloadQrDirectly('${takeawayUrl}', 'TakeAway_Menu_QR.png', '1000x1000')" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(245,158,11,0.3); transition: transform 0.15s;">
+                                <span>📥 Download High-Res QR (PNG)</span>
+                            </button>
+                            <button type="button" onclick="printQrPoster('${takeawayUrl}', '🛍️ Take Away Ordering', 'Scan with phone camera to order take away')" style="background: rgba(255,255,255,0.08); border: 1px solid var(--card-border); color: var(--text-color); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.15s;">
+                                <span>🖨️ Print Standee</span>
+                            </button>
+                        </div>
                     </div>
                 `,
                 showConfirmButton: true,
@@ -3293,6 +3309,119 @@
                 background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             });
+        }
+
+        function downloadQrDirectly(url, filename, size = '1000x1000') {
+            const downloadUrl = '/download_qr.php?data=' + encodeURIComponent(url) + '&size=' + encodeURIComponent(size) + '&filename=' + encodeURIComponent(filename);
+            let iframe = document.getElementById('download-qr-iframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'download-qr-iframe';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+            iframe.src = downloadUrl;
+        }
+
+        function printQrPoster(url, title, subtitle) {
+            const qr1000 = 'https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&format=png&margin=10&data=' + encodeURIComponent(url);
+            const restName = '<?= addslashes(htmlspecialchars($settings['restaurant_name'] ?? 'Restaurant')) ?>';
+            const logoUrl = '<?= !empty($settings['logo_path']) ? '/' . ltrim(addslashes(htmlspecialchars($settings['logo_path'])), '/') : '' ?>';
+
+            const printWin = window.open('', '_blank', 'width=700,height=900');
+            if (!printWin) {
+                alert('Please allow popups to print the QR poster.');
+                return;
+            }
+
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>\${title} - \${restName}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: auto; margin: 12mm; }
+                        body {
+                            font-family: 'Outfit', sans-serif;
+                            text-align: center;
+                            color: #111827;
+                            background: #ffffff;
+                            margin: 0;
+                            padding: 20px;
+                        }
+                        .poster-card {
+                            max-width: 480px;
+                            margin: 0 auto;
+                            border: 3px solid #111827;
+                            border-radius: 28px;
+                            padding: 40px 30px;
+                            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+                        }
+                        .logo-img { max-height: 55px; margin-bottom: 12px; object-fit: contain; }
+                        .restaurant-title { font-size: 26px; font-weight: 800; color: #111827; letter-spacing: -0.5px; margin-bottom: 6px; }
+                        .poster-badge {
+                            display: inline-block;
+                            background: #6366f1;
+                            color: white;
+                            font-size: 15px;
+                            font-weight: 700;
+                            padding: 7px 20px;
+                            border-radius: 20px;
+                            margin: 12px 0 24px;
+                            letter-spacing: 0.3px;
+                        }
+                        .qr-frame {
+                            background: #ffffff;
+                            padding: 16px;
+                            display: inline-block;
+                            border-radius: 22px;
+                            border: 2px solid #e5e7eb;
+                            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+                        }
+                        .qr-frame img { width: 300px; height: 300px; display: block; border-radius: 8px; }
+                        .scan-note { font-size: 16px; font-weight: 700; color: #374151; margin-top: 24px; line-height: 1.4; }
+                        .scan-subnote { font-size: 13px; color: #6b7280; margin-top: 6px; }
+                        .url-box {
+                            margin-top: 18px;
+                            background: #f3f4f6;
+                            padding: 10px 16px;
+                            border-radius: 12px;
+                            font-family: monospace;
+                            font-size: 13px;
+                            color: #4b5563;
+                            word-break: break-all;
+                            border: 1px solid #e5e7eb;
+                        }
+                        @media print {
+                            body { padding: 0; }
+                            .poster-card { box-shadow: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="poster-card">
+                        \${logoUrl ? \`<img src="\${logoUrl}" class="logo-img">\` : ''}
+                        <div class="restaurant-title">\${restName}</div>
+                        <div class="poster-badge">\${title}</div>
+                        <div>
+                            <div class="qr-frame">
+                                <img src="\${qr1000}" alt="QR Code">
+                            </div>
+                        </div>
+                        <div class="scan-note">\${subtitle}</div>
+                        <div class="scan-subnote">Open your phone camera & scan to start</div>
+                        <div class="url-box">\${url}</div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() { window.print(); }, 450);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
         }
 
         function refreshEngagedTablesModalContent() {

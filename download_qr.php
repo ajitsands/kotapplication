@@ -7,7 +7,7 @@ $data = urlencode($_GET['data']);
 $size = isset($_GET['size']) ? $_GET['size'] : '500x500';
 $filename = isset($_GET['filename']) ? $_GET['filename'] : 'QRCode.png';
 
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size={$size}&data={$data}";
+$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size={$size}&data={$data}&margin=15";
 
 // Fetch the image using cURL to handle it more robustly
 $ch = curl_init($qrUrl);
