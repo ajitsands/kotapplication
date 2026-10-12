@@ -501,7 +501,7 @@
         /* Order Type Selector Tabs */
         .order-type-tabs {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 8px;
             padding: 12px 20px;
             border-bottom: 1px solid var(--card-border);
@@ -973,9 +973,12 @@
                 <button type="button" class="type-tab-btn" id="tab-dinein" onclick="setOrderType('dine_in')">
                     <span>🍽️ Dine-In</span>
                 </button>
+                <button type="button" class="type-tab-btn" id="tab-online" onclick="setOrderType('online')">
+                    <span>🌐 Online</span>
+                </button>
             </div>
 
-            <!-- Order Meta Fields (Table selector & Customer Info) -->
+            <!-- Order Meta Fields (Table selector, Online Platform & Customer Info) -->
             <div class="order-meta-box">
                 <div id="table-select-container" style="display: none;">
                     <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Select Table:</label>
@@ -993,6 +996,26 @@
                             <?php endfor; ?>
                         <?php endif; ?>
                     </select>
+                </div>
+
+                <div id="online-select-container" style="display: none;">
+                    <div style="display: flex; gap: 8px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Platform:</label>
+                            <select id="pos-platform-select" class="meta-input">
+                                <option value="">Select Platform...</option>
+                                <?php if (!empty($platforms)): ?>
+                                    <?php foreach ($platforms as $plat): ?>
+                                        <option value="<?= $plat['id'] ?>"><?= htmlspecialchars($plat['name']) ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Order ID / Ref:</label>
+                            <input type="text" id="pos-platform-number" class="meta-input" placeholder="e.g. #7821">
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 8px;">
@@ -1200,7 +1223,9 @@
             currentOrderType = type;
             document.getElementById('tab-takeaway').classList.toggle('active', type === 'take_away');
             document.getElementById('tab-dinein').classList.toggle('active', type === 'dine_in');
+            document.getElementById('tab-online').classList.toggle('active', type === 'online');
             document.getElementById('table-select-container').style.display = (type === 'dine_in') ? 'block' : 'none';
+            document.getElementById('online-select-container').style.display = (type === 'online') ? 'block' : 'none';
         }
 
         // Cart Management
@@ -1363,6 +1388,31 @@
                 }
             }
 
+            if (currentOrderType === 'online') {
+                const platformId = document.getElementById('pos-platform-select').value;
+                const platformNum = document.getElementById('pos-platform-number').value.trim();
+                if (!platformId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Select Platform',
+                        text: 'Please select an Online Platform (e.g. Talabat, Jahez).',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    return;
+                }
+                if (!platformNum) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Order Number Required',
+                        text: 'Please enter the Online Order Number or Reference.',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    return;
+                }
+            }
+
             if (payNow) {
                 openPosPayModal();
                 return;
@@ -1374,6 +1424,8 @@
 
         function executeOrderSubmission(options) {
             const tableNum = (currentOrderType === 'dine_in') ? parseInt(document.getElementById('pos-table-select').value) : null;
+            const platformId = (currentOrderType === 'online') ? parseInt(document.getElementById('pos-platform-select').value) : null;
+            const platformOrderNum = (currentOrderType === 'online') ? document.getElementById('pos-platform-number').value.trim() : null;
             const custName = document.getElementById('pos-cust-name').value.trim();
             const custMobile = document.getElementById('pos-cust-mobile').value.trim();
 
@@ -1402,6 +1454,8 @@
             const payload = {
                 order_type: currentOrderType,
                 table_number: tableNum,
+                platform_id: platformId,
+                platform_order_number: platformOrderNum,
                 customer_name: custName,
                 customer_mobile: custMobile,
                 items: itemsPayload,
@@ -1433,7 +1487,8 @@
 
                     let successMsg = `Order #${data.order_id} dispatched to Kitchen (KOT #${data.kot_id}).`;
                     if (data.token_number) {
-                        successMsg = `Takeaway Token: <strong>#${data.token_number}</strong><br>` + successMsg;
+                        const tokenPrefix = (currentOrderType === 'online') ? 'Online Token' : 'Takeaway Token';
+                        successMsg = `${tokenPrefix}: <strong>#${data.token_number}</strong><br>` + successMsg;
                     }
                     if (data.paid) {
                         successMsg += `<br><span style="color:#10b981; font-weight:bold;">Payment Cleared!</span>`;
@@ -1454,6 +1509,10 @@
                     document.getElementById('pos-cust-mobile').value = '';
                     document.getElementById('pos-cust-name').value = '';
                     document.getElementById('pos-table-select').value = '';
+                    const platSel = document.getElementById('pos-platform-select');
+                    if (platSel) platSel.value = '';
+                    const platNum = document.getElementById('pos-platform-number');
+                    if (platNum) platNum.value = '';
                     setOrderType('take_away');
                     closePosPayModal();
                 } else {

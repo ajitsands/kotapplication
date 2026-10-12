@@ -107,6 +107,8 @@ class CounterController extends Controller {
         $data = $this->getJsonInput();
         $orderType = $data['order_type'] ?? 'take_away';
         $tableNumber = (int)($data['table_number'] ?? 0);
+        $platformId = (int)($data['platform_id'] ?? 0);
+        $platformOrderNumber = trim($data['platform_order_number'] ?? '');
         $customerName = trim($data['customer_name'] ?? '');
         $customerMobile = trim($data['customer_mobile'] ?? '');
         $items = $data['items'] ?? [];
@@ -127,16 +129,32 @@ class CounterController extends Controller {
             return;
         }
 
+        if ($orderType === 'online') {
+            if ($platformId <= 0 || $platformOrderNumber === '') {
+                $this->json(['success' => false, 'error' => 'Platform and Order Number are required for Online Orders.'], 400);
+                return;
+            }
+        }
+
         $cashierId = $_SESSION['user_id'] ?? null;
 
         $orderModel = new Order();
-        $orderId = $orderModel->createOrder(
-            $tableNumber,
-            $cashierId,
-            $orderType,
-            $customerName !== '' ? $customerName : null,
-            $customerMobile !== '' ? $customerMobile : null
-        );
+        if ($orderType === 'online') {
+            $orderId = $orderModel->createOnlineOrder(
+                $platformId,
+                $platformOrderNumber,
+                $customerName !== '' ? $customerName : null,
+                $customerMobile !== '' ? $customerMobile : null
+            );
+        } else {
+            $orderId = $orderModel->createOrder(
+                $tableNumber,
+                $cashierId,
+                $orderType,
+                $customerName !== '' ? $customerName : null,
+                $customerMobile !== '' ? $customerMobile : null
+            );
+        }
 
         if (!$orderId) {
             $this->json(['success' => false, 'error' => 'Failed to initialize order.'], 500);
@@ -163,9 +181,9 @@ class CounterController extends Controller {
             // Silently continue if printer offline
         }
 
-        // If Takeaway or Dine-in with immediate pay, close order to generate bill
+        // If Takeaway, Online, or Dine-in with immediate pay, close order to generate bill
         $billId = null;
-        if ($orderType === 'take_away' || $payNow) {
+        if ($orderType === 'take_away' || $orderType === 'online' || $payNow) {
             $orderModel->closeOrder($orderId);
             $db = Database::getInstance()->getConnection();
             $stmtBill = $db->prepare("SELECT id FROM bills WHERE order_id = ? ORDER BY id DESC LIMIT 1");
