@@ -990,6 +990,7 @@
                              data-id="<?= $prod['id'] ?>"
                              data-name="<?= htmlspecialchars(strtolower($prod['name'])) ?>"
                              data-category="<?= $prod['category_id'] ?? 0 ?>"
+                             data-base-price="<?= (float)$prod['price'] ?>"
                              onclick="addToCart(<?= htmlspecialchars(json_encode([
                                  'id' => (int)$prod['id'],
                                  'name' => $prod['name'],
@@ -1005,7 +1006,7 @@
                             <div class="product-name"><?= htmlspecialchars($prod['name']) ?></div>
                             <div class="product-cat"><?= htmlspecialchars($prod['category_name'] ?? 'Menu Item') ?></div>
                             <div class="product-price-row">
-                                <span class="product-price"><?= number_format((float)$prod['price'], 3, '.', '') ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
+                                <span class="product-price" id="prod-price-<?= $prod['id'] ?>" data-base="<?= (float)$prod['price'] ?>"><?= number_format((float)$prod['price'], 3, '.', '') ?> <?= htmlspecialchars($settings['currency_code']) ?></span>
                                 <button type="button" class="btn-add-mini" title="Add to Order">+</button>
                             </div>
                         </div>
@@ -1061,11 +1062,14 @@
                     <div style="display: flex; gap: 8px;">
                         <div style="flex: 1;">
                             <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Platform:</label>
-                            <select id="pos-platform-select" class="meta-input">
-                                <option value="">Select Platform...</option>
+                            <select id="pos-platform-select" class="meta-input" onchange="onPlatformChange()">
+                                <option value="" data-markup="0">Select Platform...</option>
                                 <?php if (!empty($platforms)): ?>
-                                    <?php foreach ($platforms as $plat): ?>
-                                        <option value="<?= $plat['id'] ?>"><?= htmlspecialchars($plat['name']) ?></option>
+                                    <?php foreach ($platforms as $plat): 
+                                        $m = (float)($plat['markup_percent'] ?? 0);
+                                        $mLabel = $m > 0 ? ' (+' . number_format($m, 0) . '%)' : '';
+                                    ?>
+                                        <option value="<?= $plat['id'] ?>" data-markup="<?= $m ?>"><?= htmlspecialchars($plat['name']) . $mLabel ?></option>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </select>
@@ -1277,6 +1281,49 @@
             });
         }
 
+        function getActivePlatformMarkup() {
+            if (currentOrderType === 'online') {
+                const platSelect = document.getElementById('pos-platform-select');
+                if (platSelect && platSelect.selectedIndex >= 0) {
+                    const opt = platSelect.options[platSelect.selectedIndex];
+                    return parseFloat(opt.getAttribute('data-markup') || 0);
+                }
+            }
+            return 0;
+        }
+
+        function updateDisplayedMenuPrices() {
+            const markup = getActivePlatformMarkup();
+            document.querySelectorAll('.product-card').forEach(card => {
+                const basePrice = parseFloat(card.getAttribute('data-base-price') || 0);
+                const finalPrice = markup > 0 ? (basePrice * (1 + markup / 100)) : basePrice;
+                const priceSpan = card.querySelector('.product-price');
+                if (priceSpan) {
+                    let html = finalPrice.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                    if (markup > 0) {
+                        html += ` <small style="font-size:10px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.15); padding:1px 4px; border-radius:4px;">+${markup}%</small>`;
+                    }
+                    priceSpan.innerHTML = html;
+                }
+            });
+        }
+
+        function onPlatformChange() {
+            updateDisplayedMenuPrices();
+            recalculateCartPrices();
+        }
+
+        function recalculateCartPrices() {
+            const markup = getActivePlatformMarkup();
+            cart.forEach(item => {
+                const base = (typeof item.base_price !== 'undefined') ? item.base_price : item.price;
+                item.base_price = base;
+                item.price = markup > 0 ? (base * (1 + markup / 100)) : base;
+                item.markup_percent = markup;
+            });
+            renderCart();
+        }
+
         // Order Type Tab selection
         function setOrderType(type) {
             currentOrderType = type;
@@ -1285,18 +1332,29 @@
             document.getElementById('tab-online').classList.toggle('active', type === 'online');
             document.getElementById('table-select-container').style.display = (type === 'dine_in') ? 'block' : 'none';
             document.getElementById('online-select-container').style.display = (type === 'online') ? 'block' : 'none';
+            updateDisplayedMenuPrices();
+            recalculateCartPrices();
         }
 
         // Cart Management
         function addToCart(product) {
+            const markup = getActivePlatformMarkup();
+            const basePrice = parseFloat(product.price);
+            const finalPrice = markup > 0 ? (basePrice * (1 + markup / 100)) : basePrice;
+
             const existingIndex = cart.findIndex(item => item.id === product.id);
             if (existingIndex > -1) {
                 cart[existingIndex].quantity += 1;
+                cart[existingIndex].base_price = basePrice;
+                cart[existingIndex].price = finalPrice;
+                cart[existingIndex].markup_percent = markup;
             } else {
                 cart.push({
                     id: product.id,
                     name: product.name,
-                    price: parseFloat(product.price),
+                    base_price: basePrice,
+                    price: finalPrice,
+                    markup_percent: markup,
                     quantity: 1,
                     notes: ''
                 });
@@ -1491,6 +1549,7 @@
             const itemsPayload = cart.map(i => ({
                 product_id: i.id,
                 quantity: i.quantity,
+                price: i.price,
                 notes: i.notes || null
             }));
 

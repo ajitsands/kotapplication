@@ -138,6 +138,28 @@ class CounterController extends Controller {
 
         $cashierId = $_SESSION['user_id'] ?? null;
 
+        // Process item prices based on platform markup
+        require_once __DIR__ . '/../models/Product.php';
+        $productModel = new Product();
+        $markupPercent = 0.0;
+        if ($orderType === 'online' && $platformId > 0) {
+            require_once __DIR__ . '/../models/OnlinePlatform.php';
+            $platformModel = new OnlinePlatform();
+            $platformData = $platformModel->getById($platformId);
+            $markupPercent = (float)($platformData['markup_percent'] ?? 0.0);
+        }
+
+        foreach ($items as &$item) {
+            if (!isset($item['price']) || $item['price'] === null) {
+                $prod = $productModel->getProductById($item['product_id']);
+                $basePrice = (float)($prod['price'] ?? 0.0);
+                $item['price'] = ($markupPercent > 0) ? round($basePrice * (1 + $markupPercent / 100), 3) : $basePrice;
+            } else {
+                $item['price'] = (float)$item['price'];
+            }
+        }
+        unset($item);
+
         $orderModel = new Order();
         if ($orderType === 'online') {
             $orderId = $orderModel->createOnlineOrder(
@@ -860,6 +882,17 @@ class CounterController extends Controller {
                 $kotId = $db->lastInsertId();
             }
 
+            $itemPrice = (float)($product['price'] ?? 0.0);
+            if ($isOnline && !empty($order['platform_id'])) {
+                $stmtPlat = $db->prepare("SELECT markup_percent FROM online_platforms WHERE id = ?");
+                $stmtPlat->execute([(int)$order['platform_id']]);
+                $platRow = $stmtPlat->fetch();
+                $markup = (float)($platRow['markup_percent'] ?? 0.0);
+                if ($markup > 0) {
+                    $itemPrice = round($itemPrice * (1 + $markup / 100), 3);
+                }
+            }
+
             $notes = $isOnline ? 'Online Order' : 'Counter Sale';
             
             // Check if item already exists in this KOT with the same status
@@ -869,17 +902,19 @@ class CounterController extends Controller {
             
             if ($existingItem) {
                 $newQuantity = $existingItem['quantity'] + $quantity;
-                $stmtUpdateItem = $db->prepare("UPDATE kot_items SET quantity = ?, notes = ? WHERE id = ?");
-                $stmtUpdateItem->execute([$newQuantity, $notes, $existingItem['id']]);
+                $stmtUpdateItem = $db->prepare("UPDATE kot_items SET quantity = ?, price = ?, notes = ? WHERE id = ?");
+                $stmtUpdateItem->execute([$newQuantity, $itemPrice, $notes, $existingItem['id']]);
             } else {
-                $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, status, notes) VALUES (?, ?, ?, ?, ?)");
-                $stmtItem->execute([$kotId, $productId, $quantity, $status, $notes]);
+                $stmtItem = $db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, price, status, notes) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmtItem->execute([$kotId, $productId, $quantity, $itemPrice, $status, $notes]);
             }
 
             // 3. Recalculate totals
-            $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+            $sqlItems = "SELECT SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal
                          FROM kot_items ki 
                          JOIN kots k ON ki.kot_id = k.id 
+                         JOIN orders o ON k.order_id = o.id
+                         LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
                          WHERE k.order_id = ?";
             $stmtSum = $db->prepare($sqlItems);

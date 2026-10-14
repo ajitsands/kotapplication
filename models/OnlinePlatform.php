@@ -13,9 +13,20 @@ class OnlinePlatform extends Model {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function add($name) {
-        $stmt = $this->db->prepare("INSERT INTO online_platforms (name) VALUES (?)");
-        return $stmt->execute([trim($name)]);
+    public function add($name, $markupPercent = 0.00) {
+        $stmt = $this->db->prepare("INSERT INTO online_platforms (name, markup_percent) VALUES (?, ?)");
+        return $stmt->execute([trim($name), (float)$markupPercent]);
+    }
+
+    public function update($id, $name, $markupPercent = 0.00) {
+        $stmt = $this->db->prepare("UPDATE online_platforms SET name = ?, markup_percent = ? WHERE id = ?");
+        return $stmt->execute([trim($name), (float)$markupPercent, (int)$id]);
+    }
+
+    public function getById($id) {
+        $stmt = $this->db->prepare("SELECT * FROM online_platforms WHERE id = ?");
+        $stmt->execute([(int)$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function delete($id) {

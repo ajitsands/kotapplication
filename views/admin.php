@@ -1996,13 +1996,24 @@
         <div id="platforms" class="tab-content">
             <div class="grid-2">
                 <div class="panel-card">
-                    <h2 class="panel-title">Add Online Platform</h2>
+                    <h2 class="panel-title" id="platform-form-title">Add Online Platform</h2>
                     <form action="admin/platforms" method="POST">
+                        <input type="hidden" name="id" id="platform-id" value="">
                         <div class="form-group">
                             <label class="form-label">Platform Name</label>
-                            <input class="form-input" type="text" name="name" placeholder="e.g. Zomato, Swiggy" required>
+                            <input class="form-input" type="text" name="name" id="platform-name" placeholder="e.g. Talabat, Jahez" required>
                         </div>
-                        <button type="submit" class="btn-primary">Add Platform</button>
+                        <div class="form-group">
+                            <label class="form-label">Price Markup (%)</label>
+                            <input class="form-input" type="number" step="0.01" min="0" max="100" name="markup_percent" id="platform-markup" placeholder="e.g. 30 for 30%" value="0">
+                            <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">
+                                Automatically increases menu item prices by this percentage when this platform is selected in POS (e.g. 2 BD + 30% = 2.600 BD).
+                            </small>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="submit" id="platform-submit-btn" class="btn-primary">Add Platform</button>
+                            <button type="button" id="platform-cancel-btn" class="btn-secondary" style="display:none; background: rgba(255,255,255,0.08); border: 1px solid var(--card-border); color: var(--text-color); padding: 8px 16px; border-radius: 8px; cursor: pointer;" onclick="cancelPlatformEdit()">Cancel</button>
+                        </div>
                     </form>
                 </div>
 
@@ -2012,6 +2023,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Markup (%)</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -2020,7 +2032,12 @@
                             <?php if (!empty($platforms)): ?>
                                 <?php foreach ($platforms as $platform): ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($platform['name']) ?></td>
+                                        <td><strong><?= htmlspecialchars($platform['name']) ?></strong></td>
+                                        <td>
+                                            <span style="font-weight:700; color: #818cf8; background: rgba(99,102,241,0.1); padding: 4px 8px; border-radius: 6px; font-size: 12px; display: inline-block;">
+                                                +<?= number_format((float)($platform['markup_percent'] ?? 0), 2) ?>%
+                                            </span>
+                                        </td>
                                         <td>
                                             <label class="toggle-switch">
                                                 <input type="checkbox" id="platform-status-<?= $platform['id'] ?>" <?= $platform['status'] === 'active' ? 'checked' : '' ?> onchange="togglePlatformAJAX(<?= $platform['id'] ?>, this)">
@@ -2031,7 +2048,8 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <div style="display:flex; gap:10px;">
+                                            <div style="display:flex; gap:8px;">
+                                                <button type="button" onclick="editPlatform(<?= htmlspecialchars(json_encode($platform), ENT_QUOTES, 'UTF-8') ?>)" style="background: rgba(99, 102, 241, 0.1); color: #818cf8; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Edit</button>
                                                 <form action="admin/platforms/delete/<?= $platform['id'] ?>" method="POST" style="display:inline;" class="confirm-delete">
                                                     <button type="submit" class="btn-delete" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Delete</button>
                                                 </form>
@@ -2041,7 +2059,7 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="3" class="empty-state">No platforms added yet.</td>
+                                    <td colspan="4" class="empty-state">No platforms added yet.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -3633,6 +3651,25 @@
                 checkbox.checked = !checkbox.checked; // Revert switch if failed
                 Swal.fire('Error', 'Failed to toggle platform status.', 'error');
             });
+        }
+
+        function editPlatform(platform) {
+            document.getElementById('platform-id').value = platform.id;
+            document.getElementById('platform-name').value = platform.name;
+            document.getElementById('platform-markup').value = parseFloat(platform.markup_percent || 0);
+            document.getElementById('platform-form-title').innerText = 'Edit Online Platform';
+            document.getElementById('platform-submit-btn').innerText = 'Update Platform';
+            document.getElementById('platform-cancel-btn').style.display = 'inline-block';
+            document.getElementById('platform-name').focus();
+        }
+
+        function cancelPlatformEdit() {
+            document.getElementById('platform-id').value = '';
+            document.getElementById('platform-name').value = '';
+            document.getElementById('platform-markup').value = '0';
+            document.getElementById('platform-form-title').innerText = 'Add Online Platform';
+            document.getElementById('platform-submit-btn').innerText = 'Add Platform';
+            document.getElementById('platform-cancel-btn').style.display = 'none';
         }
 
         function changeOwnPasswordPrompt() {

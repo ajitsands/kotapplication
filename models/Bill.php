@@ -226,9 +226,11 @@ class Bill extends Model {
             }
 
             // 4. Recalculate subtotal for primary order
-            $stmtSum = $this->db->prepare("SELECT SUM(p.price * ki.quantity) 
+            $stmtSum = $this->db->prepare("SELECT SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) 
                                            FROM kot_items ki 
                                            JOIN kots k ON ki.kot_id = k.id 
+                                           JOIN orders o ON k.order_id = o.id
+                                           LEFT JOIN online_platforms op ON o.platform_id = op.id
                                            JOIN products p ON ki.product_id = p.id 
                                            WHERE k.order_id = ?");
             $stmtSum->execute([$primaryOrderId]);
@@ -539,7 +541,7 @@ class Bill extends Model {
         $sql = "SELECT 
                     COALESCE(op.name, 'Unknown Platform') as platform_name,
                     COUNT(DISTINCT o.id) as order_count,
-                    COALESCE(SUM(p.price * ki.quantity), 0) as subtotal
+                    COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as subtotal
                 FROM orders o
                 LEFT JOIN online_platforms op ON o.platform_id = op.id
                 JOIN kots k ON k.order_id = o.id

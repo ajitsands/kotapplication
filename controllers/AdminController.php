@@ -274,10 +274,16 @@ class AdminController extends Controller {
     }
 
     public function savePlatform() {
-        $name = $_POST['name'] ?? '';
+        $id = (int)($_POST['id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+        $markupPercent = (float)($_POST['markup_percent'] ?? 0.00);
         if (!empty($name)) {
             $platformModel = new OnlinePlatform();
-            $platformModel->add($name);
+            if ($id > 0) {
+                $platformModel->update($id, $name, $markupPercent);
+            } else {
+                $platformModel->add($name, $markupPercent);
+            }
         }
         $this->redirect('/admin#platforms');
     }

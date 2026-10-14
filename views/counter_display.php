@@ -4281,8 +4281,11 @@
                     <label style="display: block; margin-bottom: 5px; color: var(--text-muted);">Select Platform</label>
                     <select id="oo-platform" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--card-border); color: var(--text-color);">
                         <option value="">-- Select Platform --</option>
-                        <?php if(!empty($platforms)): foreach($platforms as $p): ?>
-                            <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
+                        <?php if(!empty($platforms)): foreach($platforms as $p): 
+                            $m = (float)($p['markup_percent'] ?? 0);
+                            $mLabel = $m > 0 ? ' (+' . number_format($m, 0) . '%)' : '';
+                        ?>
+                            <option value="<?= $p['id'] ?>" data-markup="<?= $m ?>"><?= htmlspecialchars($p['name']) . $mLabel ?></option>
                         <?php endforeach; endif; ?>
                     </select>
                 </div>

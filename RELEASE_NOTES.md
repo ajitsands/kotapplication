@@ -1,11 +1,29 @@
 # SaNDS KOT & POS Billing System - Release Notes
 
-## 🔒 Production Milestone: Counter POS Order Taking & High-Res QR Edition
+## 🔒 Production Milestone: Online Platform Markup & POS Enhancement
 - **Target Server**: `https://b1.restoflow.us`
 - **Milestone Status**: 🟢 **Production Ready & Tested**
 - **Branch**: `v5`
-- **Release Version**: `v5.4` (Counter POS Order Taking & QR Standee Edition)
-- **Tag**: `v5.4` / `v5.4.0`
+- **Release Version**: `v5.5` (Online Platform Commission Markup & Server Launcher)
+- **Tag**: `v5.5` / `v5.5.0`
+
+---
+
+## 🏷️ Release Version: v5.5 (Online Platform Commission Markup & Server Launcher)
+- **Branch**: `v5`
+- **Release Status**: 🟢 **Verified & Production Ready**
+
+### 🌟 New in v5.5
+1. **Online Delivery Platform Surcharge / Commission Markup (%)**:
+   - Added percentage markup configuration (`markup_percent`) per platform in **Admin -> Online Platforms** (e.g., Talabat +30%, Jahez +20%).
+   - Dynamic real-time menu card price adjustment on POS when an online platform is selected.
+   - Dynamic Cart price recalculation when switching between Dine-In, Takeaway, and different Online platforms.
+   - Snapshotting unit prices into `kot_items.price` for historical accuracy and reporting consistency.
+   - Accurate Subtotal, Tax/VAT, Grand Total, and Thermal Receipt printing with marked-up prices.
+2. **Database Migration Script**:
+   - `migrate_platform_markup.php` for zero-downtime live server schema update (`markup_percent` on `online_platforms` and `price` on `kot_items`).
+3. **One-Click Local Launcher**:
+   - `start_server.bat` for simple Windows startup on port 3031 with auto PHP detection and browser launch.
 
 ---
 

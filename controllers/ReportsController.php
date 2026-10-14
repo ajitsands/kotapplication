@@ -277,7 +277,7 @@ class ReportsController extends Controller {
                     b.payment_method,
                     b.grand_total as bill_total,
                     op.name as platform_name,
-                    (SELECT COALESCE(SUM(p.price * ki.quantity), 0) 
+                    (SELECT COALESCE(SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) 
                      FROM kots k 
                      JOIN kot_items ki ON k.id = ki.kot_id 
                      JOIN products p ON ki.product_id = p.id

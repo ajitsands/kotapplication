@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `kot_items` (
     `kot_id` INT NOT NULL,
     `product_id` INT NOT NULL,
     `quantity` INT NOT NULL,
+    `price` DECIMAL(10,3) NULL DEFAULT NULL,
     `status` ENUM('pending', 'preparing', 'ready', 'dispatched', 'cancelled') DEFAULT 'pending',
     `refund_status` ENUM('pending', 'refunded') DEFAULT 'pending',
     `notes` VARCHAR(255) DEFAULT NULL,
@@ -222,6 +223,7 @@ CREATE TABLE IF NOT EXISTS `inventory_transactions` (
 CREATE TABLE IF NOT EXISTS `online_platforms` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(100) NOT NULL,
+    `markup_percent` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
     `status` ENUM('active','inactive') DEFAULT 'active',
     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

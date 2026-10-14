@@ -10,12 +10,14 @@ class Kot extends Model {
             $stmt->execute([$orderId, $waiterId, $kotNumber]);
             $kotId = $this->db->lastInsertId();
 
-            $stmtItem = $this->db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, notes, status) VALUES (?, ?, ?, ?, 'pending')");
+            $stmtItem = $this->db->prepare("INSERT INTO kot_items (kot_id, product_id, quantity, price, notes, status) VALUES (?, ?, ?, ?, ?, 'pending')");
             foreach ($items as $item) {
+                $price = isset($item['price']) && $item['price'] !== null ? (float)$item['price'] : null;
                 $stmtItem->execute([
                     $kotId,
                     $item['product_id'],
                     $item['quantity'],
+                    $price,
                     $item['notes'] ?? null
                 ]);
             }

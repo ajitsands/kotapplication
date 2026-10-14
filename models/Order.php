@@ -41,13 +41,18 @@ class Order extends Model {
     }
 
     public function getOrderItemsSummary($orderId) {
-        $sql = "SELECT p.id as product_id, p.name, p.name as product_name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price,
+        $sql = "SELECT p.id as product_id, p.name, p.name as product_name, 
+                       COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) as price, 
+                       SUM(ki.quantity) as total_quantity, 
+                       SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal_price,
                        GROUP_CONCAT(DISTINCT NULLIF(ki.notes, '') SEPARATOR ', ') as notes
                 FROM kot_items ki 
                 JOIN kots k ON ki.kot_id = k.id 
+                JOIN orders o ON k.order_id = o.id
+                LEFT JOIN online_platforms op ON o.platform_id = op.id
                 JOIN products p ON ki.product_id = p.id 
                 WHERE k.order_id = ? AND ki.status != 'cancelled'
-                GROUP BY p.id, p.name, p.price";
+                GROUP BY p.id, p.name, COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price))";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$orderId]);
         return $stmt->fetchAll();
@@ -65,9 +70,11 @@ class Order extends Model {
             $stmtDel->execute([$orderId, $productId]);
             
             // Re-calculate totals
-            $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+            $sqlItems = "SELECT SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal
                          FROM kot_items ki 
                          JOIN kots k ON ki.kot_id = k.id 
+                         JOIN orders o ON k.order_id = o.id
+                         LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
                          WHERE k.order_id = ?";
             $stmtSum = $this->db->prepare($sqlItems);
@@ -259,9 +266,11 @@ class Order extends Model {
                 $order['grand_total'] = (float)$order['bill_grand_total'];
             } else {
                 // Calculate live totals from KOT items for active orders
-                $sqlItems = "SELECT SUM(p.price * ki.quantity) as subtotal
+                $sqlItems = "SELECT SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal
                              FROM kot_items ki
                              JOIN kots k ON ki.kot_id = k.id
+                             JOIN orders o ON k.order_id = o.id
+                             LEFT JOIN online_platforms op ON o.platform_id = op.id
                              JOIN products p ON ki.product_id = p.id
                              WHERE k.order_id = ?";
                 $stmtItems = $this->db->prepare($sqlItems);
