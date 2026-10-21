@@ -2149,8 +2149,8 @@
     <!-- Cropper Modal -->
     <div id="cropper-modal" class="modal">
         <div class="modal-content" style="max-width: 600px; width: 90%; text-align: left;">
-            <h3 style="margin-bottom: 5px;">✂ Crop Product Image</h3>
-            <p style="color: var(--text-muted); font-size:13px; margin-bottom: 20px;">Crop the image. It will be compressed to 400x400 pixels for optimal loading.</p>
+            <h3 style="margin-bottom: 5px;">✂ Crop Image (High Definition)</h3>
+            <p style="color: var(--text-muted); font-size:13px; margin-bottom: 20px;">Crop your image. It will be saved in high definition (up to 1200×1200 px) with crisp clarity for all mobile and desktop screens.</p>
             <div style="max-height: 380px; width: 100%; overflow: hidden; background: #000; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center;">
                 <img id="cropper-image" src="" style="max-width: 100%; max-height: 350px; display: block;">
             </div>
@@ -2744,16 +2744,29 @@
         function confirmCropping() {
             if (!cropper) return;
             
-            const width = croppingTarget === 'product' ? 400 : 600;
-            const height = croppingTarget === 'product' ? 400 : 300;
+            const isProduct = (croppingTarget === 'product');
+            const cropData = cropper.getData(true);
+            
+            // High-definition target dimensions (1200x1200 for products, 1600x800 for category banners)
+            let outWidth = isProduct ? 1200 : 1600;
+            let outHeight = isProduct ? 1200 : 800;
+            
+            // If the source crop region is between 600px and the high target, maintain the source dimension without artificial upsampling
+            if (cropData && cropData.width && cropData.width < outWidth) {
+                outWidth = Math.max(Math.round(cropData.width), isProduct ? 800 : 1000);
+                outHeight = isProduct ? outWidth : Math.round(outWidth / 2);
+            }
             
             const canvas = cropper.getCroppedCanvas({
-                width: width,
-                height: height
+                width: outWidth,
+                height: outHeight,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
             });
             
             if (canvas) {
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                // High-fidelity JPEG compression (0.92) for sharp, crystal-clear display on all screens
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
                 
                 if (croppingTarget === 'product') {
                     document.getElementById('cropped-image-data').value = dataUrl;

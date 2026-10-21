@@ -79,7 +79,7 @@ class AdminController extends Controller {
             if (count($parts) === 2) {
                 $decodedData = base64_decode($parts[1]);
                 if ($decodedData !== false) {
-                    $fileName = 'cat_' . time() . '.jpg';
+                    $fileName = 'cat_' . time() . '_' . bin2hex(random_bytes(4)) . '.jpg';
                     $uploadFile = 'uploads/' . $fileName;
                     if (file_put_contents($uploadFile, $decodedData)) {
                         $imageUrl = 'uploads/' . $fileName;
@@ -87,8 +87,8 @@ class AdminController extends Controller {
                 }
             }
         } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-            $fileName = 'cat_' . time() . '.' . $ext;
+            $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            $fileName = 'cat_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $uploadFile = 'uploads/' . $fileName;
 
             if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadFile)) {
@@ -133,7 +133,7 @@ class AdminController extends Controller {
             if (count($parts) === 2) {
                 $decodedData = base64_decode($parts[1]);
                 if ($decodedData !== false) {
-                    $fileName = 'prod_' . time() . '.jpg';
+                    $fileName = 'prod_' . time() . '_' . bin2hex(random_bytes(4)) . '.jpg';
                     $uploadFile = 'uploads/' . $fileName;
                     if (file_put_contents($uploadFile, $decodedData)) {
                         $data['image_url'] = 'uploads/' . $fileName;
@@ -141,8 +141,8 @@ class AdminController extends Controller {
                 }
             }
         } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-            $fileName = 'prod_' . time() . '.' . $ext;
+            $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            $fileName = 'prod_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $uploadFile = 'uploads/' . $fileName;
 
             if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadFile)) {
