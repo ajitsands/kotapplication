@@ -1033,9 +1033,15 @@
                     <h2 class="panel-title" id="cat-form-title">Add Category</h2>
                     <form id="category-form" action="admin/categories" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="id" id="cat-id">
-                        <div class="form-group">
-                            <label class="form-label">Category Name</label>
-                            <input class="form-input" type="text" name="name" id="cat-name-input" placeholder="e.g. Starter" required>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label class="form-label">Category Name</label>
+                                <input class="form-input" type="text" name="name" id="cat-name-input" placeholder="e.g. Starter" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Display Order</label>
+                                <input class="form-input" type="number" name="sort_order" id="cat-sort-input" placeholder="e.g. 1" min="1">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Category Banner</label>
@@ -1056,14 +1062,24 @@
                     <table id="categories-table">
                         <thead>
                             <tr>
-                                <th>Banner</th>
-                                <th>Name</th>
-                                <th>Action</th>
+                                <th style="width: 15%;">Order</th>
+                                <th style="width: 15%;">Banner</th>
+                                <th style="width: 45%;">Name</th>
+                                <th style="width: 25%;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($categories as $cat): ?>
                                 <tr>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.25);">#<?= (int)($cat['sort_order'] ?? 1) ?></span>
+                                            <div style="display: inline-flex; flex-direction: column; gap: 2px;">
+                                                <button type="button" onclick="reorderCategory(<?= $cat['id'] ?>, 'up')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Up">▲</button>
+                                                <button type="button" onclick="reorderCategory(<?= $cat['id'] ?>, 'down')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Down">▼</button>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td>
                                         <?php if ($cat['image_url']): ?>
                                             <img src="<?= htmlspecialchars($cat['image_url']) ?>" class="img-preview-mini">
@@ -1120,10 +1136,14 @@
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                             <div class="form-group">
                                 <label class="form-label">Price (<?= htmlspecialchars($settings['currency_code']) ?>)</label>
                                 <input class="form-input" type="number" step="0.001" name="price" id="prod-price" placeholder="0.000" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Sort Priority</label>
+                                <input class="form-input" type="number" name="sort_order" id="prod-sort" placeholder="1 = First" min="1">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Product Image</label>
@@ -1169,16 +1189,26 @@
                     <table id="products-table">
                         <thead>
                             <tr>
-                                <th style="width: 10%;">Img</th>
+                                <th style="width: 12%;">Order</th>
+                                <th style="width: 8%;">Img</th>
                                 <th style="width: 30%;">Name</th>
-                                <th style="width: 20%;">Category</th>
-                                <th style="width: 20%;">Price</th>
-                                <th style="width: 20%;">Actions</th>
+                                <th style="width: 18%;">Category</th>
+                                <th style="width: 16%;">Price</th>
+                                <th style="width: 16%;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($products as $prod): ?>
                                 <tr>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.25);">#<?= (int)($prod['sort_order'] ?? 1) ?></span>
+                                            <div style="display: inline-flex; flex-direction: column; gap: 2px;">
+                                                <button type="button" onclick="reorderProduct(<?= $prod['id'] ?>, 'up')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Up">▲</button>
+                                                <button type="button" onclick="reorderProduct(<?= $prod['id'] ?>, 'down')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Down">▼</button>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td>
                                         <?php if ($prod['image_url']): ?>
                                             <img src="<?= htmlspecialchars($prod['image_url']) ?>" class="img-preview-mini">
@@ -2557,6 +2587,7 @@
             document.getElementById('prod-category').value = prod.category_id;
             document.getElementById('prod-name').value = prod.name;
             document.getElementById('prod-price').value = prod.price;
+            document.getElementById('prod-sort').value = prod.sort_order || '';
             document.getElementById('prod-desc').value = prod.description;
             document.getElementById('prod-available').checked = (parseInt(prod.is_available) === 1);
             document.getElementById('prod-counter-item').checked = (parseInt(prod.is_counter_item) === 1);
@@ -2571,6 +2602,7 @@
         function resetProductForm() {
             document.getElementById('prod-id').value = '';
             document.getElementById('product-form').reset();
+            document.getElementById('prod-sort').value = '';
             document.getElementById('prod-counter-item').checked = false;
             document.getElementById('product-form-title').innerText = 'Add/Edit Product';
             document.getElementById('btn-cancel-edit').style.display = 'none';
@@ -2582,6 +2614,7 @@
             document.getElementById('cat-id').value = cat.id;
             document.getElementById('cat-form-title').innerText = 'Edit Category: ' + cat.name;
             document.getElementById('cat-name-input').value = cat.name;
+            document.getElementById('cat-sort-input').value = cat.sort_order || '';
             document.getElementById('btn-cancel-cat-edit').style.display = 'inline-block';
             document.getElementById('cat-submit-btn').innerText = 'Save Category';
 
@@ -2602,11 +2635,71 @@
         function resetCategoryForm() {
             document.getElementById('cat-id').value = '';
             document.getElementById('category-form').reset();
+            document.getElementById('cat-sort-input').value = '';
             document.getElementById('cat-form-title').innerText = 'Add Category';
             document.getElementById('btn-cancel-cat-edit').style.display = 'none';
             document.getElementById('cat-cropped-image-data').value = '';
             document.getElementById('cat-cropped-preview-container').style.display = 'none';
             document.getElementById('cat-submit-btn').innerText = 'Add Category';
+        }
+
+        function reorderCategory(catId, direction) {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            fetch(basePath + '/categories/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: catId, direction: direction })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Notice',
+                        text: data.error || 'Cannot reorder further in this direction.',
+                        toast: true,
+                        position: 'top-end',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            })
+            .catch(err => console.error('Error reordering category:', err));
+        }
+
+        let currentFilteredCatId = 'all';
+
+        function reorderProduct(prodId, direction) {
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            fetch(basePath + '/products/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: prodId, direction: direction })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const filterLabel = document.getElementById('current-filter-label').innerText;
+                    if (filterLabel && filterLabel !== 'Showing All' && currentFilteredCatId !== 'all') {
+                        filterProductsByCategory(currentFilteredCatId, filterLabel);
+                    } else {
+                        window.location.reload();
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Notice',
+                        text: data.error || 'Cannot reorder further in this direction.',
+                        toast: true,
+                        position: 'top-end',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            })
+            .catch(err => console.error('Error reordering product:', err));
         }
 
         function showQrCode(tableNum) {
@@ -2809,6 +2902,7 @@
 
         function filterProductsByCategory(catId, label) {
             document.getElementById('current-filter-label').innerText = label;
+            currentFilteredCatId = catId;
             
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
             
@@ -2829,9 +2923,19 @@
                             : `<div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted);">None</div>`;
                         
                         const price = parseFloat(prod.price).toFixed(window.PRICE_DECIMALS || 3);
+                        const sortNum = parseInt(prod.sort_order) || 1;
                         
                         html += `
                             <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.25);">#${sortNum}</span>
+                                        <div style="display: inline-flex; flex-direction: column; gap: 2px;">
+                                            <button type="button" onclick="reorderProduct(${prod.id}, 'up')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Up">▲</button>
+                                            <button type="button" onclick="reorderProduct(${prod.id}, 'down')" style="padding: 2px 5px; font-size: 9px; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); cursor: pointer;" title="Move Down">▼</button>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td>${imgHtml}</td>
                                 <td>
                                     <div style="font-weight: 600;">${htmlspecialchars(prod.name)}</div>
@@ -2874,8 +2978,9 @@
                     
                     productsTable = $('#products-table').DataTable({
                         dom: '<"dt-header"f>rt<"dt-footer"ip>',
-                        pageLength: 10,
+                        pageLength: 15,
                         lengthChange: false,
+                        order: [],
                         language: {
                             search: "🔍 Search:"
                         }
@@ -3562,8 +3667,9 @@
         $(document).ready(function() {
             $('#categories-table').DataTable({
                 dom: '<"dt-header"f>rt<"dt-footer"ip>',
-                pageLength: 5,
+                pageLength: 10,
                 lengthChange: false,
+                order: [],
                 language: {
                     search: "🔍 Search:"
                 }
@@ -3571,8 +3677,9 @@
             
             productsTable = $('#products-table').DataTable({
                 dom: '<"dt-header"f>rt<"dt-footer"ip>',
-                pageLength: 10,
+                pageLength: 15,
                 lengthChange: false,
+                order: [],
                 language: {
                     search: "🔍 Search:"
                 }

@@ -70,6 +70,7 @@ class AdminController extends Controller {
     public function saveCategory() {
         $id = $_POST['id'] ?? null;
         $name = $_POST['name'] ?? '';
+        $sortOrder = isset($_POST['sort_order']) && $_POST['sort_order'] !== '' ? (int)$_POST['sort_order'] : null;
         $imageUrl = null;
 
         // Handle cropped category banner upload
@@ -98,11 +99,39 @@ class AdminController extends Controller {
 
         $categoryModel = new Category();
         if (!empty($id)) {
-            $categoryModel->update((int)$id, $name, $imageUrl);
+            $categoryModel->update((int)$id, $name, $imageUrl, $sortOrder);
         } else {
-            $categoryModel->add($name, $imageUrl);
+            $categoryModel->add($name, $imageUrl, $sortOrder);
         }
         $this->redirect('/admin');
+    }
+
+    public function reorderCategory() {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
+        $direction = strtolower($input['direction'] ?? $_POST['direction'] ?? '');
+
+        if ($id > 0 && ($direction === 'up' || $direction === 'down')) {
+            $categoryModel = new Category();
+            $success = $categoryModel->reorder($id, $direction);
+            $this->json(['success' => (bool)$success]);
+            return;
+        }
+        $this->json(['success' => false, 'error' => 'Invalid parameters']);
+    }
+
+    public function updateCategorySort() {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
+        $sortOrder = (int)($input['sort_order'] ?? $_POST['sort_order'] ?? 0);
+
+        if ($id > 0 && $sortOrder > 0) {
+            $categoryModel = new Category();
+            $success = $categoryModel->updateSortOrder($id, $sortOrder);
+            $this->json(['success' => (bool)$success]);
+            return;
+        }
+        $this->json(['success' => false, 'error' => 'Invalid parameters']);
     }
 
     public function deleteCategory($params) {
@@ -123,7 +152,8 @@ class AdminController extends Controller {
             'description' => $_POST['description'] ?? '',
             'price' => $_POST['price'] ?? 0.0,
             'is_available' => isset($_POST['is_available']) ? 1 : 0,
-            'is_counter_item' => isset($_POST['is_counter_item']) ? 1 : 0
+            'is_counter_item' => isset($_POST['is_counter_item']) ? 1 : 0,
+            'sort_order' => (isset($_POST['sort_order']) && $_POST['sort_order'] !== '') ? (int)$_POST['sort_order'] : null
         ];
 
         // Handle cropped image upload
@@ -152,6 +182,34 @@ class AdminController extends Controller {
 
         $productModel->save($data);
         $this->redirect('/admin');
+    }
+
+    public function reorderProduct() {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
+        $direction = strtolower($input['direction'] ?? $_POST['direction'] ?? '');
+
+        if ($id > 0 && ($direction === 'up' || $direction === 'down')) {
+            $productModel = new Product();
+            $success = $productModel->reorder($id, $direction);
+            $this->json(['success' => (bool)$success]);
+            return;
+        }
+        $this->json(['success' => false, 'error' => 'Invalid parameters']);
+    }
+
+    public function updateProductSort() {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
+        $sortOrder = (int)($input['sort_order'] ?? $_POST['sort_order'] ?? 0);
+
+        if ($id > 0 && $sortOrder > 0) {
+            $productModel = new Product();
+            $success = $productModel->updateSortOrder($id, $sortOrder);
+            $this->json(['success' => (bool)$success]);
+            return;
+        }
+        $this->json(['success' => false, 'error' => 'Invalid parameters']);
     }
 
     public function deleteProduct($params) {

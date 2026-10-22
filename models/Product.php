@@ -11,14 +11,14 @@ class Product extends Model {
                                           FROM product_recipes pr
                                           JOIN inventory_items i ON pr.inventory_item_id = i.id
                                           WHERE pr.product_id = p.id) as ingredients
-                                  FROM products p 
-                                  JOIN categories c ON p.category_id = c.id 
-                                  ORDER BY c.name ASC, p.name ASC");
+                                   FROM products p 
+                                   JOIN categories c ON p.category_id = c.id 
+                                   ORDER BY c.sort_order ASC, c.name ASC, p.sort_order ASC, p.name ASC");
         return $stmt->fetchAll();
     }
 
     public function getByCategory($categoryId) {
-        $stmt = $this->db->prepare("SELECT * FROM products WHERE category_id = ? AND is_available = 1 ORDER BY name ASC");
+        $stmt = $this->db->prepare("SELECT * FROM products WHERE category_id = ? AND is_available = 1 ORDER BY sort_order ASC, name ASC");
         $stmt->execute([$categoryId]);
         return $stmt->fetchAll();
     }
@@ -28,7 +28,7 @@ class Product extends Model {
                                     FROM products p 
                                     JOIN categories c ON p.category_id = c.id 
                                     WHERE p.category_id = ? 
-                                    ORDER BY p.name ASC");
+                                    ORDER BY p.sort_order ASC, p.name ASC");
         $stmt->execute([$categoryId]);
         return $stmt->fetchAll();
     }
@@ -52,6 +52,11 @@ class Product extends Model {
                 isset($data['is_counter_item']) ? (int)$data['is_counter_item'] : 0
             ];
 
+            if (isset($data['sort_order']) && $data['sort_order'] !== '') {
+                $sql .= ", sort_order = ?";
+                $params[] = (int)$data['sort_order'];
+            }
+
             if (isset($data['image_url'])) {
                 $sql .= ", image_url = ?";
                 $params[] = $data['image_url'];
@@ -64,8 +69,17 @@ class Product extends Model {
             return $stmt->execute($params);
         } else {
             // Insert
-            $stmt = $this->db->prepare("INSERT INTO products (category_id, name, description, price, image_url, is_available, is_counter_item) 
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $sortOrder = 1;
+            if (isset($data['sort_order']) && (int)$data['sort_order'] > 0) {
+                $sortOrder = (int)$data['sort_order'];
+            } else {
+                $stmtMax = $this->db->prepare("SELECT MAX(sort_order) FROM products WHERE category_id = ?");
+                $stmtMax->execute([$data['category_id']]);
+                $sortOrder = (int)$stmtMax->fetchColumn() + 1;
+            }
+
+            $stmt = $this->db->prepare("INSERT INTO products (category_id, name, description, price, image_url, is_available, is_counter_item, sort_order) 
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             return $stmt->execute([
                 $data['category_id'],
                 $data['name'],
@@ -73,7 +87,8 @@ class Product extends Model {
                 $data['price'],
                 $data['image_url'] ?? null,
                 isset($data['is_available']) ? (int)$data['is_available'] : 1,
-                isset($data['is_counter_item']) ? (int)$data['is_counter_item'] : 0
+                isset($data['is_counter_item']) ? (int)$data['is_counter_item'] : 0,
+                $sortOrder
             ]);
         }
     }
@@ -86,5 +101,59 @@ class Product extends Model {
     public function updateAvailability($id, $isAvailable) {
         $stmt = $this->db->prepare("UPDATE products SET is_available = ? WHERE id = ?");
         return $stmt->execute([(int)$isAvailable, $id]);
+    }
+
+    public function updateSortOrder($id, $sortOrder) {
+        $stmt = $this->db->prepare("UPDATE products SET sort_order = ? WHERE id = ?");
+        return $stmt->execute([(int)$sortOrder, (int)$id]);
+    }
+
+    public function reorder($id, $direction) {
+        $current = $this->getById($id);
+        if (!$current) return false;
+
+        $categoryId = (int)$current['category_id'];
+        $currentOrder = (int)$current['sort_order'];
+        $target = null;
+
+        if ($direction === 'up') {
+            $stmt = $this->db->prepare("SELECT id, sort_order FROM products WHERE category_id = ? AND sort_order < ? ORDER BY sort_order DESC, id DESC LIMIT 1");
+            $stmt->execute([$categoryId, $currentOrder]);
+            $target = $stmt->fetch();
+        } elseif ($direction === 'down') {
+            $stmt = $this->db->prepare("SELECT id, sort_order FROM products WHERE category_id = ? AND sort_order > ? ORDER BY sort_order ASC, id ASC LIMIT 1");
+            $stmt->execute([$categoryId, $currentOrder]);
+            $target = $stmt->fetch();
+        }
+
+        if ($target) {
+            $targetOrder = (int)$target['sort_order'];
+            $this->updateSortOrder($current['id'], $targetOrder);
+            $this->updateSortOrder($target['id'], $currentOrder);
+            return true;
+        }
+
+        return false;
+    }
+
+    public function normalizeSortOrders($categoryId = null) {
+        try {
+            if ($categoryId) {
+                $pids = $this->db->prepare("SELECT id FROM products WHERE category_id = ? ORDER BY sort_order ASC, id ASC");
+                $pids->execute([(int)$categoryId]);
+                $items = $pids->fetchAll(PDO::FETCH_COLUMN);
+                $order = 1;
+                $stmt = $this->db->prepare("UPDATE products SET sort_order = ? WHERE id = ?");
+                foreach ($items as $pid) {
+                    $stmt->execute([$order, $pid]);
+                    $order++;
+                }
+            } else {
+                $cats = $this->db->query("SELECT id FROM categories")->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($cats as $catId) {
+                    $this->normalizeSortOrders($catId);
+                }
+            }
+        } catch (Exception $e) {}
     }
 }
