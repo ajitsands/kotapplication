@@ -422,6 +422,44 @@
             color: white;
         }
 
+        .btn-dispatch-kot {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            color: var(--ready-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-dispatch-kot:hover {
+            background: var(--ready-color);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+        }
+
+        .btn-remove-kot-header {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--ready-color);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .btn-remove-kot-header:hover {
+            background: var(--ready-color);
+            color: #ffffff;
+            transform: scale(1.08);
+        }
+
         .btn-delete-item {
             background: none;
             border: none;
@@ -1013,6 +1051,15 @@
                             <span class="table-badge" style="${kot.order_type === 'online' ? 'background: var(--accent-green);' : ''}">
                                 ${kot.order_type === 'take_away' ? 'Take Away' : (kot.order_type === 'online' ? '🌐 ' + (kot.platform_name || 'Online') : 'T' + kot.table_number)}
                             </span>
+                            ${kot.status === 'ready' ? `
+                                <span style="background: rgba(6,182,212,0.15); color: var(--ready-color); border: 1px solid rgba(6,182,212,0.3); font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Ready</span>
+                                <button onclick="removeKotCard(${kot.id})" class="btn-remove-kot-header" title="Remove ready ticket from screen">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            ` : ''}
                             <div class="kot-meta">
                                 ${kot.order_type === 'take_away' ? `<div style="font-size:16px; font-weight:800; color:var(--accent-orange); margin-bottom:4px;">Token: ${kot.token_number}</div>` : ''}
                                 ${kot.order_type === 'online' ? `<div style="font-size:16px; font-weight:800; color:var(--accent-green); margin-bottom:4px;">Order: ${kot.token_number}${kot.platform_order_number ? ' <br><span style="font-size:14px; color:var(--text-muted);">Platform: ' + kot.platform_order_number + '</span>' : ''}</div>` : ''}
@@ -1064,7 +1111,12 @@
                                 <button onclick="markKotReady(${kot.id})" class="btn-action btn-ready">Mark Ready</button>
                                 <button onclick="deleteKot(${kot.id})" class="btn-action btn-delete-kot">Delete KOT</button>
                             ` : `
-                                <span style="flex-grow:1; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--ready-color); background:rgba(6,182,212,0.1); border-radius:10px; border:1px dashed rgba(6,182,212,0.2);">TICKET READY</span>
+                                <button onclick="removeKotCard(${kot.id})" class="btn-action btn-dispatch-kot" title="Remove ready card from kitchen screen">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    Remove Card
+                                </button>
                             `}
                         </div>
                     </div>
@@ -1091,6 +1143,38 @@
                     if (data.success) {
                         fetchKots(); // Reload immediately
                     }
+                });
+        }
+
+        function removeKotCard(kotId) {
+            const card = document.getElementById('kot-' + kotId);
+            if (card) {
+                card.style.transition = 'all 0.25s ease';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+            }
+            fetch('kot/dispatch/' + kotId, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        fetchKots(); // Reload immediately
+                    } else {
+                        if (card) {
+                            card.style.opacity = '1';
+                            card.style.transform = 'none';
+                        }
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.error || 'Failed to remove ready card.',
+                            icon: 'error',
+                            background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                            color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Error removing KOT card:', err);
+                    fetchKots();
                 });
         }
 

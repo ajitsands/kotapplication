@@ -51,6 +51,13 @@ class KotController extends Controller {
         $this->json(['success' => $success]);
     }
 
+    public function dispatchKot($params) {
+        $kotId = (int)($params['id'] ?? 0);
+        $kotModel = new Kot();
+        $success = $kotModel->dispatchKot($kotId);
+        $this->json(['success' => (bool)$success]);
+    }
+
     // Renders the print view of KOT
     public function printKot($params) {
         $kotId = (int)($params['id'] ?? 0);

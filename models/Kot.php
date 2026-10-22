@@ -215,6 +215,36 @@ class Kot extends Model {
         }
     }
 
+    public function dispatchKot($kotId) {
+        $this->db->beginTransaction();
+        try {
+            $chefId = $_SESSION['user_id'] ?? null;
+
+            // Find all pending items and deduct inventory if not already deducted
+            $stmtFind = $this->db->prepare("SELECT id FROM kot_items WHERE kot_id = ? AND status = 'pending'");
+            $stmtFind->execute([$kotId]);
+            $pendingItems = $stmtFind->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($pendingItems as $itemId) {
+                $this->deductInventoryForKotItem($itemId, $chefId);
+            }
+
+            // Mark all active/ready items in this KOT as dispatched
+            $stmtItems = $this->db->prepare("UPDATE kot_items SET status = 'dispatched' WHERE kot_id = ? AND status != 'cancelled'");
+            $stmtItems->execute([$kotId]);
+
+            // Mark the KOT itself as dispatched
+            $stmtKot = $this->db->prepare("UPDATE kots SET status = 'dispatched' WHERE id = ?");
+            $stmtKot->execute([$kotId]);
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
+    }
+
     public function getWaiterNotifications($waiterId) {
         // Fetch ready items that waiter should deliver
         $sql = "SELECT ki.id as kot_item_id, p.name as product_name, ki.quantity, o.table_number, k.kot_number, ki.notes

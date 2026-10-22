@@ -143,6 +143,8 @@ $router->add('GET', '/kot/items', 'KotController@itemsList');
 $router->add('GET', '/kot/completed', 'KotController@completedList');
 $router->add('POST', '/kot/items/ready/:id', 'KotController@markItemReady');
 $router->add('POST', '/kot/ready/:id', 'KotController@markKotReady');
+$router->add('POST', '/kot/dispatch/:id', 'KotController@dispatchKot');
+$router->add('POST', '/kot/remove/:id', 'KotController@dispatchKot');
 $router->add('GET', '/kot/print/:id', 'KotController@printKot');
 $router->add('GET', '/kot/direct-print/:id', 'KotController@directPrint');
 $router->add('POST', '/kot/direct-print/:id', 'KotController@directPrint');
