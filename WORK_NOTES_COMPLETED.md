@@ -27,7 +27,7 @@ Both Android apps are compiled, signed, and hosted directly on the server under 
 | Application | Server Download Link | File Size | Build Status |
 | :--- | :--- | :--- | :---: |
 | **SaNDS KOT Admin App** | [`/downloads/SaNDS-KOT-Admin.apk`](https://b1.restoflow.us/downloads/SaNDS-KOT-Admin.apk) | 2,499,958 bytes (~2.38 MB) | 🟢 Synced with Server |
-| **SaNDS KOT Printer Driver App** | [`/downloads/SaNDS-KOT-Printer-Driver.apk`](https://b1.restoflow.us/downloads/SaNDS-KOT-Printer-Driver.apk) | 2,570,162 bytes (~2.45 MB) | 🟢 Synced with Server |
+| **SaNDS KOT Printer Driver App** | [`/downloads/SaNDS-KOT-Printer-Driver.apk`](https://b1.restoflow.us/downloads/SaNDS-KOT-Printer-Driver.apk) | 2,570,471 bytes (~2.45 MB) | 🟢 Synced with Server |
 
 > **Architectural Note on App Updates**:
 > Both Android APKs function as native WebView containers connected to `https://b1.restoflow.us` (with Native ESC/POS Android Print Bridge enabled).

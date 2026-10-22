@@ -1553,21 +1553,42 @@
                 notes: i.notes || null
             }));
 
-            // Get local station printer config if present
-            let printerIp = '';
-            let printerPort = 0;
-            try {
-                if (window.parent && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
-                    printerIp = window.parent.currentConfig.printerIp;
-                    printerPort = window.parent.currentConfig.printerPort;
-                } else {
-                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
-                    if (localCfg.printerIp) {
-                        printerIp = localCfg.printerIp;
-                        printerPort = localCfg.printerPort;
+            // Get local station printer config
+            const effective = (typeof getEffectivePrinterConfig === 'function') 
+                ? getEffectivePrinterConfig() 
+                : (function() {
+                    let ip = '';
+                    let port = 0;
+                    try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        ip = urlParams.get('station_printer_ip') || urlParams.get('printer_ip') || '';
+                        port = parseInt(urlParams.get('station_printer_port') || urlParams.get('printer_port') || '0') || 0;
+                    } catch (e) {}
+                    if (!ip) {
+                        try {
+                            const savedIp = localStorage.getItem('sands_printer_ip');
+                            if (savedIp) {
+                                ip = savedIp.trim();
+                                port = parseInt(localStorage.getItem('sands_printer_port') || '0') || 0;
+                            }
+                        } catch (e) {}
                     }
-                }
-            } catch (e) {}
+                    if (!ip) {
+                        try {
+                            const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
+                            if (localCfg && localCfg.printerIp) {
+                                ip = String(localCfg.printerIp).trim();
+                                port = parseInt(localCfg.printerPort) || 0;
+                            }
+                        } catch (e) {}
+                    }
+                    if (!ip) ip = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+                    if (!port) port = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+                    return { ip, port };
+                })();
+
+            const printerIp = effective.ip;
+            const printerPort = effective.port;
 
             const payload = {
                 order_type: currentOrderType,
@@ -1602,6 +1623,25 @@
                 if (data.success) {
                     // Play sound
                     try { document.getElementById('audio-kot').play(); } catch (e) {}
+
+                    // Relay KOT print job to driver app or native bridge if running on client
+                    if (data.print_result && data.print_result.base64) {
+                        let bridged = false;
+                        try {
+                            if (typeof window.AndroidPrintBridge !== 'undefined' && window.AndroidPrintBridge && typeof window.AndroidPrintBridge.printTcp === 'function') {
+                                window.AndroidPrintBridge.printTcp(printerIp, printerPort, data.print_result.base64);
+                                bridged = true;
+                            }
+                        } catch (e) {}
+                        if (!bridged && window.parent && window.parent !== window) {
+                            window.parent.postMessage({
+                                action: 'sands_print_escpos',
+                                base64: data.print_result.base64,
+                                printer_ip: printerIp,
+                                printer_port: printerPort
+                            }, '*');
+                        }
+                    }
 
                     let successMsg = `Order #${data.order_id} dispatched to Kitchen (KOT #${data.kot_id}).`;
                     if (data.token_number) {

@@ -2047,24 +2047,40 @@
             });
         }
 
+        function getAndroidBridge() {
+            try {
+                if (typeof window.AndroidPrintBridge !== 'undefined' && window.AndroidPrintBridge) {
+                    return window.AndroidPrintBridge;
+                }
+            } catch (e) {}
+            try {
+                if (window.parent && window.parent !== window && typeof window.parent.AndroidPrintBridge !== 'undefined' && window.parent.AndroidPrintBridge) {
+                    return window.parent.AndroidPrintBridge;
+                }
+            } catch (e) {}
+            return null;
+        }
+
         function getEffectivePrinterConfig() {
             let ip = '';
             let port = 0;
+
+            // 1. Check URL parameters (e.g. from SaNDS Driver iframe loading)
             try {
-                if (window.parent && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
-                    ip = String(window.parent.currentConfig.printerIp).trim();
-                    port = parseInt(window.parent.currentConfig.printerPort) || 0;
+                const urlParams = new URLSearchParams(window.location.search);
+                const qIp = urlParams.get('station_printer_ip') || urlParams.get('printer_ip');
+                const qPort = urlParams.get('station_printer_port') || urlParams.get('printer_port');
+                if (qIp) {
+                    ip = qIp.trim();
+                    port = parseInt(qPort) || 0;
+                    try {
+                        localStorage.setItem('sands_printer_ip', ip);
+                        if (port) localStorage.setItem('sands_printer_port', port);
+                    } catch (e) {}
                 }
             } catch (e) {}
-            if (!ip) {
-                try {
-                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
-                    if (localCfg && localCfg.printerIp) {
-                        ip = String(localCfg.printerIp).trim();
-                        port = parseInt(localCfg.printerPort) || 0;
-                    }
-                } catch (e) {}
-            }
+
+            // 2. Check localStorage (persisted on this origin from previous navigation/sync)
             if (!ip) {
                 try {
                     const savedIp = localStorage.getItem('sands_printer_ip');
@@ -2074,6 +2090,29 @@
                     }
                 } catch (e) {}
             }
+
+            // 3. Check sands_kot_config if present
+            if (!ip) {
+                try {
+                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
+                    if (localCfg && localCfg.printerIp) {
+                        ip = String(localCfg.printerIp).trim();
+                        port = parseInt(localCfg.printerPort) || 0;
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Safe check of window.parent.currentConfig (same-origin only)
+            if (!ip) {
+                try {
+                    if (window.parent && window.parent !== window && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
+                        ip = String(window.parent.currentConfig.printerIp).trim();
+                        port = parseInt(window.parent.currentConfig.printerPort) || 0;
+                    }
+                } catch (e) {}
+            }
+
+            // 5. Fallback to server default
             if (!ip) {
                 ip = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
             }
@@ -2083,12 +2122,25 @@
             return { ip, port };
         }
 
+        // Listen for live printer config updates from parent driver window
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.action === 'sands_printer_config_update') {
+                if (e.data.printerIp) {
+                    try {
+                        localStorage.setItem('sands_printer_ip', String(e.data.printerIp).trim());
+                        if (e.data.printerPort) localStorage.setItem('sands_printer_port', parseInt(e.data.printerPort) || 9100);
+                        if (e.data.printerSize) localStorage.setItem('sands_printer_size', parseInt(e.data.printerSize) || 80);
+                    } catch (err) {}
+                }
+            }
+        });
+
         function printBill(billId) {
             const printerMode = '<?= $settings['printer_mode'] ?? 'network' ?>';
             const effective = getEffectivePrinterConfig();
             const printerIp = effective.ip;
             const printerPort = effective.port;
-            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+            const bridge = getAndroidBridge();
 
             if (printerMode === 'browser') {
                 const url = rootPath + '/counter/print/' + billId;
@@ -2107,6 +2159,7 @@
                                 position: 'top-end',
                                 icon: 'success',
                                 title: '🖨️ Bill Printed to EASY+ POS',
+                                text: 'Dispatched to ' + printerIp,
                                 showConfirmButton: false,
                                 timer: 2000
                             });
@@ -2114,7 +2167,8 @@
                     } else if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
                         try {
                             const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
-                            const parsed = JSON.parse(resStr);
+                            let parsed = { success: false, error: 'Unknown response' };
+                            try { parsed = JSON.parse(resStr); } catch (e) {}
                             if (parsed.success) {
                                 if (typeof Swal !== 'undefined') {
                                     Swal.fire({
@@ -2122,6 +2176,7 @@
                                         position: 'top-end',
                                         icon: 'success',
                                         title: '🖨️ Bill Printed to EASY+ POS',
+                                        text: 'Dispatched to ' + printerIp,
                                         showConfirmButton: false,
                                         timer: 2000
                                     });
@@ -2141,11 +2196,21 @@
                                 });
                             }
                         }
-                    } else {
+                    } else if (window.parent && window.parent !== window && data.base64) {
                         // Relay via postMessage if running in SaNDS Driver iframe
-                        if (window.parent && window.parent !== window && data.base64) {
-                            window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
+                        window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '🖨️ Bill Sent to Printer Driver',
+                                text: 'Dispatched to ' + printerIp,
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
                         }
+                    } else {
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({
                                 toast: true,
@@ -4138,7 +4203,7 @@
             const effective = getEffectivePrinterConfig();
             const printerIp = effective.ip;
             const printerPort = effective.port;
-            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+            const bridge = getAndroidBridge();
 
             if (printerMode === 'browser') {
                 const url = rootPath + '/print/order/' + orderId;
@@ -4157,6 +4222,7 @@
                                 position: 'top-end',
                                 icon: 'success',
                                 title: '🖨️ Receipt Printed to EASY+ POS',
+                                text: 'Dispatched to ' + printerIp,
                                 showConfirmButton: false,
                                 timer: 2000
                             });
@@ -4164,7 +4230,8 @@
                     } else if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
                         try {
                             const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
-                            const parsed = JSON.parse(resStr);
+                            let parsed = { success: false, error: 'Unknown response' };
+                            try { parsed = JSON.parse(resStr); } catch (e) {}
                             if (parsed.success) {
                                 if (typeof Swal !== 'undefined') {
                                     Swal.fire({
@@ -4172,6 +4239,7 @@
                                         position: 'top-end',
                                         icon: 'success',
                                         title: '🖨️ Receipt Printed to EASY+ POS',
+                                        text: 'Dispatched to ' + printerIp,
                                         showConfirmButton: false,
                                         timer: 2000
                                     });
@@ -4191,11 +4259,21 @@
                                 });
                             }
                         }
-                    } else {
+                    } else if (window.parent && window.parent !== window && data.base64) {
                         // Relay via postMessage if running in SaNDS Driver iframe
-                        if (window.parent && window.parent !== window && data.base64) {
-                            window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
+                        window.parent.postMessage({ action: 'sands_print_escpos', base64: data.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '🖨️ Receipt Sent to Printer Driver',
+                                text: 'Dispatched to ' + printerIp,
+                                showConfirmButton: false,
+                                timer: 2000
+                            });
                         }
+                    } else {
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({
                                 toast: true,

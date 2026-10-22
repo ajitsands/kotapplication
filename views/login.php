@@ -684,7 +684,7 @@
                 isDriver = true;
             } else if (window.self !== window.top) {
                 isDriver = true;
-            } else if (window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge)) {
+            } else if ((function(){ try { return typeof window.AndroidPrintBridge !== 'undefined' || (window.parent && window.parent !== window && typeof window.parent.AndroidPrintBridge !== 'undefined'); } catch(e){ return false; } })()) {
                 isDriver = true;
             } else if (navigator.userAgent && navigator.userAgent.indexOf('SaNDS-KOT-Printer-Driver') !== -1) {
                 isDriver = true;

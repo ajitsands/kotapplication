@@ -312,24 +312,40 @@
     <script>
         const billId = <?= (int)($bill['id'] ?? $bill['order_id'] ?? 0) ?>;
 
+        function getAndroidBridge() {
+            try {
+                if (typeof window.AndroidPrintBridge !== 'undefined' && window.AndroidPrintBridge) {
+                    return window.AndroidPrintBridge;
+                }
+            } catch (e) {}
+            try {
+                if (window.parent && window.parent !== window && typeof window.parent.AndroidPrintBridge !== 'undefined' && window.parent.AndroidPrintBridge) {
+                    return window.parent.AndroidPrintBridge;
+                }
+            } catch (e) {}
+            return null;
+        }
+
         function getEffectivePrinterConfig() {
             let ip = '';
             let port = 0;
+
+            // 1. Check URL parameters
             try {
-                if (window.parent && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
-                    ip = String(window.parent.currentConfig.printerIp).trim();
-                    port = parseInt(window.parent.currentConfig.printerPort) || 0;
+                const urlParams = new URLSearchParams(window.location.search);
+                const qIp = urlParams.get('station_printer_ip') || urlParams.get('printer_ip');
+                const qPort = urlParams.get('station_printer_port') || urlParams.get('printer_port');
+                if (qIp) {
+                    ip = qIp.trim();
+                    port = parseInt(qPort) || 0;
+                    try {
+                        localStorage.setItem('sands_printer_ip', ip);
+                        if (port) localStorage.setItem('sands_printer_port', port);
+                    } catch (e) {}
                 }
             } catch (e) {}
-            if (!ip) {
-                try {
-                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
-                    if (localCfg && localCfg.printerIp) {
-                        ip = String(localCfg.printerIp).trim();
-                        port = parseInt(localCfg.printerPort) || 0;
-                    }
-                } catch (e) {}
-            }
+
+            // 2. Check localStorage
             if (!ip) {
                 try {
                     const savedIp = localStorage.getItem('sands_printer_ip');
@@ -339,6 +355,29 @@
                     }
                 } catch (e) {}
             }
+
+            // 3. Check sands_kot_config if present
+            if (!ip) {
+                try {
+                    const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
+                    if (localCfg && localCfg.printerIp) {
+                        ip = String(localCfg.printerIp).trim();
+                        port = parseInt(localCfg.printerPort) || 0;
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Safe check of window.parent.currentConfig (same-origin only)
+            if (!ip) {
+                try {
+                    if (window.parent && window.parent !== window && window.parent.currentConfig && window.parent.currentConfig.printerIp) {
+                        ip = String(window.parent.currentConfig.printerIp).trim();
+                        port = parseInt(window.parent.currentConfig.printerPort) || 0;
+                    }
+                } catch (e) {}
+            }
+
+            // 5. Fallback to server default
             if (!ip) {
                 ip = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
             }
@@ -374,7 +413,7 @@
             const effective = getEffectivePrinterConfig();
             const printerIp = effective.ip;
             const printerPort = effective.port;
-            const bridge = window.AndroidPrintBridge || (window.parent && window.parent.AndroidPrintBridge);
+            const bridge = getAndroidBridge();
 
             fetch('/counter/escpos-bill/' + billId)
                 .then(res => res.json())
@@ -382,7 +421,8 @@
                     if (bridge && data.base64 && typeof bridge.printTcp === 'function') {
                         try {
                             const resStr = bridge.printTcp(printerIp, printerPort, data.base64);
-                            const parsed = JSON.parse(resStr);
+                            let parsed = { success: false, error: 'Unknown response' };
+                            try { parsed = JSON.parse(resStr); } catch (e) {}
                             if (parsed.success) {
                                 showNotification('success', '🖨️ Receipt Printed to EASY+ POS', 'Dispatched to ' + printerIp);
                             } else {
@@ -400,7 +440,7 @@
                                     showNotification('success', '🖨️ Receipt Printed to EASY+ POS', 'Direct network print successful (' + printerIp + ')');
                                 } else if (d.base64 && window.parent && window.parent !== window) {
                                     window.parent.postMessage({ action: 'sands_print_escpos', base64: d.base64, printer_ip: printerIp, printer_port: printerPort }, '*');
-                                    showNotification('success', '🖨️ Sent to Driver', 'Dispatched to printer');
+                                    showNotification('success', '🖨️ Sent to Driver', 'Dispatched to printer ' + printerIp);
                                 } else {
                                     window.print();
                                 }

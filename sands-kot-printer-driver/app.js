@@ -206,7 +206,10 @@ function loadPosPortal() {
     }
 
     let separator = framedUrl.includes('?') ? '&' : '?';
-    framedUrl = framedUrl + separator + 'driver_app=1';
+    framedUrl = framedUrl + separator + 'driver_app=1'
+        + '&station_printer_ip=' + encodeURIComponent(currentConfig.printerIp || '192.168.8.101')
+        + '&station_printer_port=' + encodeURIComponent(currentConfig.printerPort || 9100)
+        + '&station_printer_size=' + encodeURIComponent(currentConfig.printerSize || 80);
 
     overlay.classList.remove('hidden');
     document.getElementById('loading-text').innerHTML = `
@@ -229,6 +232,16 @@ function loadPosPortal() {
     frame.onload = () => {
         clearTimeout(loadTimer);
         applyZoom(currentZoom);
+        try {
+            if (frame.contentWindow) {
+                frame.contentWindow.postMessage({
+                    action: 'sands_printer_config_update',
+                    printerIp: currentConfig.printerIp,
+                    printerPort: currentConfig.printerPort,
+                    printerSize: currentConfig.printerSize
+                }, '*');
+            }
+        } catch (e) {}
         setTimeout(() => {
             overlay.classList.add('hidden');
         }, 300);
@@ -409,6 +422,18 @@ function handleSaveSettings(e) {
 
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(currentConfig));
 
+    try {
+        const frame = document.getElementById('pos-frame');
+        if (frame && frame.contentWindow) {
+            frame.contentWindow.postMessage({
+                action: 'sands_printer_config_update',
+                printerIp: currentConfig.printerIp,
+                printerPort: currentConfig.printerPort,
+                printerSize: currentConfig.printerSize
+            }, '*');
+        }
+    } catch (e) {}
+
     fetchServerSettings();
     closeSettingsModal();
     showToast('⚙️ Settings saved and applied!');
@@ -581,22 +606,25 @@ window.addEventListener('message', async (event) => {
     
     if (event.data.action === 'sands_print_escpos' && event.data.base64) {
         try {
-            const ip = currentConfig.printerIp || event.data.printer_ip || '192.168.8.101';
+            // Priority: Station printer IP configured in this Driver app!
+            const ip = (currentConfig.printerIp && currentConfig.printerIp.trim()) ? currentConfig.printerIp.trim() : (event.data.printer_ip || '192.168.8.101');
             const port = parseInt(currentConfig.printerPort || event.data.printer_port || 9100);
             
             if (window.AndroidPrintBridge && typeof window.AndroidPrintBridge.printTcp === 'function') {
                 const res = window.AndroidPrintBridge.printTcp(ip, port, event.data.base64);
-                const parsed = JSON.parse(res);
+                let parsed = { success: false, error: 'Unknown response' };
+                try { parsed = JSON.parse(res); } catch (e) {}
                 if (parsed.success) {
-                    showToast('🖨️ Receipt Printed to EASY+ POS (' + ip + ')');
+                    showToast('🖨️ Printed to EASY+ POS (' + ip + ')');
                 } else {
-                    showToast('❌ Printer (' + ip + '): ' + (parsed.error || 'Print failed'));
+                    showToast('❌ Printer (' + ip + '): ' + (parsed.error || 'Connection failed'));
                 }
             } else if (currentConfig.printMode === 'rawbt') {
                 window.location.href = "rawbt:data:application/octet-stream;base64," + event.data.base64;
             }
         } catch (err) {
             console.error('Driver postMessage print error:', err);
+            showToast('❌ Print error: ' + err.message);
         }
     }
 });
