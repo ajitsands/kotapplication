@@ -1,11 +1,29 @@
 # SaNDS KOT & POS Billing System - Release Notes
 
-## 🔒 Production Milestone: Online Platform Markup & POS Enhancement
+## 🔒 Production Milestone: Multi-Device Driver Printing & Station Routing
 - **Target Server**: `https://b1.restoflow.us`
-- **Milestone Status**: 🟢 **Production Ready & Tested**
+- **Milestone Status**: 🟢 **Locked, Production Ready & Verified**
 - **Branch**: `v5`
-- **Release Version**: `v5.5` (Online Platform Commission Markup & Server Launcher)
-- **Tag**: `v5.5` / `v5.5.0`
+- **Release Version**: `v5.6` (Cross-Origin Print Bridge & Dynamic Station IP Sync)
+- **Tag**: `v5.6` / `v5.6.0`
+
+---
+
+## 🏷️ Release Version: v5.6 (Cross-Origin Print Bridge & Dynamic Station IP Sync)
+- **Branch**: `v5`
+- **Release Status**: 🔒 **Locked & Verified by User**
+
+### 🌟 New in v5.6
+1. **Cross-Origin Safe Printer Communication**:
+   - Resolved browser Same-Origin Policy boundary between Driver native assets (`file:///android_asset/`) and remote POS iframe (`https://b1.restoflow.us`).
+   - Replaced raw `window.parent.AndroidPrintBridge` calls with cross-origin safe `getAndroidBridge()` and bi-directional `window.parent.postMessage` print relay.
+2. **Station-Specific Printer IP Synchronization**:
+   - Driver App embeds `station_printer_ip` in iframe query string and broadcasts `sands_printer_config_update` events on settings save.
+   - Dynamic priority: Station IP &rarr; Local Storage &rarr; Central Default Fallback (`192.168.8.101`).
+3. **Seamless KOT & Counter POS Thermal Printing**:
+   - Single-click direct printing for kitchen tickets and tax invoices across `/kot`, `/counter/pos`, `/counter`, and preview modals.
+4. **Compiled Release APK**:
+   - `SaNDS-KOT-Printer-Driver.apk` built with Gradle 8.6 (2,570,471 bytes).
 
 ---
 
