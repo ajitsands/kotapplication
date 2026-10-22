@@ -1827,6 +1827,7 @@
                         order.items.forEach(item => {
                             const price = parseFloat(item.price).toFixed(window.PRICE_DECIMALS || 3);
                             const total = parseFloat(item.subtotal_price).toFixed(window.PRICE_DECIMALS || 3);
+                            const canDelete = (order.status === 'active' || order.status === 'closed');
                             itemsHtml += `
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                     <td style="padding: 10px 5px; font-weight: 500; font-size: 14px; text-align: left;">${item.name}</td>
@@ -1834,7 +1835,18 @@
                                     <td style="padding: 10px 5px; text-align: right; font-size: 14px;" class="price-text">${price} ${currencyCode}</td>
                                     <td style="padding: 10px 5px; text-align: right; font-weight: 600; color: var(--text-color); font-size: 14px;" class="price-text">${total} ${currencyCode}</td>
                                     <td style="padding: 10px 5px; text-align: center;">
-                                        ${order.status === 'active' ? `<button onclick="deleteCounterItem(${item.product_id})" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; font-size: 16px;" title="Remove Item">🗑️</button>` : ''}
+                                        ${canDelete ? `
+                                            <button type="button" 
+                                                    onclick="deleteCounterItem(this)" 
+                                                    data-product-id="${item.product_id}" 
+                                                    data-item-name="${encodeURIComponent(item.name || '')}" 
+                                                    style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; cursor: pointer; font-size: 14px; width: 32px; height: 32px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" 
+                                                    onmouseover="this.style.background='#ef4444'; this.style.color='#fff';" 
+                                                    onmouseout="this.style.background='rgba(239, 68, 68, 0.12)'; this.style.color='#ef4444';"
+                                                    title="Remove Item">
+                                                🗑️
+                                            </button>
+                                        ` : ''}
                                     </td>
                                 </tr>
                             `;
@@ -2005,12 +2017,34 @@
             .catch(err => console.error('Error adding counter item:', err));
         }
 
-        function deleteCounterItem(productId) {
+        function deleteCounterItem(target, explicitName = null) {
             if (!currentOpenOrderId) return;
+            
+            let productId = null;
+            let itemName = 'this item';
+            
+            if (target && typeof target === 'object' && target.dataset) {
+                productId = parseInt(target.dataset.productId);
+                if (target.dataset.itemName) {
+                    try {
+                        itemName = decodeURIComponent(target.dataset.itemName);
+                    } catch (e) {
+                        itemName = target.dataset.itemName;
+                    }
+                }
+            } else if (typeof target === 'number' || typeof target === 'string') {
+                productId = parseInt(target);
+                if (explicitName) itemName = explicitName;
+            }
+            
+            if (!productId) {
+                console.error('Invalid productId for deletion:', target);
+                return;
+            }
             
             Swal.fire({
                 title: 'Remove Item?',
-                text: 'Are you sure you want to remove this item from the order?',
+                text: `Are you sure you want to remove "${itemName}" from this bill?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
@@ -2028,6 +2062,15 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            Swal.fire({
+                                title: 'Removed!',
+                                text: 'Item removed successfully.',
+                                icon: 'success',
+                                timer: 1200,
+                                showConfirmButton: false,
+                                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                            });
                             openOrderItemsModal(currentOpenOrderId);
                             fetchBills();
                             fetchEngagedTables();

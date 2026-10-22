@@ -61,6 +61,15 @@ class Order extends Model {
     public function removeOrderItem($orderId, $productId) {
         $this->db->beginTransaction();
         try {
+            // Verify order exists and is not already completed/cancelled
+            $stmtOrder = $this->db->prepare("SELECT id, status FROM orders WHERE id = ?");
+            $stmtOrder->execute([$orderId]);
+            $order = $stmtOrder->fetch();
+            if (!$order || !in_array($order['status'], ['active', 'closed'])) {
+                $this->db->rollBack();
+                return false;
+            }
+
             // Delete the kot_items for this order and product
             $stmtDel = $this->db->prepare("
                 DELETE ki FROM kot_items ki
@@ -70,16 +79,16 @@ class Order extends Model {
             $stmtDel->execute([$orderId, $productId]);
             
             // Re-calculate totals
-            $sqlItems = "SELECT SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal
+            $sqlItems = "SELECT COALESCE(SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0.0) as subtotal
                          FROM kot_items ki 
                          JOIN kots k ON ki.kot_id = k.id 
                          JOIN orders o ON k.order_id = o.id
                          LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
-                         WHERE k.order_id = ?";
+                         WHERE k.order_id = ? AND ki.status != 'cancelled'";
             $stmtSum = $this->db->prepare($sqlItems);
             $stmtSum->execute([$orderId]);
-            $subtotal = (float)$stmtSum->fetchColumn();
+            $subtotal = (float)($stmtSum->fetchColumn() ?: 0.0);
 
             // Get settings for Taxes
             $settingsModel = new Setting();
@@ -94,15 +103,22 @@ class Order extends Model {
                 $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
                 $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
             }
-            $grandTotal = $subtotal + $taxAmount;
 
             // Update bill if exists
-            $stmtBillCheck = $this->db->prepare("SELECT id FROM bills WHERE order_id = ? AND status = 'pending'");
+            $stmtBillCheck = $this->db->prepare("SELECT id, discount_percent, discount_amount FROM bills WHERE order_id = ? AND status = 'pending'");
             $stmtBillCheck->execute([$orderId]);
             $bill = $stmtBillCheck->fetch();
             if ($bill) {
-                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
-                $stmtUpdateBill->execute([$subtotal, $taxAmount, $grandTotal, $bill['id']]);
+                $discountPercent = (float)($bill['discount_percent'] ?? 0.0);
+                $discountAmount = 0.0;
+                if ($discountPercent > 0) {
+                    $discountAmount = $subtotal * ($discountPercent / 100.0);
+                } else {
+                    $discountAmount = min((float)($bill['discount_amount'] ?? 0.0), $subtotal);
+                }
+                $grandTotal = max(0.0, ($subtotal - $discountAmount) + $taxAmount);
+                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+                $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $grandTotal, $bill['id']]);
             }
             
             // Delete empty KOTs that have no items left
