@@ -197,7 +197,9 @@ class CounterController extends Controller {
             $settingsModel = new Setting();
             $settings = $settingsModel->getSettings();
             if (($settings['printer_mode'] ?? 'network') !== 'browser') {
-                $printResult = PrinterService::printKot($kotId, $printerIp, $printerPort);
+                $kotTargetIp = !empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : (!empty($printerIp) ? $printerIp : ($settings['printer_ip'] ?? '192.168.8.101'));
+                $kotTargetPort = !empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : (!empty($printerPort) ? (int)$printerPort : (int)($settings['printer_port'] ?? 9100));
+                $printResult = PrinterService::printKot($kotId, $kotTargetIp, $kotTargetPort);
             }
         } catch (Exception $e) {
             // Silently continue if printer offline
@@ -216,14 +218,18 @@ class CounterController extends Controller {
             }
         }
 
-        // If Pay Now is selected
-        if ($payNow && $billId) {
-            $billModel = new Bill();
-            $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+        // If Pay Now is selected or auto_print_bill on Takeaway
+        if ($billId && ($payNow || ($orderType === 'take_away' && !empty($settings['auto_print_bill'])))) {
+            if ($payNow) {
+                $billModel = new Bill();
+                $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+            }
             
             try {
-                if (($settings['printer_mode'] ?? 'network') !== 'browser') {
-                    PrinterService::printBill($billId, $printerIp, $printerPort);
+                if (($settings['printer_mode'] ?? 'network') !== 'browser' && !empty($settings['auto_print_bill'])) {
+                    $billTargetIp = !empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : (!empty($printerIp) ? $printerIp : ($settings['printer_ip'] ?? '192.168.8.101'));
+                    $billTargetPort = !empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (!empty($printerPort) ? (int)$printerPort : (int)($settings['printer_port'] ?? 9100));
+                    PrinterService::printBill($billId, $billTargetIp, $billTargetPort);
                 }
             } catch (Exception $e) {}
         }
@@ -377,6 +383,18 @@ class CounterController extends Controller {
 
         $billModel = new Bill();
         $success = $billModel->payBill($billId, $method, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+        if ($success) {
+            try {
+                require_once __DIR__ . '/../services/PrinterService.php';
+                $settingsModel = new Setting();
+                $settings = $settingsModel->getSettings();
+                if (!empty($settings['auto_print_bill']) && ($settings['printer_mode'] ?? 'network') !== 'browser') {
+                    $billTargetIp = !empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101');
+                    $billTargetPort = !empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (int)($settings['printer_port'] ?? 9100);
+                    PrinterService::printBill($billId, $billTargetIp, $billTargetPort);
+                }
+            } catch (Exception $e) {}
+        }
         $this->json(['success' => $success]);
     }
 

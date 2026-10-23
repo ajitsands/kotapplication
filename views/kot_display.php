@@ -1313,10 +1313,10 @@
 
             // 5. Fallback to server default
             if (!ip) {
-                ip = '<?= $settings['printer_ip'] ?? '192.168.8.101' ?>';
+                ip = '<?= $settings['kot_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101' ?>';
             }
             if (!port) {
-                port = parseInt('<?= $settings['printer_port'] ?? 9100 ?>') || 9100;
+                port = parseInt('<?= $settings['kot_printer_port'] ?? $settings['printer_port'] ?? 9100 ?>') || 9100;
             }
             return { ip, port };
         }

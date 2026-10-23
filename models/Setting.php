@@ -21,6 +21,10 @@ class Setting extends Model {
                 'printer_size' => 80,
                 'printer_ip' => '192.168.8.101',
                 'printer_port' => 9100,
+                'kot_printer_ip' => '192.168.8.101',
+                'kot_printer_port' => 9100,
+                'billing_printer_ip' => '192.168.8.101',
+                'billing_printer_port' => 9100,
                 'printer_mode' => 'network',
                 'auto_print_kot' => 1,
                 'auto_print_bill' => 1,
@@ -29,6 +33,18 @@ class Setting extends Model {
                 'logo_path' => null,
                 'software_expiry_date' => '2027-12-31'
             ];
+        }
+        if (empty($settings['kot_printer_ip'])) {
+            $settings['kot_printer_ip'] = $settings['printer_ip'] ?? '192.168.8.101';
+        }
+        if (empty($settings['kot_printer_port'])) {
+            $settings['kot_printer_port'] = $settings['printer_port'] ?? 9100;
+        }
+        if (empty($settings['billing_printer_ip'])) {
+            $settings['billing_printer_ip'] = $settings['printer_ip'] ?? '192.168.8.101';
+        }
+        if (empty($settings['billing_printer_port'])) {
+            $settings['billing_printer_port'] = $settings['printer_port'] ?? 9100;
         }
         return $settings;
     }
@@ -41,6 +57,22 @@ class Setting extends Model {
             }
             if (!in_array('printer_port', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN printer_port INT NOT NULL DEFAULT 9100");
+            }
+            if (!in_array('kot_printer_ip', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN kot_printer_ip VARCHAR(45) NOT NULL DEFAULT '192.168.8.101'");
+                $this->db->exec("UPDATE settings SET kot_printer_ip = printer_ip WHERE printer_ip IS NOT NULL AND printer_ip != ''");
+            }
+            if (!in_array('kot_printer_port', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN kot_printer_port INT NOT NULL DEFAULT 9100");
+                $this->db->exec("UPDATE settings SET kot_printer_port = printer_port WHERE printer_port IS NOT NULL");
+            }
+            if (!in_array('billing_printer_ip', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN billing_printer_ip VARCHAR(45) NOT NULL DEFAULT '192.168.8.101'");
+                $this->db->exec("UPDATE settings SET billing_printer_ip = printer_ip WHERE printer_ip IS NOT NULL AND printer_ip != ''");
+            }
+            if (!in_array('billing_printer_port', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN billing_printer_port INT NOT NULL DEFAULT 9100");
+                $this->db->exec("UPDATE settings SET billing_printer_port = printer_port WHERE printer_port IS NOT NULL");
             }
             if (!in_array('printer_mode', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN printer_mode ENUM('browser', 'network', 'both') NOT NULL DEFAULT 'network'");
@@ -63,6 +95,13 @@ class Setting extends Model {
     }
 
     public function updateSettings($data, $logoPath = null) {
+        $kotIp = trim($data['kot_printer_ip'] ?? $data['printer_ip'] ?? '192.168.8.101');
+        $kotPort = (int)($data['kot_printer_port'] ?? $data['printer_port'] ?? 9100);
+        $billingIp = trim($data['billing_printer_ip'] ?? $data['printer_ip'] ?? '192.168.8.101');
+        $billingPort = (int)($data['billing_printer_port'] ?? $data['printer_port'] ?? 9100);
+        $legacyIp = trim($data['printer_ip'] ?? $billingIp ?? $kotIp ?? '192.168.8.101');
+        $legacyPort = (int)($data['printer_port'] ?? $billingPort ?? $kotPort ?? 9100);
+
         $sql = "UPDATE settings SET 
                 restaurant_name = ?, 
                 currency_code = ?, 
@@ -75,6 +114,10 @@ class Setting extends Model {
                 printer_size = ?,
                 printer_ip = ?,
                 printer_port = ?,
+                kot_printer_ip = ?,
+                kot_printer_port = ?,
+                billing_printer_ip = ?,
+                billing_printer_port = ?,
                 printer_mode = ?,
                 auto_print_kot = ?,
                 auto_print_bill = ?,
@@ -91,8 +134,12 @@ class Setting extends Model {
             $data['cgst_percent'] ?? 2.50,
             $data['sgst_percent'] ?? 2.50,
             (int)($data['printer_size'] ?? 80),
-            trim($data['printer_ip'] ?? '192.168.8.101'),
-            (int)($data['printer_port'] ?? 9100),
+            $legacyIp,
+            $legacyPort,
+            $kotIp,
+            $kotPort,
+            $billingIp,
+            $billingPort,
             $data['printer_mode'] ?? 'network',
             isset($data['auto_print_kot']) ? 1 : 0,
             isset($data['auto_print_bill']) ? 1 : 0,

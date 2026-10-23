@@ -172,10 +172,14 @@ class ApiController extends Controller {
                     $settings = $settingsModel->getSettings();
                     
                     if (!empty($settings['auto_print_kot']) && ($settings['printer_mode'] ?? 'network') !== 'browser') {
-                        @PrinterService::printKot($kotId);
+                        $kotIp = !empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101');
+                        $kotPort = !empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : (int)($settings['printer_port'] ?? 9100);
+                        @PrinterService::printKot($kotId, $kotIp, $kotPort);
                     }
                     if ($orderType === 'take_away' && !empty($settings['auto_print_bill']) && ($settings['printer_mode'] ?? 'network') !== 'browser') {
-                        @PrinterService::printOrder($orderId);
+                        $billIp = !empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101');
+                        $billPort = !empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (int)($settings['printer_port'] ?? 9100);
+                        @PrinterService::printOrder($orderId, $billIp, $billPort);
                     }
                 } catch (Exception $e) {
                     // Silently continue if printer is offline so order flow is not blocked

@@ -1303,25 +1303,29 @@
 
                     <!-- Network ESC/POS Printer Configuration -->
                     <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 20px; margin: 20px 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                             <h4 style="margin: 0; color: #818cf8; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                                 🖨️ ESC/POS Thermal Network Printer (EASY+ POS)
                             </h4>
-                            <button type="button" onclick="testNetworkPrinter()" id="btn-test-printer" class="btn" style="padding: 6px 14px; font-size: 12px; background: #6366f1; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                ⚡ Send Test Print
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" onclick="testNetworkPrinter('kot')" id="btn-test-kot-printer" class="btn" style="padding: 6px 14px; font-size: 12px; background: #f59e0b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    ⚡ Test KOT Print
+                                </button>
+                                <button type="button" onclick="testNetworkPrinter('billing')" id="btn-test-billing-printer" class="btn" style="padding: 6px 14px; font-size: 12px; background: #6366f1; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    ⚡ Test Bill Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 15px;">
+                        <!-- Printing Mode & Paper Width Selection -->
+                        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px;">
                             <div class="form-group">
-                                <label class="form-label">Printer IP Address</label>
-                                <input class="form-input" type="text" name="printer_ip" id="printer_ip_input" value="<?= htmlspecialchars($settings['printer_ip'] ?? '192.168.8.101') ?>" placeholder="e.g. 192.168.8.101" required>
-                                <small style="color: var(--text-muted); font-size: 11px;">Local IP assigned to EASY+ POS</small>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Printer Port</label>
-                                <input class="form-input" type="number" name="printer_port" id="printer_port_input" value="<?= htmlspecialchars($settings['printer_port'] ?? '9100') ?>" placeholder="9100" required>
-                                <small style="color: var(--text-muted); font-size: 11px;">Standard Port: 9100</small>
+                                <label class="form-label">Printing Mode</label>
+                                <select name="printer_mode" id="printer_mode_select" onchange="togglePrinterModeFields()">
+                                    <option value="network" <?= ($settings['printer_mode'] ?? 'network') === 'network' ? 'selected' : '' ?>>Direct Network ESC/POS (Silent Socket to IP)</option>
+                                    <option value="browser" <?= ($settings['printer_mode'] ?? '') === 'browser' ? 'selected' : '' ?>>Browser Print Dialog (Popup)</option>
+                                    <option value="both" <?= ($settings['printer_mode'] ?? '') === 'both' ? 'selected' : '' ?>>Both (Direct Socket + Browser Backup)</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Paper Width</label>
@@ -1333,25 +1337,76 @@
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 12px;">
-                            <div class="form-group">
-                                <label class="form-label">Printing Mode</label>
-                                <select name="printer_mode">
-                                    <option value="network" <?= ($settings['printer_mode'] ?? 'network') === 'network' ? 'selected' : '' ?>>Direct Network ESC/POS (Silent Socket to IP)</option>
-                                    <option value="browser" <?= ($settings['printer_mode'] ?? '') === 'browser' ? 'selected' : '' ?>>Browser Print Dialog (Popup)</option>
-                                    <option value="both" <?= ($settings['printer_mode'] ?? '') === 'both' ? 'selected' : '' ?>>Both (Direct Socket + Browser Backup)</option>
-                                </select>
+                        <!-- Direct Network IP Configuration (Displayed when Direct Network / Both is active) -->
+                        <div id="direct_network_ips_section" style="margin-top: 15px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <!-- KOT Printer IP -->
+                                <div style="background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 14px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span style="font-weight: 700; font-size: 13px; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+                                            🍳 KOT Printer IP Address
+                                        </span>
+                                        <span style="font-size: 11px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 10px; font-weight: 600;">Kitchen</span>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                                        <div>
+                                            <label class="form-label" style="font-size: 11px;">IP Address</label>
+                                            <input class="form-input" type="text" name="kot_printer_ip" id="kot_printer_ip_input" value="<?= htmlspecialchars($settings['kot_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101') ?>" placeholder="e.g. 192.168.8.101" required>
+                                        </div>
+                                        <div>
+                                            <label class="form-label" style="font-size: 11px;">Port</label>
+                                            <input class="form-input" type="number" name="kot_printer_port" id="kot_printer_port_input" value="<?= htmlspecialchars($settings['kot_printer_port'] ?? $settings['printer_port'] ?? '9100') ?>" placeholder="9100" required>
+                                        </div>
+                                    </div>
+                                    <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 6px;">
+                                        Target IP for Kitchen Order Tickets
+                                    </small>
+                                </div>
+
+                                <!-- Billing Printer IP -->
+                                <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                        <span style="font-weight: 700; font-size: 13px; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+                                            🧾 Billing Printer IP Address
+                                        </span>
+                                        <span style="font-size: 11px; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 8px; border-radius: 10px; font-weight: 600;">Cashier / Counter</span>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                                        <div>
+                                            <label class="form-label" style="font-size: 11px;">IP Address</label>
+                                            <input class="form-input" type="text" name="billing_printer_ip" id="billing_printer_ip_input" value="<?= htmlspecialchars($settings['billing_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101') ?>" placeholder="e.g. 192.168.8.101" required>
+                                        </div>
+                                        <div>
+                                            <label class="form-label" style="font-size: 11px;">Port</label>
+                                            <input class="form-input" type="number" name="billing_printer_port" id="billing_printer_port_input" value="<?= htmlspecialchars($settings['billing_printer_port'] ?? $settings['printer_port'] ?? '9100') ?>" placeholder="9100" required>
+                                        </div>
+                                    </div>
+                                    <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 6px;">
+                                        Target IP for Takeaway & Checkout receipts
+                                    </small>
+                                </div>
                             </div>
-                            <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px;">
-                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
-                                    <input type="checkbox" name="auto_print_kot" value="1" <?= !empty($settings['auto_print_kot']) ? 'checked' : '' ?>>
-                                    <span>⚡ Auto-print KOT on new order from Waiter Tab</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
-                                    <input type="checkbox" name="auto_print_bill" value="1" <?= !empty($settings['auto_print_bill']) ? 'checked' : '' ?>>
-                                    <span>🧾 Auto-print Bill on Takeaway & Checkout</span>
-                                </label>
-                            </div>
+                        </div>
+
+                        <!-- Browser Mode Helper Notice -->
+                        <div id="browser_mode_notice" style="display: none; background: rgba(107, 114, 128, 0.08); border: 1px dashed var(--card-border); border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+                            ℹ️ <b>Browser Print Mode Selected:</b> Print requests will trigger the client device print dialog / RawBT. Direct network socket printing to IP will be bypassed.
+                        </div>
+
+                        <!-- Backward compatibility hidden fields -->
+                        <input type="hidden" name="printer_ip" id="printer_ip_input" value="<?= htmlspecialchars($settings['printer_ip'] ?? '192.168.8.101') ?>">
+                        <input type="hidden" name="printer_port" id="printer_port_input" value="<?= htmlspecialchars($settings['printer_port'] ?? '9100') ?>">
+
+                        <!-- Auto-print Checkboxes -->
+                        <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--card-border);">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                                <input type="checkbox" name="auto_print_kot" value="1" <?= !empty($settings['auto_print_kot']) ? 'checked' : '' ?>>
+                                <span>⚡ Auto-print KOT on new order from Waiter Tab <span style="font-size: 11px; color: #f59e0b; font-weight: 600;">(Sends to KOT IP)</span></span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-main); cursor: pointer;">
+                                <input type="checkbox" name="auto_print_bill" value="1" <?= !empty($settings['auto_print_bill']) ? 'checked' : '' ?>>
+                                <span>🧾 Auto-print Bill on Takeaway & Checkout <span style="font-size: 11px; color: #818cf8; font-weight: 600;">(Sends to Billing IP)</span></span>
+                            </label>
                         </div>
 
                         <!-- Left & Right Margin Controls -->
@@ -4024,15 +4079,43 @@
             printWin.document.close();
         }
 
-        function testNetworkPrinter() {
-            const ip = document.getElementById('printer_ip_input')?.value || '192.168.8.101';
-            const port = document.getElementById('printer_port_input')?.value || '9100';
-            const btn = document.getElementById('btn-test-printer');
+        function togglePrinterModeFields() {
+            const mode = document.getElementById('printer_mode_select')?.value || 'network';
+            const ipsSection = document.getElementById('direct_network_ips_section');
+            const notice = document.getElementById('browser_mode_notice');
+            if (mode === 'browser') {
+                if (ipsSection) ipsSection.style.display = 'none';
+                if (notice) notice.style.display = 'block';
+            } else {
+                if (ipsSection) ipsSection.style.display = 'block';
+                if (notice) notice.style.display = 'none';
+            }
+        }
+
+        // Initialize toggle on load
+        document.addEventListener('DOMContentLoaded', function() {
+            togglePrinterModeFields();
+        });
+
+        function testNetworkPrinter(type = 'kot') {
+            let ip, port, printerName, btnId;
+            if (type === 'billing') {
+                ip = document.getElementById('billing_printer_ip_input')?.value || '192.168.8.101';
+                port = document.getElementById('billing_printer_port_input')?.value || '9100';
+                printerName = 'Billing Printer';
+                btnId = 'btn-test-billing-printer';
+            } else {
+                ip = document.getElementById('kot_printer_ip_input')?.value || '192.168.8.101';
+                port = document.getElementById('kot_printer_port_input')?.value || '9100';
+                printerName = 'KOT Printer';
+                btnId = 'btn-test-kot-printer';
+            }
+            const btn = document.getElementById(btnId) || document.getElementById('btn-test-printer');
             const resultBox = document.getElementById('printer-test-result');
 
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = '⏳ Testing Connection...';
+                btn.innerHTML = '⏳ Testing...';
             }
 
             if (resultBox) {
@@ -4040,7 +4123,7 @@
                 resultBox.style.background = 'rgba(99, 102, 241, 0.1)';
                 resultBox.style.color = '#818cf8';
                 resultBox.style.border = '1px solid rgba(99, 102, 241, 0.3)';
-                resultBox.innerHTML = `Attempting ESC/POS socket connection to <b>${ip}:${port}</b>...`;
+                resultBox.innerHTML = `Attempting ESC/POS socket connection for <b>${printerName}</b> to <b>${ip}:${port}</b>...`;
             }
 
             fetch('/admin/printer/test', {
@@ -4052,19 +4135,19 @@
             .then(data => {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '⚡ Send Test Print';
+                    btn.innerHTML = (type === 'billing') ? '⚡ Test Bill Print' : '⚡ Test KOT Print';
                 }
                 if (data.success) {
                     if (resultBox) {
                         resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
                         resultBox.style.color = '#10b981';
                         resultBox.style.border = '1px solid #10b981';
-                        resultBox.innerHTML = `✅ <b>Success!</b> Test slip sent to printer at <b>${ip}:${port}</b> (${data.bytes} bytes transmitted).`;
+                        resultBox.innerHTML = `✅ <b>Success!</b> Test slip sent to <b>${printerName}</b> at <b>${ip}:${port}</b> (${data.bytes} bytes transmitted).`;
                     }
                     Swal.fire({
                         icon: 'success',
-                        title: 'Printer Connected!',
-                        text: `Test receipt was successfully sent to EASY+ POS at ${ip}:${port}. Check your printer.`,
+                        title: `${printerName} Connected!`,
+                        text: `Test receipt was successfully sent to ${printerName} at ${ip}:${port}. Check your printer.`,
                         confirmButtonColor: '#10b981'
                     });
                 } else {
@@ -4073,25 +4156,25 @@
                         resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
                         resultBox.style.color = '#ef4444';
                         resultBox.style.border = '1px solid #ef4444';
-                        resultBox.innerHTML = `❌ <b>Socket Notice:</b> ${data.error || 'Connection timed out'}`;
+                        resultBox.innerHTML = `❌ <b>Socket Notice (${printerName}):</b> ${data.error || 'Connection timed out'}`;
                     }
                     
-                    let helpHtml = `<p style="font-size: 14px;">Could not connect to printer at <b>${ip}:${port}</b> from server.</p>`;
+                    let helpHtml = `<p style="font-size: 14px;">Could not connect to ${printerName} at <b>${ip}:${port}</b> from server.</p>`;
                     if (isCloud) {
                         helpHtml += `<div style="text-align: left; background: rgba(99, 102, 241, 0.08); padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 10px; color: var(--text-color);">
                             <b>💡 Cloud Server & Local Printer Note:</b><br>
                             Since this system is hosted on the cloud (<code>${window.location.hostname}</code>), the cloud server cannot reach your private local Wi-Fi IP (<code>${ip}</code>) directly.<br><br>
-                            <b>To print from your Tablet (192.168.8.45) in the restaurant:</b><br>
-                            1. Set <b>Printing Mode</b> to <b>"Browser Print Dialog"</b> or use the <b>RawBT Print Service</b> on your Android Tablet.<br>
-                            2. When you tap Print, your tablet (which is on the same local Wi-Fi) sends the print job straight to your EASY+ POS printer!
+                            <b>To print in the restaurant:</b><br>
+                            1. Ensure your server is local or use the <b>SaNDS Printer Driver</b> / <b>RawBT Print Service</b> on your Android Tablet.<br>
+                            2. Print jobs will be received by your local device on the same Wi-Fi subnet!
                         </div>`;
                     } else {
-                        helpHtml += `<p style="font-size: 12px; color: #ef4444;">${data.error || 'Socket connection failed'}</p><p style="font-size: 12px; color: #6b7280;">Ensure the printer is powered ON and connected to Wi-Fi subnet (${ip}).</p>`;
+                        helpHtml += `<p style="font-size: 12px; color: #ef4444;">${data.error || 'Socket connection failed'}</p><p style="font-size: 12px; color: #6b7280;">Ensure the ${printerName} is powered ON and assigned IP ${ip}.</p>`;
                     }
 
                     Swal.fire({
                         icon: isCloud ? 'info' : 'error',
-                        title: isCloud ? 'Local Wi-Fi Printer Configuration' : 'Printer Connection Failed',
+                        title: `${printerName} Connection Notice`,
                         html: helpHtml,
                         confirmButtonColor: '#6366f1',
                         confirmButtonText: 'Understood'
@@ -4101,7 +4184,7 @@
             .catch(err => {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '⚡ Send Test Print';
+                    btn.innerHTML = (type === 'billing') ? '⚡ Test Bill Print' : '⚡ Test KOT Print';
                 }
                 if (resultBox) {
                     resultBox.style.background = 'rgba(239, 68, 68, 0.15)';

@@ -132,7 +132,7 @@ class PrinterService {
     /**
      * Build ESC/POS Byte Stream for Test Print
      */
-    public static function buildTestReceipt($ip = null, $port = null) {
+    public static function buildTestReceipt($ip = null, $port = null, $printerName = 'EASY+ POS') {
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
 
@@ -150,7 +150,7 @@ class PrinterService {
         $data .= self::cmdAlign(1); // Center
         $data .= self::cmdBold(true);
         $data .= self::cmdSize(2, 2);
-        $data .= "EASY+ POS PRINTER\n";
+        $data .= strtoupper($printerName) . "\n";
         $data .= self::cmdSize(1, 1);
         $data .= "NETWORK TEST SUCCESSFUL\n";
         $data .= self::cmdBold(false);
@@ -158,6 +158,7 @@ class PrinterService {
 
         $data .= self::cmdAlign(0); // Left
         $data .= self::formatRow("Restaurant:", $settings['restaurant_name'] ?? 'Gourmet POS', $width, $marginCols);
+        $data .= self::formatRow("Target Printer:", $printerName, $width, $marginCols);
         $data .= self::formatRow("Printer IP:", $targetIp, $width, $marginCols);
         $data .= self::formatRow("Printer Port:", (string)$targetPort, $width, $marginCols);
         $data .= self::formatRow("Paper Width:", $printerSize . "mm (" . $width . " cols)", $width, $marginCols);
@@ -168,7 +169,7 @@ class PrinterService {
 
         $data .= self::cmdAlign(1);
         $data .= self::cmdBold(true);
-        $data .= "CONNECTION READY FOR KOT & BILLS\n";
+        $data .= "READY FOR PRINTING\n";
         $data .= self::cmdBold(false);
         $data .= self::cmdAlign(0);
         $data .= $divider;
@@ -180,13 +181,13 @@ class PrinterService {
     /**
      * Print Test Page
      */
-    public static function testPrint($ip = null, $port = null) {
+    public static function testPrint($ip = null, $port = null, $printerName = 'EASY+ POS') {
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
         $targetIp = !empty($ip) ? $ip : ($settings['printer_ip'] ?? '192.168.8.101');
         $targetPort = !empty($port) ? (int)$port : (int)($settings['printer_port'] ?? 9100);
 
-        $data = self::buildTestReceipt($targetIp, $targetPort);
+        $data = self::buildTestReceipt($targetIp, $targetPort, $printerName);
         return self::sendToPrinter($data, $targetIp, $targetPort);
     }
 
@@ -295,8 +296,13 @@ class PrinterService {
             return ['success' => false, 'error' => 'KOT not found'];
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101'));
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : (int)($settings['printer_port'] ?? 9100));
+
         $data = self::buildKotEscPos($kot);
-        return self::sendToPrinter($data, $ip, $port);
+        return self::sendToPrinter($data, $targetIp, $targetPort);
     }
 
     /**
@@ -478,8 +484,13 @@ class PrinterService {
             return ['success' => false, 'error' => 'Bill not found'];
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101'));
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (int)($settings['printer_port'] ?? 9100));
+
         $data = self::buildBillEscPos($bill);
-        return self::sendToPrinter($data, $ip, $port);
+        return self::sendToPrinter($data, $targetIp, $targetPort);
     }
 
     /**
@@ -568,8 +579,13 @@ class PrinterService {
             return ['success' => false, 'error' => 'Order not found'];
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101'));
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (int)($settings['printer_port'] ?? 9100));
+
         $data = self::buildOrderEscPos($order);
-        return self::sendToPrinter($data, $ip, $port);
+        return self::sendToPrinter($data, $targetIp, $targetPort);
     }
 
     /**
