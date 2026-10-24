@@ -298,8 +298,8 @@ class PrinterService {
 
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
-        $targetIp = !empty($ip) ? $ip : (!empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101'));
-        $targetPort = !empty($port) ? (int)$port : (!empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : (int)($settings['printer_port'] ?? 9100));
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : '192.168.8.102');
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : 9100);
 
         $data = self::buildKotEscPos($kot);
         return self::sendToPrinter($data, $targetIp, $targetPort);
@@ -308,7 +308,7 @@ class PrinterService {
     /**
      * Get KOT ESC/POS base64 payload
      */
-    public static function getKotEscPos($kotId) {
+    public static function getKotEscPos($kotId, $ip = null, $port = null) {
         $kotModel = new Kot();
         $kot = $kotModel->getKotDetails((int)$kotId);
 
@@ -316,10 +316,17 @@ class PrinterService {
             return ['success' => false, 'error' => 'KOT not found'];
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : '192.168.8.102');
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : 9100);
+
         $data = self::buildKotEscPos($kot);
         return [
             'success' => true,
             'kot_id' => $kotId,
+            'printer_ip' => $targetIp,
+            'printer_port' => $targetPort,
             'base64' => base64_encode($data)
         ];
     }
@@ -496,7 +503,7 @@ class PrinterService {
     /**
      * Get Bill ESC/POS base64 payload
      */
-    public static function getBillEscPos($billId) {
+    public static function getBillEscPos($billId, $ip = null, $port = null) {
         $billModel = new Bill();
         $bill = $billModel->getBillDetails((int)$billId);
 
@@ -504,10 +511,17 @@ class PrinterService {
             return ['success' => false, 'error' => 'Bill not found'];
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $targetIp = !empty($ip) ? $ip : (!empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : ($settings['printer_ip'] ?? '192.168.8.101'));
+        $targetPort = !empty($port) ? (int)$port : (!empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : 9100);
+
         $data = self::buildBillEscPos($bill);
         return [
             'success' => true,
             'bill_id' => $billId,
+            'printer_ip' => $targetIp,
+            'printer_port' => $targetPort,
             'base64' => base64_encode($data)
         ];
     }

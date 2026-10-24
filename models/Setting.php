@@ -21,7 +21,7 @@ class Setting extends Model {
                 'printer_size' => 80,
                 'printer_ip' => '192.168.8.101',
                 'printer_port' => 9100,
-                'kot_printer_ip' => '192.168.8.101',
+                'kot_printer_ip' => '192.168.8.102',
                 'kot_printer_port' => 9100,
                 'billing_printer_ip' => '192.168.8.101',
                 'billing_printer_port' => 9100,
@@ -35,10 +35,10 @@ class Setting extends Model {
             ];
         }
         if (empty($settings['kot_printer_ip'])) {
-            $settings['kot_printer_ip'] = $settings['printer_ip'] ?? '192.168.8.101';
+            $settings['kot_printer_ip'] = '192.168.8.102';
         }
         if (empty($settings['kot_printer_port'])) {
-            $settings['kot_printer_port'] = $settings['printer_port'] ?? 9100;
+            $settings['kot_printer_port'] = 9100;
         }
         if (empty($settings['billing_printer_ip'])) {
             $settings['billing_printer_ip'] = $settings['printer_ip'] ?? '192.168.8.101';
@@ -95,12 +95,12 @@ class Setting extends Model {
     }
 
     public function updateSettings($data, $logoPath = null) {
-        $kotIp = trim($data['kot_printer_ip'] ?? $data['printer_ip'] ?? '192.168.8.101');
-        $kotPort = (int)($data['kot_printer_port'] ?? $data['printer_port'] ?? 9100);
+        $kotIp = trim($data['kot_printer_ip'] ?? '192.168.8.102');
+        $kotPort = (int)($data['kot_printer_port'] ?? 9100);
         $billingIp = trim($data['billing_printer_ip'] ?? $data['printer_ip'] ?? '192.168.8.101');
         $billingPort = (int)($data['billing_printer_port'] ?? $data['printer_port'] ?? 9100);
-        $legacyIp = trim($data['printer_ip'] ?? $billingIp ?? $kotIp ?? '192.168.8.101');
-        $legacyPort = (int)($data['printer_port'] ?? $billingPort ?? $kotPort ?? 9100);
+        $legacyIp = !empty($billingIp) ? $billingIp : (trim($data['printer_ip'] ?? '192.168.8.101'));
+        $legacyPort = $billingPort > 0 ? $billingPort : (int)($data['printer_port'] ?? 9100);
 
         $sql = "UPDATE settings SET 
                 restaurant_name = ?, 

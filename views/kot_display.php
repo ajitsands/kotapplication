@@ -253,6 +253,42 @@
             100% { border-color: rgba(239, 68, 68, 0.8); }
         }
 
+        /* Highlight animation for newly arrived KOT tickets */
+        @keyframes newOrderGlow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8);
+                border-color: rgba(245, 158, 11, 1);
+                transform: scale(0.98);
+            }
+            35% {
+                box-shadow: 0 0 35px 8px rgba(245, 158, 11, 0.65);
+                border-color: rgba(245, 158, 11, 1);
+                transform: scale(1.02);
+            }
+            100% {
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                border-color: var(--card-border);
+                transform: scale(1);
+            }
+        }
+
+        .kot-card.just-arrived {
+            animation: newOrderGlow 2.5s ease-out;
+            border-color: var(--accent-orange) !important;
+        }
+
+        body.light-theme #btn-toggle-sound.sound-on {
+            background: rgba(16, 185, 129, 0.12) !important;
+            border-color: rgba(16, 185, 129, 0.3) !important;
+            color: #059669 !important;
+        }
+
+        body.light-theme #btn-toggle-sound.sound-off {
+            background: rgba(239, 68, 68, 0.1) !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            color: #dc2626 !important;
+        }
+
         .kot-header {
             padding: 20px;
             background: rgba(255, 255, 255, 0.02);
@@ -891,6 +927,10 @@
                 <span id="page-zoom-text" onclick="resetPageZoom()" title="Click to Reset 100%" style="font-size: 11px; font-family: monospace; color: var(--text-muted); cursor: pointer; padding: 0 4px; font-weight: 600;">100%</span>
                 <button type="button" onclick="adjustPageZoom(+0.05)" title="Zoom In (+)" style="width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: var(--text-color); font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
             </div>
+            <button type="button" id="btn-toggle-sound" onclick="toggleKotSound(true)" title="Ding Dong Sound Alert for New Orders (Click to Test / Toggle)" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--accent-green); cursor: pointer; font-size: 13px; height: 34px; padding: 0 12px; border-radius: 17px; display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; margin-right: 6px; transition: all 0.3s; font-weight: 600;">
+                <span id="sound-icon" style="font-size: 15px;">🔔</span>
+                <span id="sound-label">Sound ON</span>
+            </button>
             <button type="button" onclick="changeOwnPasswordPrompt()" title="Change Password" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px; transition: all 0.3s;">🔑</button>
             <button type="button" onclick="toggleTheme()" title="Toggle Dark/Light Theme" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-color); cursor: pointer; font-size: 15px; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px; transition: all 0.3s;">🌓</button>
             <a href="logout" class="btn-logout" title="Logout" style="width: 34px; height: 34px; border-radius: 50%; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 15px;">🚪</a>
@@ -999,11 +1039,264 @@
     </div>
 
     <script>
+        // -------------------------------------------------------------
+        // Ding Dong Audio Notification System for New KOT Orders
+        // -------------------------------------------------------------
+        let knownKotIds = null;
+        let knownItemIds = null;
+        let newlyArrivedKotIds = new Set();
+        let kotSoundEnabled = localStorage.getItem('kot_sound_enabled') !== 'false'; // Default to true
+        let kotAudioCtx = null;
+
+        function getKotAudioContext() {
+            if (!kotAudioCtx) {
+                const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtxClass) {
+                    kotAudioCtx = new AudioCtxClass();
+                }
+            }
+            if (kotAudioCtx && kotAudioCtx.state === 'suspended') {
+                kotAudioCtx.resume().catch(() => {});
+            }
+            return kotAudioCtx;
+        }
+
+        // Auto-unlock AudioContext on first user interaction anywhere on page (browser autoplay policy compliance)
+        function unlockAudioOnUserAction() {
+            getKotAudioContext();
+            ['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
+                document.removeEventListener(evt, unlockAudioOnUserAction);
+            });
+        }
+        ['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, unlockAudioOnUserAction, { once: true });
+        });
+
+        // High-Quality Two-Tone "Ding Dong" Doorbell Chime
+        function playKotDingDongSound() {
+            if (!kotSoundEnabled) return;
+
+            // Trigger physical device vibration if supported (mobile/tablets)
+            try {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([200, 100, 300]);
+                }
+            } catch (e) {}
+
+            try {
+                const ctx = getKotAudioContext();
+                if (!ctx) throw new Error('Web Audio not available');
+
+                const now = ctx.currentTime;
+
+                // --- Tone 1: "DING" (High Clear Bell Chime - G5 / 784 Hz) ---
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(784, now);
+                gain1.gain.setValueAtTime(0.0001, now);
+                gain1.gain.linearRampToValueAtTime(0.7, now + 0.015);
+                gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.7);
+
+                // "Ding" Harmonic Overtone (Octave - 1568 Hz) for crisp chime shimmer
+                const over1 = ctx.createOscillator();
+                const overGain1 = ctx.createGain();
+                over1.type = 'sine';
+                over1.frequency.setValueAtTime(1568, now);
+                overGain1.gain.setValueAtTime(0.0001, now);
+                overGain1.gain.linearRampToValueAtTime(0.2, now + 0.01);
+                overGain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+                over1.connect(overGain1);
+                overGain1.connect(ctx.destination);
+                over1.start(now);
+                over1.stop(now + 0.45);
+
+                // --- Tone 2: "DONG" (Warm Resonant Chime - D5 / 587.33 Hz) after 0.28s ---
+                const dongStart = now + 0.28;
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(587.33, dongStart);
+                gain2.gain.setValueAtTime(0.0001, dongStart);
+                gain2.gain.linearRampToValueAtTime(0.8, dongStart + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.0001, dongStart + 1.1);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(dongStart);
+                osc2.stop(dongStart + 1.1);
+
+                // "Dong" Harmonic Overtone (1174.66 Hz) for deep brass resonance
+                const over2 = ctx.createOscillator();
+                const overGain2 = ctx.createGain();
+                over2.type = 'sine';
+                over2.frequency.setValueAtTime(1174.66, dongStart);
+                overGain2.gain.setValueAtTime(0.0001, dongStart);
+                overGain2.gain.linearRampToValueAtTime(0.2, dongStart + 0.015);
+                overGain2.gain.exponentialRampToValueAtTime(0.0001, dongStart + 0.7);
+                over2.connect(overGain2);
+                overGain2.connect(ctx.destination);
+                over2.start(dongStart);
+                over2.stop(dongStart + 0.7);
+
+            } catch (err) {
+                console.warn('Web Audio Ding-Dong failed, trying fallback audio element:', err);
+                try {
+                    const fallbackAudio = document.getElementById('audio-kot-dingdong');
+                    if (fallbackAudio) {
+                        fallbackAudio.currentTime = 0;
+                        fallbackAudio.play().catch(() => {});
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // Toggle Sound ON / OFF and test chime
+        function toggleKotSound(userTriggered = true) {
+            if (userTriggered) {
+                kotSoundEnabled = !kotSoundEnabled;
+                localStorage.setItem('kot_sound_enabled', kotSoundEnabled);
+            }
+            updateKotSoundUI();
+            if (userTriggered && kotSoundEnabled) {
+                getKotAudioContext();
+                playKotDingDongSound();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: '🔔 Ding Dong Sound Active',
+                        text: 'A Ding Dong chime will ring whenever a new order is received.',
+                        showConfirmButton: false,
+                        timer: 2500,
+                        background: document.body.classList.contains('light-theme') ? '#ffffff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                }
+            } else if (userTriggered && !kotSoundEnabled) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'warning',
+                        title: '🔕 Sound Muted',
+                        text: 'KOT new order sound notification is turned OFF.',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        background: document.body.classList.contains('light-theme') ? '#ffffff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                }
+            }
+        }
+
+        function updateKotSoundUI() {
+            const btn = document.getElementById('btn-toggle-sound');
+            const icon = document.getElementById('sound-icon');
+            const label = document.getElementById('sound-label');
+            if (!btn || !icon || !label) return;
+
+            if (kotSoundEnabled) {
+                btn.className = 'sound-on';
+                btn.style.background = 'rgba(16, 185, 129, 0.15)';
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+                btn.style.color = 'var(--accent-green)';
+                icon.textContent = '🔔';
+                label.textContent = 'Sound ON';
+                btn.title = 'Ding Dong Sound Alert is ON (Click to Test or Turn OFF)';
+            } else {
+                btn.className = 'sound-off';
+                btn.style.background = 'rgba(239, 68, 68, 0.15)';
+                btn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                btn.style.color = 'var(--accent-red)';
+                icon.textContent = '🔕';
+                label.textContent = 'Sound OFF';
+                btn.title = 'Sound Alert is OFF (Click to Turn ON)';
+            }
+        }
+
+        // Compare incoming KOTs against previous list to detect newly received orders
+        function checkAndAlertNewKots(kots) {
+            if (!kots || !Array.isArray(kots)) return;
+
+            const currentKotIds = new Set(kots.map(k => Number(k.id)));
+            const currentItemIds = new Set();
+            kots.forEach(k => {
+                if (k.items && Array.isArray(k.items)) {
+                    k.items.forEach(it => currentItemIds.add(Number(it.id)));
+                }
+            });
+
+            if (knownKotIds === null) {
+                // Initial load: store current orders silently without ringing
+                knownKotIds = currentKotIds;
+                knownItemIds = currentItemIds;
+                return;
+            }
+
+            // Detect new KOT tickets
+            const newKots = kots.filter(k => !knownKotIds.has(Number(k.id)));
+            
+            // Detect if items were added to existing tickets
+            let hasNewItems = false;
+            currentItemIds.forEach(id => {
+                if (knownItemIds && !knownItemIds.has(id)) {
+                    hasNewItems = true;
+                }
+            });
+
+            if (newKots.length > 0 || hasNewItems) {
+                // Mark new KOT IDs for visual entrance glow
+                newKots.forEach(k => newlyArrivedKotIds.add(Number(k.id)));
+                setTimeout(() => {
+                    newKots.forEach(k => newlyArrivedKotIds.delete(Number(k.id)));
+                }, 8000);
+
+                // Play Ding-Dong chime!
+                playKotDingDongSound();
+
+                // Format toast description
+                let summary = '';
+                if (newKots.length > 0) {
+                    summary = newKots.map(k => {
+                        if (k.order_type === 'take_away') return `Take Away #${k.token_number || k.kot_number}`;
+                        if (k.order_type === 'online') return `Online #${k.token_number || k.kot_number} (${k.platform_name || 'Web'})`;
+                        return `Table ${k.table_number}`;
+                    }).join(', ');
+                } else if (hasNewItems) {
+                    summary = 'New items added to active order!';
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: `🔔 New Order Received in KOT!`,
+                        html: `<div style="font-size:14px; font-weight:700; color:var(--accent-orange); margin-top:4px;">${summary}</div>`,
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true,
+                        background: document.body.classList.contains('light-theme') ? '#ffffff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                }
+            }
+
+            knownKotIds = currentKotIds;
+            knownItemIds = currentItemIds;
+        }
+
         // Fetch active KOT list
         function fetchKots() {
             fetch('kot/items')
                 .then(res => res.json())
                 .then(data => {
+                    checkAndAlertNewKots(data.kots);
                     renderKots(data.kots, data.server_time);
                 })
                 .catch(err => console.error('Error fetching KOTs:', err));
@@ -1044,6 +1337,7 @@
                 // Class list for card
                 let cardClass = 'kot-card';
                 if (isUrgent && kot.status === 'pending') cardClass += ' urgent';
+                if (newlyArrivedKotIds.has(Number(kot.id))) cardClass += ' just-arrived';
 
                 html += `
                     <div class="${cardClass}" id="kot-${kot.id}">
@@ -1472,6 +1766,9 @@
                 }
             });
 
+            // Initialize Sound button UI
+            updateKotSoundUI();
+
             // Initial fetch
             fetchKots();
             fetchCompletedKots();
@@ -1870,5 +2167,7 @@
             });
         }
     </script>
+    <!-- Fallback audio chime for KOT order notification -->
+    <audio id="audio-kot-dingdong" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 </body>
 </html>

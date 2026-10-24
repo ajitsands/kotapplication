@@ -20,8 +20,17 @@ class Router {
         $path = $parsedUrl['path'] ?? '/';
 
         // Strip subfolder if running in a subdirectory (e.g. /kotapplication)
-        $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-        if ($scriptDir !== '/' && strpos($path, $scriptDir) === 0) {
+        $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']) ?: $_SERVER['DOCUMENT_ROOT']) : '';
+        $appRoot = str_replace('\\', '/', dirname(__DIR__));
+        $scriptDir = '';
+        if (!empty($docRoot) && strpos($appRoot, $docRoot) === 0) {
+            $sub = substr($appRoot, strlen($docRoot));
+            $scriptDir = '/' . trim($sub, '/');
+            if ($scriptDir === '/') {
+                $scriptDir = '';
+            }
+        }
+        if (!empty($scriptDir) && strpos($path, $scriptDir) === 0) {
             $path = substr($path, strlen($scriptDir));
         }
 
@@ -37,6 +46,7 @@ class Router {
         if (empty($path)) {
             $path = '/';
         }
+
 
         foreach ($this->routes as $route) {
             if ($route['method'] === strtoupper($requestMethod) && preg_match($route['route'], $path, $matches)) {

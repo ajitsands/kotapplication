@@ -1553,42 +1553,44 @@
                 notes: i.notes || null
             }));
 
-            // Get local station printer config
-            const effective = (typeof getEffectivePrinterConfig === 'function') 
-                ? getEffectivePrinterConfig() 
-                : (function() {
-                    let ip = '';
-                    let port = 0;
+            // Get local station billing/counter printer config (e.g. 192.168.8.101)
+            const effectiveCounter = (function() {
+                let ip = '';
+                let port = 0;
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    ip = urlParams.get('station_printer_ip') || urlParams.get('printer_ip') || '';
+                    port = parseInt(urlParams.get('station_printer_port') || urlParams.get('printer_port') || '0') || 0;
+                } catch (e) {}
+                if (!ip) {
                     try {
-                        const urlParams = new URLSearchParams(window.location.search);
-                        ip = urlParams.get('station_printer_ip') || urlParams.get('printer_ip') || '';
-                        port = parseInt(urlParams.get('station_printer_port') || urlParams.get('printer_port') || '0') || 0;
+                        const savedIp = localStorage.getItem('sands_printer_ip');
+                        if (savedIp) {
+                            ip = savedIp.trim();
+                            port = parseInt(localStorage.getItem('sands_printer_port') || '0') || 0;
+                        }
                     } catch (e) {}
-                    if (!ip) {
-                        try {
-                            const savedIp = localStorage.getItem('sands_printer_ip');
-                            if (savedIp) {
-                                ip = savedIp.trim();
-                                port = parseInt(localStorage.getItem('sands_printer_port') || '0') || 0;
-                            }
-                        } catch (e) {}
-                    }
-                    if (!ip) {
-                        try {
-                            const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
-                            if (localCfg && localCfg.printerIp) {
-                                ip = String(localCfg.printerIp).trim();
-                                port = parseInt(localCfg.printerPort) || 0;
-                            }
-                        } catch (e) {}
-                    }
-                    if (!ip) ip = '<?= $settings['kot_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101' ?>';
-                    if (!port) port = parseInt('<?= $settings['kot_printer_port'] ?? $settings['printer_port'] ?? 9100 ?>') || 9100;
-                    return { ip, port };
-                })();
+                }
+                if (!ip) {
+                    try {
+                        const localCfg = JSON.parse(localStorage.getItem('sands_kot_config') || '{}');
+                        if (localCfg && localCfg.printerIp) {
+                            ip = String(localCfg.printerIp).trim();
+                            port = parseInt(localCfg.printerPort) || 0;
+                        }
+                    } catch (e) {}
+                }
+                if (!ip) ip = '<?= htmlspecialchars($settings['billing_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101') ?>';
+                if (!port) port = parseInt('<?= $settings['billing_printer_port'] ?? $settings['printer_port'] ?? 9100 ?>') || 9100;
+                return { ip, port };
+            })();
 
-            const printerIp = effective.ip;
-            const printerPort = effective.port;
+            const counterPrinterIp = effectiveCounter.ip;
+            const counterPrinterPort = effectiveCounter.port;
+
+            // KOT Kitchen Printer Config strictly taken from Settings (default 192.168.8.102)
+            const kotPrinterIp = '<?= htmlspecialchars($settings['kot_printer_ip'] ?? '192.168.8.102') ?>';
+            const kotPrinterPort = parseInt('<?= $settings['kot_printer_port'] ?? 9100 ?>') || 9100;
 
             const payload = {
                 order_type: currentOrderType,
@@ -1602,8 +1604,8 @@
                 payment_method: options.paymentMethod || 'cash',
                 discount_percent: options.discountPercent || 0,
                 gender: options.gender || '',
-                printer_ip: printerIp,
-                printer_port: printerPort
+                printer_ip: counterPrinterIp,
+                printer_port: counterPrinterPort
             };
 
             Swal.fire({
@@ -1624,22 +1626,44 @@
                     // Play sound
                     try { document.getElementById('audio-kot').play(); } catch (e) {}
 
-                    // Relay KOT print job to driver app or native bridge if running on client
-                    if (data.print_result && data.print_result.base64) {
+                    // Helper to transmit ESC/POS base64 payload to a specific printer IP & port
+                    function transmitEscPosToDevice(base64Payload, targetIp, targetPort, jobName) {
+                        if (!base64Payload || !targetIp) return;
                         let bridged = false;
                         try {
                             if (typeof window.AndroidPrintBridge !== 'undefined' && window.AndroidPrintBridge && typeof window.AndroidPrintBridge.printTcp === 'function') {
-                                window.AndroidPrintBridge.printTcp(printerIp, printerPort, data.print_result.base64);
+                                window.AndroidPrintBridge.printTcp(targetIp, targetPort, base64Payload);
                                 bridged = true;
                             }
                         } catch (e) {}
                         if (!bridged && window.parent && window.parent !== window) {
                             window.parent.postMessage({
                                 action: 'sands_print_escpos',
-                                base64: data.print_result.base64,
-                                printer_ip: printerIp,
-                                printer_port: printerPort
+                                base64: base64Payload,
+                                printer_ip: targetIp,
+                                printer_port: targetPort,
+                                job_name: jobName || 'POS'
                             }, '*');
+                        }
+                    }
+
+                    // 1. KOT Printing: STRICTLY sent to KOT Kitchen Printer (192.168.8.102 from settings)
+                    const kotRes = data.kot_print_result || data.print_result;
+                    if (kotRes && kotRes.base64) {
+                        const targetKotIp = kotRes.printer_ip || kotPrinterIp;
+                        const targetKotPort = parseInt(kotRes.printer_port) || kotPrinterPort;
+                        // Only relay via client bridge if server did not already print directly over raw socket
+                        if (!kotRes.success) {
+                            transmitEscPosToDevice(kotRes.base64, targetKotIp, targetKotPort, 'KOT Slip');
+                        }
+                    }
+
+                    // 2. Bill Printing: ONLY when Pay Now / immediate bill, STRICTLY sent to Counter Printer (192.168.8.101)
+                    if (data.bill_print_result && data.bill_print_result.base64) {
+                        const targetBillIp = data.bill_print_result.printer_ip || counterPrinterIp;
+                        const targetBillPort = parseInt(data.bill_print_result.printer_port) || counterPrinterPort;
+                        if (!data.bill_print_result.success) {
+                            transmitEscPosToDevice(data.bill_print_result.base64, targetBillIp, targetBillPort, 'Tax Invoice');
                         }
                     }
 

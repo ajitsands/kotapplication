@@ -191,15 +191,17 @@ class CounterController extends Controller {
             return;
         }
 
-        // Print KOT to kitchen printer
-        $printResult = null;
+        // Print KOT to kitchen printer (strictly target KOT printer from Settings, default 192.168.8.102)
+        $kotPrintResult = null;
         try {
             $settingsModel = new Setting();
             $settings = $settingsModel->getSettings();
+            $kotTargetIp = !empty($settings['kot_printer_ip']) ? trim($settings['kot_printer_ip']) : '192.168.8.102';
+            $kotTargetPort = !empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : 9100;
             if (($settings['printer_mode'] ?? 'network') !== 'browser') {
-                $kotTargetIp = !empty($settings['kot_printer_ip']) ? $settings['kot_printer_ip'] : (!empty($printerIp) ? $printerIp : ($settings['printer_ip'] ?? '192.168.8.101'));
-                $kotTargetPort = !empty($settings['kot_printer_port']) ? (int)$settings['kot_printer_port'] : (!empty($printerPort) ? (int)$printerPort : (int)($settings['printer_port'] ?? 9100));
-                $printResult = PrinterService::printKot($kotId, $kotTargetIp, $kotTargetPort);
+                $kotPrintResult = PrinterService::printKot($kotId, $kotTargetIp, $kotTargetPort);
+            } else {
+                $kotPrintResult = PrinterService::getKotEscPos($kotId, $kotTargetIp, $kotTargetPort);
             }
         } catch (Exception $e) {
             // Silently continue if printer offline
@@ -218,7 +220,8 @@ class CounterController extends Controller {
             }
         }
 
-        // If Pay Now is selected or auto_print_bill on Takeaway
+        // If Pay Now is selected or auto_print_bill on Takeaway, print bill to Counter / Billing printer (192.168.8.101)
+        $billPrintResult = null;
         if ($billId && ($payNow || ($orderType === 'take_away' && !empty($settings['auto_print_bill'])))) {
             if ($payNow) {
                 $billModel = new Bill();
@@ -226,10 +229,13 @@ class CounterController extends Controller {
             }
             
             try {
-                if (($settings['printer_mode'] ?? 'network') !== 'browser' && !empty($settings['auto_print_bill'])) {
-                    $billTargetIp = !empty($settings['billing_printer_ip']) ? $settings['billing_printer_ip'] : (!empty($printerIp) ? $printerIp : ($settings['printer_ip'] ?? '192.168.8.101'));
-                    $billTargetPort = !empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (!empty($printerPort) ? (int)$printerPort : (int)($settings['printer_port'] ?? 9100));
-                    PrinterService::printBill($billId, $billTargetIp, $billTargetPort);
+                $billTargetIp = !empty($settings['billing_printer_ip']) ? trim($settings['billing_printer_ip']) : (!empty($printerIp) ? $printerIp : ($settings['printer_ip'] ?? '192.168.8.101'));
+                $billTargetPort = !empty($settings['billing_printer_port']) ? (int)$settings['billing_printer_port'] : (!empty($printerPort) ? (int)$printerPort : 9100);
+
+                if (($settings['printer_mode'] ?? 'network') !== 'browser' && ($payNow || !empty($settings['auto_print_bill']))) {
+                    $billPrintResult = PrinterService::printBill($billId, $billTargetIp, $billTargetPort);
+                } else if (($settings['printer_mode'] ?? 'network') !== 'browser') {
+                    $billPrintResult = PrinterService::getBillEscPos($billId, $billTargetIp, $billTargetPort);
                 }
             } catch (Exception $e) {}
         }
@@ -237,14 +243,16 @@ class CounterController extends Controller {
         $orderInfo = $orderModel->getOrderDetails($orderId);
 
         $this->json([
-            'success'      => true,
-            'order_id'     => $orderId,
-            'kot_id'       => $kotId,
-            'bill_id'      => $billId,
-            'token_number' => $orderInfo['token_number'] ?? null,
-            'paid'         => $payNow,
-            'print_result' => $printResult,
-            'message'      => $payNow ? 'Order placed, sent to KOT, and payment completed!' : 'Order sent to KOT successfully!'
+            'success'           => true,
+            'order_id'          => $orderId,
+            'kot_id'            => $kotId,
+            'bill_id'           => $billId,
+            'token_number'      => $orderInfo['token_number'] ?? null,
+            'paid'              => $payNow,
+            'kot_print_result'  => $kotPrintResult,
+            'bill_print_result' => $billPrintResult,
+            'print_result'      => $kotPrintResult,
+            'message'           => $payNow ? 'Order placed, sent to KOT, and payment completed!' : 'Order sent to KOT successfully!'
         ]);
     }
 

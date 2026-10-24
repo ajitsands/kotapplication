@@ -1351,7 +1351,7 @@
                                     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
                                         <div>
                                             <label class="form-label" style="font-size: 11px;">IP Address</label>
-                                            <input class="form-input" type="text" name="kot_printer_ip" id="kot_printer_ip_input" value="<?= htmlspecialchars($settings['kot_printer_ip'] ?? $settings['printer_ip'] ?? '192.168.8.101') ?>" placeholder="e.g. 192.168.8.101" required>
+                                            <input class="form-input" type="text" name="kot_printer_ip" id="kot_printer_ip_input" value="<?= htmlspecialchars($settings['kot_printer_ip'] ?? '192.168.8.102') ?>" placeholder="e.g. 192.168.8.102" required>
                                         </div>
                                         <div>
                                             <label class="form-label" style="font-size: 11px;">Port</label>

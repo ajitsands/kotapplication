@@ -46,6 +46,8 @@ function App() {
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showSandsModal, setShowSandsModal] = useState(false);
+  const [submittingKot, setSubmittingKot] = useState(false);
+
 
   useEffect(() => {
     if (theme === 'light') {
@@ -332,8 +334,9 @@ function App() {
   // Submit local basket to KOT
   const submitKot = () => {
     const itemsList = Object.values(basket);
-    if (itemsList.length === 0) return;
+    if (itemsList.length === 0 || submittingKot) return;
 
+    setSubmittingKot(true);
     fetch(rootPath + '/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -344,13 +347,42 @@ function App() {
     })
     .then(res => res.json())
     .then(data => {
+      setSubmittingKot(false);
       if (data.success) {
         setBasket({});
         setActiveView('tables');
         loadTablesState();
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `KOT Sent for Table ${selectedTable}!`,
+          showConfirmButton: false,
+          timer: 2500,
+          background: theme === 'light' ? '#fff' : '#111827',
+          color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+        });
+      } else {
+        Swal.fire({
+          title: 'Order Failed',
+          text: data.error || 'Failed to submit KOT ticket to kitchen.',
+          icon: 'error',
+          background: theme === 'light' ? '#fff' : '#111827',
+          color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+        });
       }
     })
-    .catch(err => console.error("Error submitting KOT", err));
+    .catch(err => {
+      setSubmittingKot(false);
+      console.error("Error submitting KOT", err);
+      Swal.fire({
+        title: 'Connection Error',
+        text: 'Failed to communicate with server. Please check WiFi connection.',
+        icon: 'error',
+        background: theme === 'light' ? '#fff' : '#111827',
+        color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+      });
+    });
   };
 
   // Request billing / close dining ticket
@@ -878,7 +910,9 @@ function App() {
               <span style={{ fontWeight: 'bold', fontSize: 15 }}>KOT Subtotal:</span>
               <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent-green)' }}>{getBasketTotal()} {currency}</span>
             </div>
-            <button className="btn-login" onClick={submitKot}>Confirm & Send KOT to Kitchen</button>
+            <button className="btn-login" onClick={submitKot} disabled={submittingKot} style={{ opacity: submittingKot ? 0.7 : 1 }}>
+              {submittingKot ? '⏳ Sending to Kitchen...' : 'Confirm & Send KOT to Kitchen'}
+            </button>
           </div>
         </div>
       )}
