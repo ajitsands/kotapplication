@@ -332,23 +332,34 @@ function App() {
   };
 
   // Submit local basket to KOT
-  const submitKot = () => {
+  const submitKot = (retryCount = 0) => {
     const itemsList = Object.values(basket);
-    if (itemsList.length === 0 || submittingKot) return;
+    if (itemsList.length === 0) return;
+    if (submittingKot && retryCount === 0) return;
 
     setSubmittingKot(true);
     fetch(rootPath + '/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      cache: 'no-cache',
       body: JSON.stringify({
         table_number: selectedTable,
         items: itemsList
       })
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(async res => {
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error(res.ok ? 'Invalid response from server' : `Server error (${res.status})`);
+      }
+
       setSubmittingKot(false);
-      if (data.success) {
+      if (res.ok && data.success) {
         setBasket({});
         setActiveView('tables');
         loadTablesState();
@@ -365,7 +376,7 @@ function App() {
       } else {
         Swal.fire({
           title: 'Order Failed',
-          text: data.error || 'Failed to submit KOT ticket to kitchen.',
+          text: data?.error || 'Failed to submit KOT ticket to kitchen.',
           icon: 'error',
           background: theme === 'light' ? '#fff' : '#111827',
           color: theme === 'light' ? '#1f2937' : '#f3f4f6'
@@ -373,14 +384,30 @@ function App() {
       }
     })
     .catch(err => {
+      // Auto-retry once on momentary mobile cellular network drop
+      if (retryCount < 1) {
+        console.warn("Mobile network glitch detected, retrying order in 800ms...", err);
+        setTimeout(() => submitKot(retryCount + 1), 800);
+        return;
+      }
+
       setSubmittingKot(false);
       console.error("Error submitting KOT", err);
       Swal.fire({
-        title: 'Connection Error',
-        text: 'Failed to communicate with server. Please check WiFi connection.',
-        icon: 'error',
+        title: 'Connection / Network Error',
+        text: 'Unable to communicate with server over mobile network. Please check your data connection and tap Retry.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Retry Sending',
+        cancelButtonText: 'Keep Basket',
+        confirmButtonColor: '#6366f1',
+        cancelButtonColor: '#4b5563',
         background: theme === 'light' ? '#fff' : '#111827',
         color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          submitKot();
+        }
       });
     });
   };
