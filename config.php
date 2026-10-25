@@ -1,7 +1,12 @@
 <?php
 // Configuration File
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
+    ini_set('display_errors', 0);
+    ini_set('display_startup_errors', 0);
+} else {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+}
 error_reporting(E_ALL);
 
 // Detect environment (Server vs Local)

@@ -1166,11 +1166,18 @@
                 })
             })
             .then(async res => {
-                let data;
+                const rawText = await res.text();
+                let data = null;
                 try {
-                    data = await res.json();
+                    data = JSON.parse(rawText);
                 } catch (parseErr) {
-                    throw new Error(res.ok ? 'Invalid response from server' : `Server error (${res.status})`);
+                    // Extract json object if any stray text/notice was returned
+                    const jsonMatch = rawText ? rawText.match(/\{[\s\S]*\}/) : null;
+                    if (jsonMatch) {
+                        try {
+                            data = JSON.parse(jsonMatch[0]);
+                        } catch (e) {}
+                    }
                 }
 
                 if (submitBtn) {
@@ -1178,7 +1185,7 @@
                     submitBtn.innerText = originalBtnText;
                 }
 
-                if (res.ok && data.success) {
+                if (data && (data.success || res.ok)) {
                     closeReviewModal();
                     
                     if (isTakeaway && data.token_number) {
@@ -1204,9 +1211,10 @@
                         div.innerHTML = `<button class="btn-add" onclick="location.reload()">Add</button>`;
                     });
                 } else {
+                    const cleanErr = data?.error || (rawText ? rawText.replace(/<[^>]*>/g, '').trim().substring(0, 100) : 'Failed to place order.');
                     Swal.fire({
                         title: 'Order Failed',
-                        text: data?.error || 'Failed to place order. Please try again.',
+                        text: cleanErr,
                         icon: 'error',
                         background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                         color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'

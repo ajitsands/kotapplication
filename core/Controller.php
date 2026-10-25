@@ -17,12 +17,17 @@ class Controller {
 
     // Standard API response in JSON format
     protected function json($data, $statusCode = 200) {
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE);
         header("Access-Control-Allow-Origin: *");
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
         header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
-        header("Content-Type: application/json");
+        header("Content-Type: application/json; charset=utf-8");
+        header("Content-Length: " . strlen($json));
         http_response_code($statusCode);
-        echo json_encode($data);
+        echo $json;
         exit;
     }
 
