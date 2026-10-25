@@ -48,6 +48,16 @@ class Router {
         }
 
 
+        // Handle preflight CORS OPTIONS requests immediately
+        if (strtoupper($requestMethod) === 'OPTIONS') {
+            header("Access-Control-Allow-Origin: *");
+            header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+            header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
+            header("Access-Control-Max-Age: 86400");
+            header("HTTP/1.1 200 OK");
+            exit;
+        }
+
         foreach ($this->routes as $route) {
             if ($route['method'] === strtoupper($requestMethod) && preg_match($route['route'], $path, $matches)) {
                 // Extract parameters
@@ -120,6 +130,9 @@ class Router {
 
         // Check if API or view to return appropriate 404
         if (strpos($path, '/api/') === 0) {
+            header("Access-Control-Allow-Origin: *");
+            header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+            header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
             header("Content-Type: application/json");
             header("HTTP/1.0 404 Not Found");
             echo json_encode(['error' => 'Endpoint not found', 'path' => $path]);

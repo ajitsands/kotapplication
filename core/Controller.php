@@ -17,6 +17,9 @@ class Controller {
 
     // Standard API response in JSON format
     protected function json($data, $statusCode = 200) {
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
         header("Content-Type: application/json");
         http_response_code($statusCode);
         echo json_encode($data);

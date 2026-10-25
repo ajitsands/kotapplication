@@ -936,8 +936,11 @@
     <script>
         const tableNumber = <?= $tableNumber ?>;
         const isTakeaway = <?= $isTakeaway ? 'true' : 'false' ?>;
-        const takeawayName = sessionStorage.getItem('takeaway_name');
-        const takeawayMobile = sessionStorage.getItem('takeaway_mobile');
+        const _urlParams = new URLSearchParams(window.location.search);
+        const takeawayName = _urlParams.get('name') || sessionStorage.getItem('takeaway_name') || 'Takeaway Customer';
+        const takeawayMobile = _urlParams.get('mobile') || sessionStorage.getItem('takeaway_mobile') || '';
+        if (_urlParams.get('name')) sessionStorage.setItem('takeaway_name', _urlParams.get('name'));
+        if (_urlParams.get('mobile')) sessionStorage.setItem('takeaway_mobile', _urlParams.get('mobile'));
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const categories = <?= json_encode($categories) ?>;
         const taxType = '<?= $settings['tax_type'] ?? 'VAT' ?>';
@@ -1131,7 +1134,7 @@
             document.getElementById('review-modal').style.display = 'none';
         }
 
-        function placeOrder() {
+        function placeOrder(retryCount = 0) {
             const itemsList = Object.values(cart);
             if (itemsList.length === 0) return;
 
@@ -1142,18 +1145,23 @@
                 submitBtn.innerText = isTakeaway ? '⏳ Sending to Billing...' : '⏳ Sending to Kitchen...';
             }
 
+            const curTakeawayName = takeawayName || sessionStorage.getItem('takeaway_name') || 'Takeaway Customer';
+            const curTakeawayMobile = takeawayMobile || sessionStorage.getItem('takeaway_mobile') || '';
+            const apiUrl = (window.location.origin || '') + '/api/orders';
+
             // Submit order via API
-            fetch('/api/orders', {
+            fetch(apiUrl, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
+                cache: 'no-cache',
                 body: JSON.stringify({
                     table_number: tableNumber,
                     order_type: isTakeaway ? 'take_away' : 'dine_in',
-                    customer_name: isTakeaway ? takeawayName : null,
-                    customer_mobile: isTakeaway ? takeawayMobile : null,
+                    customer_name: isTakeaway ? curTakeawayName : null,
+                    customer_mobile: isTakeaway ? curTakeawayMobile : null,
                     items: itemsList
                 })
             })
@@ -1206,17 +1214,34 @@
                 }
             })
             .catch(err => {
+                // Auto-retry once on momentary mobile cellular network drop
+                if (retryCount < 1) {
+                    console.warn("Mobile network glitch detected, retrying order in 800ms...", err);
+                    setTimeout(() => placeOrder(retryCount + 1), 800);
+                    return;
+                }
+
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerText = originalBtnText;
                 }
                 console.error('Error placing order:', err);
+                const detailMsg = (err && err.message) ? ` (${err.message})` : '';
                 Swal.fire({
                     title: 'Network / Connection Error',
-                    text: 'Unable to communicate with server over mobile network. Please check your data connection and tap Place Order again.',
+                    text: 'Unable to communicate with server over mobile network' + detailMsg + '. Please check your data connection and tap Retry.',
                     icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Retry Sending',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#6366f1',
+                    cancelButtonColor: '#4b5563',
                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        placeOrder();
+                    }
                 });
             });
         }

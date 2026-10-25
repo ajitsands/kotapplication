@@ -200,8 +200,8 @@ document.getElementById('takeaway-form').addEventListener('submit', async functi
             sessionStorage.removeItem('takeaway_token');
         }
         
-        // Redirect to menu page
-        window.location.href = '/customer/0?takeaway=1';
+        // Redirect to menu page with fallback query params
+        window.location.href = '/customer/0?takeaway=1&name=' + encodeURIComponent(name) + '&mobile=' + encodeURIComponent(mobile);
         
     } catch (err) {
         errorMsg.textContent = 'Network error. Please try again.';
