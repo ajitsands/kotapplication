@@ -441,4 +441,102 @@ class AdminController extends Controller {
             $this->json(['success' => false, 'error' => 'Error generating demo data: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Delete a single transaction (Order, Bill, KOTs, KOT Items, restore inventory stock, update shift)
+     * Superadmin Only
+     */
+    public function deleteSingleTransaction($orderId) {
+        if (($_SESSION['username'] ?? '') !== 'superadmin') {
+            $this->json(['success' => false, 'error' => 'Unauthorized. Superadmin privilege required.'], 403);
+            return;
+        }
+
+        $orderId = (int)$orderId;
+        if ($orderId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid Order ID.'], 400);
+            return;
+        }
+
+        try {
+            $db = Database::getInstance()->getConnection();
+            
+            // Check if order exists
+            $stmt = $db->prepare("SELECT id, table_number, order_type, token_number FROM orders WHERE id = ?");
+            $stmt->execute([$orderId]);
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$order) {
+                $this->json(['success' => false, 'error' => 'Transaction order not found.'], 404);
+                return;
+            }
+
+            // Find bill details to refresh cashier session if applicable
+            $billStmt = $db->prepare("SELECT id, cashier_id, grand_total FROM bills WHERE order_id = ?");
+            $billStmt->execute([$orderId]);
+            $bill = $billStmt->fetch(PDO::FETCH_ASSOC);
+
+            $db->beginTransaction();
+
+            // 1. Fetch all KOTs for this order
+            $kotStmt = $db->prepare("SELECT id, kot_number FROM kots WHERE order_id = ?");
+            $kotStmt->execute([$orderId]);
+            $kots = $kotStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // 2. Restore any recipe inventory items deducted for these KOTs
+            foreach ($kots as $kot) {
+                $kotNumber = $kot['kot_number'];
+                $invStmt = $db->prepare("SELECT inventory_item_id, quantity FROM inventory_transactions WHERE reference_id = ? AND transaction_type = 'consume_kot'");
+                $invStmt->execute([$kotNumber]);
+                $consumedItems = $invStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($consumedItems as $c) {
+                    $restoreQty = abs((float)$c['quantity']);
+                    $restStock = $db->prepare("UPDATE inventory_items SET current_stock = current_stock + ? WHERE id = ?");
+                    $restStock->execute([$restoreQty, $c['inventory_item_id']]);
+                }
+
+                // Delete the inventory transactions for this KOT
+                $delInv = $db->prepare("DELETE FROM inventory_transactions WHERE reference_id = ? AND transaction_type = 'consume_kot'");
+                $delInv->execute([$kotNumber]);
+            }
+
+            // 3. Delete from bills
+            $db->prepare("DELETE FROM bills WHERE order_id = ?")->execute([$orderId]);
+
+            // 4. Delete from kot_items
+            foreach ($kots as $kot) {
+                $db->prepare("DELETE FROM kot_items WHERE kot_id = ?")->execute([$kot['id']]);
+            }
+
+            // 5. Delete from kots
+            $db->prepare("DELETE FROM kots WHERE order_id = ?")->execute([$orderId]);
+
+            // 6. Delete from orders
+            $db->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
+
+            $db->commit();
+
+            // 7. If cashier shift was open for this bill, refresh the active session totals
+            if (!empty($bill['cashier_id'])) {
+                require_once __DIR__ . '/../models/CounterSession.php';
+                $counterSessionModel = new CounterSession();
+                $activeSession = $counterSessionModel->getActiveSession($bill['cashier_id']);
+                if ($activeSession) {
+                    $counterSessionModel->refreshSessionTotals($activeSession['id']);
+                }
+            }
+
+            $orderRef = $order['token_number'] ? "Token {$order['token_number']} (Order #{$orderId})" : "Order #{$orderId}";
+            $this->json([
+                'success' => true,
+                'message' => "Transaction {$orderRef} has been successfully deleted! Shift and reports are updated."
+            ]);
+        } catch (Exception $e) {
+            if (isset($db) && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+    }
 }

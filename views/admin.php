@@ -1819,7 +1819,12 @@
                 </div>
 
                 <!-- Modal Actions -->
-                <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
+                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
+                    <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
+                        <button type="button" id="admin-modal-delete-btn" onclick="deleteCurrentModalTransaction()" style="background: #ef4444; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-right: auto; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
+                            <span>🗑️</span> Delete Transaction
+                        </button>
+                    <?php endif; ?>
                     <button type="button" class="modal-close" onclick="closeOrderDetailsModal()" style="margin-top: 0; padding: 10px 20px;">Close</button>
                     <button type="button" id="admin-modal-print-btn" class="btn-primary" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700;">
                         <span>🖨️</span> Print Receipt (Thermal)
@@ -2196,6 +2201,8 @@
     </div>
 
     <script>
+        const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
+
         function openSandsProductsModal() {
             closeSandsModal();
             document.getElementById('sands-products-modal').style.display = 'flex';
@@ -3092,9 +3099,16 @@
                     <td>${row.payment_method}</td>
                     <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${cur}</small></td>
                     <td style="text-align: center;">
-                        <button type="button" class="btn-action btn-print" onclick="viewOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
-                            <span>📋</span> Order Details
-                        </button>
+                        <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                            <button type="button" class="btn-action btn-print" onclick="viewOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <span>📋</span> Order Details
+                            </button>
+                            ${isSuperAdmin ? `
+                                <button type="button" class="btn-action" onclick="deleteTransaction(${row.order_id})" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);" title="Superadmin Only: Delete Transaction">
+                                    <span>🗑️</span> Delete
+                                </button>
+                            ` : ''}
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -3252,6 +3266,90 @@
             const rootPath = basePath.replace(/\/admin$/, '');
             const url = rootPath + '/print/order/' + orderId;
             window.open(url, '_blank', 'width=450,height=600,menubar=no,toolbar=no,location=no');
+        }
+
+        function deleteCurrentModalTransaction() {
+            if (currentAdminViewOrderId) {
+                deleteTransaction(currentAdminViewOrderId, true);
+            }
+        }
+
+        function deleteTransaction(orderId, fromModal = false) {
+            if (!isSuperAdmin) {
+                Swal.fire({
+                    title: 'Access Denied',
+                    text: 'Only Super Admin can delete transactions.',
+                    icon: 'error',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Delete Transaction #' + orderId + '?',
+                html: `
+                    <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: var(--text-color);">
+                        <p style="margin-bottom: 8px; color: #ef4444; font-weight: 700;">⚠️ This action is permanent and cannot be undone!</p>
+                        <p style="margin-bottom: 6px;">Once deleted, the following changes take effect:</p>
+                        <ul style="margin: 0 0 12px 20px; color: var(--text-muted); font-size: 13px;">
+                            <li><strong>Bill & Order</strong>: Completely removed from the database.</li>
+                            <li><strong>KOT Tickets</strong>: All associated kitchen tickets and items are cleared.</li>
+                            <li><strong>Cashier Shift Total</strong>: The amount is automatically deducted from active cash drawer collection totals.</li>
+                            <li><strong>Sales & Tax Reports</strong>: Transaction amount and VAT/GST are subtracted immediately.</li>
+                            <li><strong>Inventory Stock</strong>: Deducted recipe ingredients are automatically restored back to stock.</li>
+                            <li><strong>Dining Table</strong>: If occupied or in billing, table is freed to Available.</li>
+                        </ul>
+                        <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">Are you sure you want to proceed?</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Delete Transaction',
+                cancelButtonText: 'Cancel',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+                    const rootPath = basePath.replace(/\/admin$/, '');
+                    return fetch(rootPath + '/admin/transactions/delete/' + orderId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to delete transaction');
+                        }
+                        return data;
+                    })
+                    .catch(err => {
+                        Swal.showValidationMessage(`Delete failed: ${err.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.success) {
+                    Swal.fire({
+                        title: 'Deleted Successfully!',
+                        text: result.value.message || 'The transaction has been removed.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    if (fromModal) {
+                        closeOrderDetailsModal();
+                    }
+                    if (typeof loadTransactionsReport === 'function') {
+                        loadTransactionsReport();
+                    }
+                }
+            });
         }
 
         function loadTransactionsReport() {

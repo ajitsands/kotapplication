@@ -92,6 +92,7 @@ $router->add('GET', '/admin/waiter-performance/json', 'AdminController@waiterPer
 $router->add('POST', '/admin/printer/test', 'AdminController@testPrinter');
 $router->add('GET', '/admin/printer/test', 'AdminController@testPrinter');
 $router->add('POST', '/admin/clear-transactions', 'AdminController@clearTransactions');
+$router->add('POST', '/admin/transactions/delete/:id', 'AdminController@deleteSingleTransaction');
 $router->add('POST', '/admin/generate-demo-data', 'AdminController@generateDemoData');
 $router->add('GET', '/admin/generate-demo-data', function() {
     require_once __DIR__ . '/seed_demo_data.php';
