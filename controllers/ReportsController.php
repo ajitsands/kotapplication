@@ -273,9 +273,13 @@ class ReportsController extends Controller {
                     o.platform_order_number,
                     o.created_at,
                     o.table_number,
+                    o.cancellation_reason,
+                    o.cancelled_by,
+                    o.cancelled_at,
                     b.id as bill_id,
                     b.payment_method,
                     b.grand_total as bill_total,
+                    b.status as bill_status,
                     op.name as platform_name,
                     (SELECT COALESCE(SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) 
                      FROM kots k 
@@ -318,6 +322,13 @@ class ReportsController extends Controller {
                 $total = $sub + $tax;
             }
 
+            $isCancelled = (strtolower($row['order_status']) === 'cancelled');
+            $originalTotal = $total;
+            if ($isCancelled) {
+                // Cancelled bills do not contribute to net sales or collections
+                $total = 0.0;
+            }
+
             $details = 'N/A';
             if ($cat === 'online') {
                 $details = ($row['platform_name'] ?: 'Online') . ($row['platform_order_number'] ? ' #' . $row['platform_order_number'] : '');
@@ -337,6 +348,11 @@ class ReportsController extends Controller {
                 'created_at' => date('d M Y, h:i A', strtotime($row['created_at'])),
                 'status' => ucfirst($row['order_status']),
                 'total' => $total,
+                'original_total' => $originalTotal,
+                'is_cancelled' => $isCancelled,
+                'cancellation_reason' => $row['cancellation_reason'] ?? null,
+                'cancelled_by' => $row['cancelled_by'] ?? null,
+                'cancelled_at' => !empty($row['cancelled_at']) ? date('d M Y, h:i A', strtotime($row['cancelled_at'])) : null,
                 'payment_method' => $row['payment_method'] ? ucfirst(str_replace('_', ' ', $row['payment_method'])) : 'Pending',
                 'details' => $details,
                 'bill_id' => $row['bill_id'] ? (int)$row['bill_id'] : null

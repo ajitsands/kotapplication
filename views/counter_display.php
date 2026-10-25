@@ -1362,6 +1362,7 @@
                     <button class="counter-trans-tab-btn" data-cat="waiter_order" onclick="filterCounterTransactionsTab('waiter_order')">Waiter Orders</button>
                     <button class="counter-trans-tab-btn" data-cat="takeaway" onclick="filterCounterTransactionsTab('takeaway')">Takeaway</button>
                     <button class="counter-trans-tab-btn" data-cat="online" onclick="filterCounterTransactionsTab('online')">Online Orders</button>
+                    <button class="counter-trans-tab-btn" data-cat="cancelled" onclick="filterCounterTransactionsTab('cancelled')" style="color: #ef4444;">🚫 Cancelled Orders <span id="counter-cancelled-badge" style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 2px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px; font-weight: 700;">0</span></button>
                 </div>
 
                 <style>
@@ -1605,6 +1606,7 @@
         let counterProducts = [];
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
+        const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin') ? 'true' : 'false' ?>;
 
         function toggleQrDropdown(e) {
             if (e) e.stopPropagation();
@@ -4050,7 +4052,19 @@
             const tbody = document.getElementById('counter-transactions-table-body');
             tbody.innerHTML = '';
 
-            const filteredData = currentCounterTransData.filter(t => currentCounterTransCat === 'all' || t.category === currentCounterTransCat);
+            // Update cancelled count badge
+            const cancelledCount = currentCounterTransData.filter(t => t.is_cancelled || (t.status || '').toLowerCase() === 'cancelled').length;
+            const badgeEl = document.getElementById('counter-cancelled-badge');
+            if (badgeEl) badgeEl.innerText = cancelledCount;
+
+            let filteredData = [];
+            if (currentCounterTransCat === 'cancelled') {
+                filteredData = currentCounterTransData.filter(t => t.is_cancelled || (t.status || '').toLowerCase() === 'cancelled');
+            } else if (currentCounterTransCat === 'all') {
+                filteredData = currentCounterTransData.filter(t => !t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled');
+            } else {
+                filteredData = currentCounterTransData.filter(t => (!t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled') && t.category === currentCounterTransCat);
+            }
 
             let totalSum = 0;
 
@@ -4064,9 +4078,24 @@
 
                 let statusBadge = 'secondary';
                 const st = (row.status || '').toLowerCase();
+                const isCancelled = row.is_cancelled || st === 'cancelled';
                 if(st === 'completed') statusBadge = 'success';
-                else if(st === 'cancelled') statusBadge = 'danger';
+                else if(isCancelled) statusBadge = 'danger';
                 else if(st === 'active') statusBadge = 'warning';
+
+                let detailsHtml = escapeHtml(row.details || '');
+                if (isCancelled) {
+                    const by = row.cancelled_by ? `Cancelled By: <strong>${escapeHtml(row.cancelled_by)}</strong>` : 'Cancelled By: Admin';
+                    const reason = row.cancellation_reason ? `<div style="font-size:11.5px; color:#ef4444; margin-top:2px;">📝 Reason: <em>${escapeHtml(row.cancellation_reason)}</em></div>` : '';
+                    const at = row.cancelled_at ? `<div style="font-size:10.5px; color:var(--text-muted); margin-top:1px;">🕒 ${row.cancelled_at}</div>` : '';
+                    detailsHtml += `<div style="margin-top: 5px; padding: 4px 8px; background: rgba(239,68,68,0.08); border-radius: 6px; border: 1px dashed rgba(239,68,68,0.25); font-size: 11.5px;">${by}${reason}${at}</div>`;
+                }
+
+                let amountDisplay = `${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small>`;
+                if (isCancelled) {
+                    const orig = parseFloat(row.original_total || 0);
+                    amountDisplay = `<div style="text-align: right;"><span style="color:#ef4444; text-decoration:line-through; font-size:11px; margin-right:4px;">${orig.toFixed(window.PRICE_DECIMALS || 3)}</span><span style="font-weight:700; color:var(--text-muted);">0.000</span> <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small></div>`;
+                }
 
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid var(--card-border)';
@@ -4074,15 +4103,20 @@
                     <td style="padding: 12px 10px; font-weight:600;">#${row.order_id}</td>
                     <td style="padding: 12px 10px;">${row.created_at}</td>
                     <td style="padding: 12px 10px;"><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
-                    <td style="padding: 12px 10px;">${escapeHtml(row.details || '')}</td>
-                    <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${row.status || 'Unknown'}</span></td>
+                    <td style="padding: 12px 10px;">${detailsHtml}</td>
+                    <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${isCancelled ? 'CANCELLED' : (row.status || 'Unknown')}</span></td>
                     <td style="padding: 12px 10px;">${escapeHtml(row.payment_method || 'Pending')}</td>
-                    <td class="price-text" style="font-weight:700; text-align:right; padding: 12px 10px;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small></td>
+                    <td class="price-text" style="font-weight:700; text-align:right; padding: 12px 10px;">${amountDisplay}</td>
                     <td style="text-align: center; padding: 12px 10px;">
                         <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap;">
                             <button type="button" class="btn-action btn-print" onclick="viewCounterOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
                                 <span>📋</span> Order Details
                             </button>
+                            ${(!isCancelled && canCancel) ? `
+                                <button type="button" class="btn-action" onclick="cancelCounterTransaction(${row.order_id})" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Admin / Superadmin: Cancel Transaction">
+                                    <span>🚫</span> Cancel
+                                </button>
+                            ` : ''}
                             ${isSuperAdmin ? `
                                 <button type="button" class="btn-action" onclick="deleteCounterTransaction(${row.order_id})" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);" title="Superadmin Only: Delete Transaction">
                                     <span>🗑️</span> Delete
@@ -4236,6 +4270,15 @@
                         </div>
                     `;
 
+                    const cancelBtn = document.getElementById('counter-modal-cancel-btn');
+                    if (cancelBtn) {
+                        if ((o.status || '').toLowerCase() === 'cancelled') {
+                            cancelBtn.style.display = 'none';
+                        } else {
+                            cancelBtn.style.display = 'inline-flex';
+                        }
+                    }
+
                     document.getElementById('counter-modal-print-btn').onclick = function() {
                         printOrderReceipt(o.id);
                     };
@@ -4246,6 +4289,94 @@
                     console.error('Error fetching order details:', err);
                     Swal.fire({ title: 'Error', text: 'An unexpected error occurred while loading order details.', icon: 'error' });
                 });
+        }
+
+        function cancelCurrentCounterModalTransaction() {
+            if (currentCounterViewOrderId) {
+                cancelCounterTransaction(currentCounterViewOrderId, true);
+            }
+        }
+
+        function cancelCounterTransaction(orderId, fromModal = false) {
+            if (!canCancel) {
+                Swal.fire({
+                    title: 'Access Denied',
+                    text: 'Only Admins and Super Admin can cancel transactions.',
+                    icon: 'error',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Cancel Transaction #' + orderId + '?',
+                text: 'Please provide a reason or note for cancelling this transaction:',
+                input: 'textarea',
+                inputPlaceholder: 'Enter cancellation note / reason (e.g., Customer cancelled, Wrong items entered, etc.)...',
+                inputAttributes: {
+                    'rows': 3,
+                    'style': 'width: 100%; box-sizing: border-box; font-size: 13.5px; border-radius: 8px;'
+                },
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Cancellation note / reason is required!';
+                    }
+                },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Cancel Order',
+                cancelButtonText: 'Abort',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                showLoaderOnConfirm: true,
+                preConfirm: (reason) => {
+                    return fetch(rootPath + '/counter/transactions/cancel/' + orderId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reason: reason.trim() })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to cancel transaction');
+                        }
+                        return data;
+                    })
+                    .catch(err => {
+                        Swal.showValidationMessage(`Cancellation failed: ${err.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.success) {
+                    Swal.fire({
+                        title: 'Cancelled Successfully!',
+                        html: `
+                            <div style="font-size: 13.5px; color: var(--text-color); line-height: 1.6;">
+                                <p style="margin-bottom: 6px;">Order <strong>#${orderId}</strong> has been cancelled.</p>
+                                <p style="margin: 0; color: var(--text-muted); font-size: 12.5px;">Cancelled by: <strong>${escapeHtml(result.value.cancelled_by || 'Admin')}</strong></p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        timer: 2500,
+                        showConfirmButton: false,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    if (fromModal) {
+                        closeCounterOrderDetailsModal();
+                    }
+                    if (typeof loadCounterTransactionsReport === 'function') {
+                        loadCounterTransactionsReport();
+                    }
+                    if (typeof fetchBills === 'function') {
+                        fetchBills();
+                    }
+                }
+            });
         }
 
         function deleteCurrentCounterModalTransaction() {
@@ -4481,11 +4612,18 @@
 
             <!-- Modal Actions -->
             <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
-                <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
-                    <button type="button" id="counter-modal-delete-btn" onclick="deleteCurrentCounterModalTransaction()" style="background: #ef4444; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-right: auto; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
-                        <span>🗑️</span> Delete Transaction
-                    </button>
-                <?php endif; ?>
+                <div style="margin-right: auto; display: flex; gap: 8px;">
+                    <?php if (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin'): ?>
+                        <button type="button" id="counter-modal-cancel-btn" onclick="cancelCurrentCounterModalTransaction()" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>🚫</span> Cancel Order
+                        </button>
+                    <?php endif; ?>
+                    <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
+                        <button type="button" id="counter-modal-delete-btn" onclick="deleteCurrentCounterModalTransaction()" style="background: #ef4444; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
+                            <span>🗑️</span> Delete Transaction
+                        </button>
+                    <?php endif; ?>
+                </div>
                 <button type="button" class="modal-close" onclick="closeCounterOrderDetailsModal()" style="margin-top: 0; padding: 10px 20px;">Close</button>
                 <button type="button" id="counter-modal-print-btn" class="btn-pay" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--primary-grad); color: white; border: none; border-radius: 10px; cursor: pointer;">
                     <span>🖨️</span> Print Receipt (Thermal)

@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `customer_name` VARCHAR(100) DEFAULT NULL,
     `customer_mobile` VARCHAR(20) DEFAULT NULL,
     `token_number` VARCHAR(10) DEFAULT NULL,
+    `cancellation_reason` VARCHAR(255) DEFAULT NULL,
+    `cancelled_by` VARCHAR(100) DEFAULT NULL,
+    `cancelled_at` TIMESTAMP NULL DEFAULT NULL,
     `waiter_id` INT DEFAULT NULL, -- Logged in waiter who started order
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -142,7 +145,7 @@ CREATE TABLE IF NOT EXISTS `bills` (
     `discount_amount` DECIMAL(10,3) DEFAULT 0.000,
     `grand_total` DECIMAL(10,3) NOT NULL,
     `payment_method` ENUM('cash', 'card', 'qr_pay') DEFAULT NULL,
-    `status` ENUM('pending', 'paid') DEFAULT 'pending',
+    `status` ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending',
     `cashier_id` INT DEFAULT NULL,
     `customer_id` INT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

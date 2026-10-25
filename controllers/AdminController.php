@@ -545,4 +545,133 @@ class AdminController extends Controller {
             $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Cancel a single transaction with audit tracking (note & user recorded, shift & stock updated)
+     * Authorized for Admin and Superadmin
+     */
+    public function cancelSingleTransaction($params) {
+        $orderId = is_array($params) ? (int)($params['id'] ?? $params['orderId'] ?? 0) : (int)$params;
+        if ($orderId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid Order ID.'], 400);
+            return;
+        }
+
+        try {
+            $db = Database::getInstance()->getConnection();
+
+            $sessionUser = $_SESSION['username'] ?? '';
+            $sessionRole = $_SESSION['role'] ?? '';
+            // Only admin and superadmin are authorized
+            if ($sessionUser !== 'superadmin' && $sessionRole !== 'admin') {
+                $this->json(['success' => false, 'error' => 'Unauthorized. Admin or Super Admin privilege required to cancel transactions.'], 403);
+                return;
+            }
+
+            // Read JSON input or POST for reason
+            $input = json_decode(file_get_contents('php://input'), true);
+            $reason = trim($input['reason'] ?? $_POST['reason'] ?? 'Cancelled by Admin');
+            if (empty($reason)) {
+                $reason = 'Cancelled by Admin';
+            }
+
+            $cancelledBy = $_SESSION['name'] ?? $_SESSION['username'] ?? 'Admin';
+
+            // Auto-heal schema if columns are not present yet
+            try {
+                $cols = $db->query("SHOW COLUMNS FROM orders LIKE 'cancellation_reason'")->fetchAll();
+                if (empty($cols)) {
+                    $db->exec("ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255) NULL DEFAULT NULL AFTER token_number");
+                    $db->exec("ALTER TABLE orders ADD COLUMN cancelled_by VARCHAR(100) NULL DEFAULT NULL AFTER cancellation_reason");
+                    $db->exec("ALTER TABLE orders ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL AFTER cancelled_by");
+                    $db->exec("ALTER TABLE bills MODIFY status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending'");
+                }
+            } catch (Exception $e) {}
+
+            // Check if order exists
+            $stmt = $db->prepare("SELECT id, table_number, order_type, token_number, status FROM orders WHERE id = ?");
+            $stmt->execute([$orderId]);
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$order) {
+                $this->json(['success' => false, 'error' => 'Transaction order not found.'], 404);
+                return;
+            }
+
+            if ($order['status'] === 'cancelled') {
+                $this->json(['success' => true, 'message' => "Order #{$orderId} is already cancelled."]);
+                return;
+            }
+
+            // Find bill details to refresh cashier session if applicable
+            $billStmt = $db->prepare("SELECT id, cashier_id, grand_total, status FROM bills WHERE order_id = ?");
+            $billStmt->execute([$orderId]);
+            $bill = $billStmt->fetch(PDO::FETCH_ASSOC);
+
+            // Fetch all KOTs for this order
+            $kotStmt = $db->prepare("SELECT id, kot_number FROM kots WHERE order_id = ?");
+            $kotStmt->execute([$orderId]);
+            $kots = $kotStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $db->beginTransaction();
+
+            // 1. Restore any recipe inventory items deducted for these KOTs
+            foreach ($kots as $kot) {
+                $kotNumber = $kot['kot_number'];
+                $invStmt = $db->prepare("SELECT inventory_item_id, quantity FROM inventory_transactions WHERE reference_id = ? AND transaction_type = 'consume_kot'");
+                $invStmt->execute([$kotNumber]);
+                $consumedItems = $invStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($consumedItems as $c) {
+                    $restoreQty = abs((float)$c['quantity']);
+                    $restStock = $db->prepare("UPDATE inventory_items SET current_stock = current_stock + ? WHERE id = ?");
+                    $restStock->execute([$restoreQty, $c['inventory_item_id']]);
+                }
+
+                // Delete the inventory transactions for this KOT
+                $delInv = $db->prepare("DELETE FROM inventory_transactions WHERE reference_id = ? AND transaction_type = 'consume_kot'");
+                $delInv->execute([$kotNumber]);
+            }
+
+            // 2. Mark bills as cancelled
+            $db->prepare("UPDATE bills SET status = 'cancelled' WHERE order_id = ?")->execute([$orderId]);
+
+            // 3. Mark kot_items as cancelled
+            foreach ($kots as $kot) {
+                $db->prepare("UPDATE kot_items SET status = 'cancelled' WHERE kot_id = ?")->execute([$kot['id']]);
+            }
+
+            // 4. Mark kots as cancelled
+            $db->prepare("UPDATE kots SET status = 'cancelled' WHERE order_id = ?")->execute([$orderId]);
+
+            // 5. Mark order as cancelled with reason, cancelled_by, and timestamp
+            $db->prepare("UPDATE orders SET status = 'cancelled', cancellation_reason = ?, cancelled_by = ?, cancelled_at = NOW() WHERE id = ?")
+               ->execute([$reason, $cancelledBy, $orderId]);
+
+            $db->commit();
+
+            // 6. If cashier shift was open for this bill, refresh the active session totals
+            if (!empty($bill['cashier_id'])) {
+                require_once __DIR__ . '/../models/CounterSession.php';
+                $counterSessionModel = new CounterSession();
+                $activeSession = $counterSessionModel->getActiveSession($bill['cashier_id']);
+                if ($activeSession) {
+                    $counterSessionModel->refreshSessionTotals($activeSession['id']);
+                }
+            }
+
+            $orderRef = (!empty($order['token_number'])) ? "Token {$order['token_number']} (Order #{$orderId})" : "Order #{$orderId}";
+            $this->json([
+                'success' => true,
+                'cancelled_by' => $cancelledBy,
+                'cancellation_reason' => $reason,
+                'message' => "Transaction {$orderRef} has been cancelled and moved to Cancelled Orders tab. Reason: \"{$reason}\"."
+            ]);
+        } catch (Exception $e) {
+            if (isset($db) && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+    }
 }
