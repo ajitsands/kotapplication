@@ -221,8 +221,12 @@ class HomeController extends Controller {
     }
 
     public function customerView($params) {
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+
         $tableNumber = (int)($params['table'] ?? 0);
-        $isTakeaway = isset($_GET['takeaway']) && $_GET['takeaway'] == '1';
+        $isTakeaway = ($tableNumber === 0) || (isset($_GET['takeaway']) && $_GET['takeaway'] == '1');
         
         if (!$isTakeaway && ($tableNumber <= 0 || $tableNumber > 20)) {
             echo "<h1>Invalid Table</h1>";
@@ -255,6 +259,10 @@ class HomeController extends Controller {
     }
 
     public function takeawayView() {
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
         $this->render('takeaway_register', ['settings' => $settings]);
