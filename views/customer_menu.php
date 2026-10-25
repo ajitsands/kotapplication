@@ -993,7 +993,7 @@
 
         // Fetch products via AJAX JSON
         function loadProducts() {
-            fetch('../api/products')
+            fetch('/api/products')
                 .then(res => res.json())
                 .then(data => {
                     products = data;
@@ -1135,10 +1135,20 @@
             const itemsList = Object.values(cart);
             if (itemsList.length === 0) return;
 
+            const submitBtn = document.getElementById('btn-place-order');
+            const originalBtnText = submitBtn ? submitBtn.innerText : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = isTakeaway ? '⏳ Sending to Billing...' : '⏳ Sending to Kitchen...';
+            }
+
             // Submit order via API
-            fetch('../api/orders', {
+            fetch('/api/orders', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({
                     table_number: tableNumber,
                     order_type: isTakeaway ? 'take_away' : 'dine_in',
@@ -1147,9 +1157,20 @@
                     items: itemsList
                 })
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
+            .then(async res => {
+                let data;
+                try {
+                    data = await res.json();
+                } catch (parseErr) {
+                    throw new Error(res.ok ? 'Invalid response from server' : `Server error (${res.status})`);
+                }
+
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
+                }
+
+                if (res.ok && data.success) {
                     closeReviewModal();
                     
                     if (isTakeaway && data.token_number) {
@@ -1174,9 +1195,30 @@
                         const id = parseInt(div.id.replace('control-', ''));
                         div.innerHTML = `<button class="btn-add" onclick="location.reload()">Add</button>`;
                     });
+                } else {
+                    Swal.fire({
+                        title: 'Order Failed',
+                        text: data?.error || 'Failed to place order. Please try again.',
+                        icon: 'error',
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
                 }
             })
-            .catch(err => console.error('Error placing order:', err));
+            .catch(err => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
+                }
+                console.error('Error placing order:', err);
+                Swal.fire({
+                    title: 'Network / Connection Error',
+                    text: 'Unable to communicate with server over mobile network. Please check your data connection and tap Place Order again.',
+                    icon: 'warning',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+            });
         }
 
         function dismissSuccess() {
@@ -1290,10 +1332,10 @@
         }
 
         function checkActiveOrderStatus() {
-            let url = '../api/orders/active/' + tableNumber;
+            let url = '/api/orders/active/' + tableNumber;
             if (isTakeaway) {
                 if (!takeawayMobile) return;
-                url = '../api/orders/mobile/' + encodeURIComponent(takeawayMobile);
+                url = '/api/orders/mobile/' + encodeURIComponent(takeawayMobile);
             }
             
             fetch(url)
@@ -1721,7 +1763,7 @@
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    fetch('../api/orders/close/' + orderId, { method: 'POST' })
+                    fetch('/api/orders/close/' + orderId, { method: 'POST' })
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
@@ -1753,7 +1795,7 @@
                 color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    fetch('../api/orders/cancel/' + orderId, { method: 'POST' })
+                    fetch('/api/orders/cancel/' + orderId, { method: 'POST' })
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
@@ -1781,7 +1823,7 @@
         }
 
         function confirmItemReceived(orderId) {
-            fetch('../api/orders/received/' + orderId, { method: 'POST' })
+            fetch('/api/orders/received/' + orderId, { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {

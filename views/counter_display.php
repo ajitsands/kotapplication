@@ -1675,14 +1675,14 @@
                 groups[tbl].push(bill);
             });
 
-            // Sort table numbers numerically (TW- items will go to the end/start depending on parseInt, let's keep it simple)
+            // Sort table numbers: Put Take Away and Online orders at the TOP so Cashier sees them immediately
             const sortedTables = Object.keys(groups).sort((a, b) => {
                 if (a.startsWith('TW-') && b.startsWith('TW-')) {
-                    return a.localeCompare(b);
+                    return b.localeCompare(a); // Most recent token first
                 } else if (a.startsWith('TW-')) {
-                    return 1;
+                    return -1; // Take Away at the TOP
                 } else if (b.startsWith('TW-')) {
-                    return -1;
+                    return 1;
                 }
                 return parseInt(a) - parseInt(b);
             });
