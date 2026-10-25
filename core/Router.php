@@ -1,13 +1,15 @@
 <?php
 
-class Router {
+class Router
+{
     protected $routes = [];
 
-    public function add($method, $path, $handler) {
+    public function add($method, $path, $handler)
+    {
         // Convert route like /api/orders/:id to a regular expression
         $route = preg_replace('/:([a-zA-Z0-9_]+)/', '(?P<$1>[^/]+)', $path);
         $route = '#^' . $route . '$#';
-        
+
         $this->routes[] = [
             'method' => strtoupper($method),
             'route' => $route,
@@ -15,7 +17,8 @@ class Router {
         ];
     }
 
-    public function handle($requestUri, $requestMethod) {
+    public function handle($requestUri, $requestMethod)
+    {
         $parsedUrl = parse_url($requestUri);
         $path = $parsedUrl['path'] ?? '/';
 
@@ -106,20 +109,20 @@ class Router {
             }
             $mimes = [
                 'html' => 'text/html; charset=utf-8',
-                'css'  => 'text/css; charset=utf-8',
-                'js'   => 'application/javascript; charset=utf-8',
-                'mjs'  => 'application/javascript; charset=utf-8',
+                'css' => 'text/css; charset=utf-8',
+                'js' => 'application/javascript; charset=utf-8',
+                'mjs' => 'application/javascript; charset=utf-8',
                 'json' => 'application/json',
-                'png'  => 'image/png',
-                'jpg'  => 'image/jpeg',
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
                 'jpeg' => 'image/jpeg',
-                'gif'  => 'image/gif',
-                'svg'  => 'image/svg+xml',
-                'ico'  => 'image/x-icon',
-                'apk'  => 'application/vnd.android.package-archive',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+                'ico' => 'image/x-icon',
+                'apk' => 'application/vnd.android.package-archive',
                 'woff' => 'font/woff',
-                'woff2'=> 'font/woff2',
-                'ttf'  => 'font/ttf'
+                'woff2' => 'font/woff2',
+                'ttf' => 'font/ttf'
             ];
             $mime = $mimes[$ext] ?? 'application/octet-stream';
             header('Content-Type: ' . $mime);
@@ -142,7 +145,8 @@ class Router {
         }
     }
 
-    protected function execute($handler, $params) {
+    protected function execute($handler, $params)
+    {
         if (is_callable($handler)) {
             return call_user_func_array($handler, [$params]);
         }
