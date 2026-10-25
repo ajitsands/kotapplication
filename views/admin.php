@@ -2201,7 +2201,7 @@
     </div>
 
     <script>
-        const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin' || ($_SESSION['username'] ?? '') === 'admin' || ($_SESSION['user_role'] ?? '') === 'admin') ? 'true' : 'false' ?>;
+        const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
 
         function openSandsProductsModal() {
             closeSandsModal();

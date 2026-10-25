@@ -456,34 +456,9 @@ class AdminController extends Controller {
         try {
             $db = Database::getInstance()->getConnection();
 
-            $isAuthorized = false;
             $sessionUser = $_SESSION['username'] ?? '';
-            $sessionRole = $_SESSION['user_role'] ?? '';
-
-            if ($sessionUser === 'superadmin' || $sessionUser === 'admin' || $sessionRole === 'admin') {
-                $isAuthorized = true;
-            }
-
-            // If not authorized by session, check for superadmin / admin password in request payload
-            if (!$isAuthorized) {
-                $rawInput = file_get_contents('php://input');
-                $input = json_decode($rawInput, true) ?: [];
-                $authPassword = $input['admin_password'] ?? '';
-
-                if (!empty($authPassword)) {
-                    $adminUsersStmt = $db->query("SELECT id, username, password FROM users WHERE username IN ('superadmin', 'admin') AND is_active = 1");
-                    $adminUsers = $adminUsersStmt->fetchAll(PDO::FETCH_ASSOC);
-                    foreach ($adminUsers as $adminUser) {
-                        if (password_verify($authPassword, $adminUser['password'])) {
-                            $isAuthorized = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!$isAuthorized) {
-                $this->json(['success' => false, 'error' => 'Unauthorized. Super Admin or Administrator authorization required.'], 403);
+            if ($sessionUser !== 'superadmin') {
+                $this->json(['success' => false, 'error' => 'Unauthorized. Super Admin privilege required.'], 403);
                 return;
             }
             

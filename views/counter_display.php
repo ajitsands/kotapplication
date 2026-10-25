@@ -1604,7 +1604,7 @@
         let currentOpenOrderId = null;
         let counterProducts = [];
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
-        const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin' || ($_SESSION['username'] ?? '') === 'admin' || ($_SESSION['user_role'] ?? '') === 'admin') ? 'true' : 'false' ?>;
+        const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
 
         function toggleQrDropdown(e) {
             if (e) e.stopPropagation();
@@ -4082,9 +4082,11 @@
                             <button type="button" class="btn-action btn-print" onclick="viewCounterOrderDetails(${row.order_id})" style="padding: 6px 12px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
                                 <span>📋</span> Order Details
                             </button>
-                            <button type="button" class="btn-action" onclick="deleteCounterTransaction(${row.order_id})" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);" title="Delete Transaction (Super Admin Authorization)">
-                                <span>🗑️</span> Delete
-                            </button>
+                            ${isSuperAdmin ? `
+                                <button type="button" class="btn-action" onclick="deleteCounterTransaction(${row.order_id})" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);" title="Superadmin Only: Delete Transaction">
+                                    <span>🗑️</span> Delete
+                                </button>
+                            ` : ''}
                         </div>
                     </td>
                 `;
@@ -4250,103 +4252,80 @@
         }
 
         function deleteCounterTransaction(orderId, fromModal = false) {
-            const executeDeletion = (authPassword = '') => {
+            if (!isSuperAdmin) {
                 Swal.fire({
-                    title: 'Delete Transaction #' + orderId + '?',
-                    html: `
-                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: var(--text-color);">
-                            <p style="margin-bottom: 8px; color: #ef4444; font-weight: 700;">⚠️ This action will permanently remove this transaction!</p>
-                            <ul style="margin: 0 0 12px 20px; color: var(--text-muted); font-size: 13px;">
-                                <li>The Bill and Order will be erased from the database.</li>
-                                <li>Associated KOT kitchen tickets will be removed.</li>
-                                <li>Cashier shift total will be automatically updated.</li>
-                                <li>Sales reports and VAT/Tax reports will be recalculated.</li>
-                            </ul>
-                            <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">Confirm deletion of Transaction #${orderId}?</p>
-                        </div>
-                    `,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#4b5563',
-                    confirmButtonText: 'Yes, Delete',
-                    cancelButtonText: 'Cancel',
+                    title: 'Access Denied',
+                    text: 'Only Super Admin can delete transactions.',
+                    icon: 'error',
                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
-                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
-                    showLoaderOnConfirm: true,
-                    preConfirm: () => {
-                        return fetch(rootPath + '/counter/transactions/delete/' + orderId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ admin_password: authPassword })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (!data.success) {
-                                throw new Error(data.error || 'Failed to delete transaction');
-                            }
-                            return data;
-                        })
-                        .catch(err => {
-                            Swal.showValidationMessage(`Delete failed: ${err.message}`);
-                        });
-                    },
-                    allowOutsideClick: () => !Swal.isLoading()
-                }).then((result) => {
-                    if (result.isConfirmed && result.value && result.value.success) {
-                        Swal.fire({
-                            title: 'Deleted Successfully!',
-                            text: result.value.message || 'Transaction removed and shift updated.',
-                            icon: 'success',
-                            timer: 2000,
-                            showConfirmButton: false,
-                            background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
-                            color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
-                        });
-                        if (fromModal) {
-                            closeCounterOrderDetailsModal();
-                        }
-                        if (typeof loadCounterTransactionsReport === 'function') {
-                            loadCounterTransactionsReport();
-                        }
-                        if (typeof fetchBills === 'function') {
-                            fetchBills();
-                        }
-                    }
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
                 });
-            };
-
-            // If logged in as admin/superadmin, execute directly
-            if (typeof isSuperAdmin !== 'undefined' && isSuperAdmin) {
-                executeDeletion('');
-            } else {
-                // If cashier, prompt for Super Admin password
-                Swal.fire({
-                    title: '🔐 Super Admin Required',
-                    text: 'Please enter Super Admin password to delete Transaction #' + orderId + ':',
-                    input: 'password',
-                    inputPlaceholder: 'Enter Super Admin Password',
-                    inputAttributes: {
-                        autocapitalize: 'off',
-                        autocorrect: 'off'
-                    },
-                    showCancelButton: true,
-                    confirmButtonText: 'Authorize & Continue',
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#4b5563',
-                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
-                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Super Admin password is required to delete transactions!';
-                        }
-                    }
-                }).then((pwdResult) => {
-                    if (pwdResult.isConfirmed && pwdResult.value) {
-                        executeDeletion(pwdResult.value);
-                    }
-                });
+                return;
             }
+
+            Swal.fire({
+                title: 'Delete Transaction #' + orderId + '?',
+                html: `
+                    <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: var(--text-color);">
+                        <p style="margin-bottom: 8px; color: #ef4444; font-weight: 700;">⚠️ This action will permanently remove this transaction!</p>
+                        <ul style="margin: 0 0 12px 20px; color: var(--text-muted); font-size: 13px;">
+                            <li>The Bill and Order will be erased from the database.</li>
+                            <li>Associated KOT kitchen tickets will be removed.</li>
+                            <li>Cashier shift total will be automatically updated.</li>
+                            <li>Sales reports and VAT/Tax reports will be recalculated.</li>
+                            <li>Inventory ingredients will be restored back to stock.</li>
+                        </ul>
+                        <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">Confirm deletion of Transaction #${orderId}?</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, Delete',
+                cancelButtonText: 'Cancel',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return fetch(rootPath + '/counter/transactions/delete/' + orderId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.error || 'Failed to delete transaction');
+                        }
+                        return data;
+                    })
+                    .catch(err => {
+                        Swal.showValidationMessage(`Delete failed: ${err.message}`);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value && result.value.success) {
+                    Swal.fire({
+                        title: 'Deleted Successfully!',
+                        text: result.value.message || 'Transaction removed and shift updated.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    if (fromModal) {
+                        closeCounterOrderDetailsModal();
+                    }
+                    if (typeof loadCounterTransactionsReport === 'function') {
+                        loadCounterTransactionsReport();
+                    }
+                    if (typeof fetchBills === 'function') {
+                        fetchBills();
+                    }
+                }
+            });
         }
 
         function closeCounterOrderDetailsModal() {
@@ -4494,9 +4473,11 @@
 
             <!-- Modal Actions -->
             <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
-                <button type="button" id="counter-modal-delete-btn" onclick="deleteCurrentCounterModalTransaction()" style="background: #ef4444; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-right: auto; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
-                    <span>🗑️</span> Delete Transaction
-                </button>
+                <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
+                    <button type="button" id="counter-modal-delete-btn" onclick="deleteCurrentCounterModalTransaction()" style="background: #ef4444; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-right: auto; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
+                        <span>🗑️</span> Delete Transaction
+                    </button>
+                <?php endif; ?>
                 <button type="button" class="modal-close" onclick="closeCounterOrderDetailsModal()" style="margin-top: 0; padding: 10px 20px;">Close</button>
                 <button type="button" id="counter-modal-print-btn" class="btn-pay" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--primary-grad); color: white; border: none; border-radius: 10px; cursor: pointer;">
                     <span>🖨️</span> Print Receipt (Thermal)
