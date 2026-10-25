@@ -467,24 +467,28 @@ class AdminController extends Controller {
             $stmt->execute([$orderId]);
             $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$order) {
-                $this->json(['success' => false, 'error' => 'Transaction order not found.'], 404);
-                return;
-            }
-
             // Find bill details to refresh cashier session if applicable
             $billStmt = $db->prepare("SELECT id, cashier_id, grand_total FROM bills WHERE order_id = ?");
             $billStmt->execute([$orderId]);
             $bill = $billStmt->fetch(PDO::FETCH_ASSOC);
 
-            $db->beginTransaction();
-
-            // 1. Fetch all KOTs for this order
+            // Fetch all KOTs for this order
             $kotStmt = $db->prepare("SELECT id, kot_number FROM kots WHERE order_id = ?");
             $kotStmt->execute([$orderId]);
             $kots = $kotStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // 2. Restore any recipe inventory items deducted for these KOTs
+            if (!$order && !$bill && empty($kots)) {
+                // The transaction was already removed from the database
+                $this->json([
+                    'success' => true,
+                    'message' => "Transaction #{$orderId} was already removed from the database."
+                ]);
+                return;
+            }
+
+            $db->beginTransaction();
+
+            // 1. Restore any recipe inventory items deducted for these KOTs
             foreach ($kots as $kot) {
                 $kotNumber = $kot['kot_number'];
                 $invStmt = $db->prepare("SELECT inventory_item_id, quantity FROM inventory_transactions WHERE reference_id = ? AND transaction_type = 'consume_kot'");
@@ -502,23 +506,23 @@ class AdminController extends Controller {
                 $delInv->execute([$kotNumber]);
             }
 
-            // 3. Delete from bills
+            // 2. Delete from bills
             $db->prepare("DELETE FROM bills WHERE order_id = ?")->execute([$orderId]);
 
-            // 4. Delete from kot_items
+            // 3. Delete from kot_items
             foreach ($kots as $kot) {
                 $db->prepare("DELETE FROM kot_items WHERE kot_id = ?")->execute([$kot['id']]);
             }
 
-            // 5. Delete from kots
+            // 4. Delete from kots
             $db->prepare("DELETE FROM kots WHERE order_id = ?")->execute([$orderId]);
 
-            // 6. Delete from orders
+            // 5. Delete from orders
             $db->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
 
             $db->commit();
 
-            // 7. If cashier shift was open for this bill, refresh the active session totals
+            // 6. If cashier shift was open for this bill, refresh the active session totals
             if (!empty($bill['cashier_id'])) {
                 require_once __DIR__ . '/../models/CounterSession.php';
                 $counterSessionModel = new CounterSession();
@@ -528,7 +532,7 @@ class AdminController extends Controller {
                 }
             }
 
-            $orderRef = $order['token_number'] ? "Token {$order['token_number']} (Order #{$orderId})" : "Order #{$orderId}";
+            $orderRef = (!empty($order) && !empty($order['token_number'])) ? "Token {$order['token_number']} (Order #{$orderId})" : "Order #{$orderId}";
             $this->json([
                 'success' => true,
                 'message' => "Transaction {$orderRef} has been successfully deleted! Shift and reports are updated."

@@ -3085,18 +3085,19 @@
                 else if(row.category === 'self_order') badgeClass = 'primary';
 
                 let statusBadge = 'secondary';
-                if(row.status.toLowerCase() === 'completed') statusBadge = 'success';
-                else if(row.status.toLowerCase() === 'cancelled') statusBadge = 'danger';
-                else if(row.status.toLowerCase() === 'active') statusBadge = 'warning';
+                const st = (row.status || '').toLowerCase();
+                if(st === 'completed') statusBadge = 'success';
+                else if(st === 'cancelled') statusBadge = 'danger';
+                else if(st === 'active') statusBadge = 'warning';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>#${row.order_id}</td>
                     <td>${row.created_at}</td>
-                    <td><span class="badge ${badgeClass}">${row.order_type.replace('_', ' ').toUpperCase()}</span></td>
-                    <td>${row.details}</td>
-                    <td><span class="badge ${statusBadge}">${row.status}</span></td>
-                    <td>${row.payment_method}</td>
+                    <td><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
+                    <td>${row.details || ''}</td>
+                    <td><span class="badge ${statusBadge}">${row.status || 'Unknown'}</span></td>
+                    <td>${row.payment_method || 'Pending'}</td>
                     <td class="price-text" style="font-weight:600; text-align:right;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${cur}</small></td>
                     <td style="text-align: center;">
                         <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap;">
@@ -3333,6 +3334,11 @@
                 allowOutsideClick: () => !Swal.isLoading()
             }).then((result) => {
                 if (result.isConfirmed && result.value && result.value.success) {
+                    if (Array.isArray(currentTransactionsData)) {
+                        currentTransactionsData = currentTransactionsData.filter(t => t.order_id != orderId);
+                        renderTransactionsTable();
+                    }
+
                     Swal.fire({
                         title: 'Deleted Successfully!',
                         text: result.value.message || 'The transaction has been removed.',
@@ -3365,7 +3371,9 @@
             }
 
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
-            fetch(basePath + '/reports/transactions?startDate=' + startDate + '&endDate=' + endDate)
+            fetch(basePath + '/reports/transactions?startDate=' + encodeURIComponent(startDate) + '&endDate=' + encodeURIComponent(endDate) + '&_=' + Date.now(), {
+                cache: 'no-store'
+            })
                 .then(res => res.json())
                 .then(res => {
                     if(res.status === 'success') {

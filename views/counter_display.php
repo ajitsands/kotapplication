@@ -4063,9 +4063,10 @@
                 else if(row.category === 'self_order') badgeClass = 'primary';
 
                 let statusBadge = 'secondary';
-                if(row.status.toLowerCase() === 'completed') statusBadge = 'success';
-                else if(row.status.toLowerCase() === 'cancelled') statusBadge = 'danger';
-                else if(row.status.toLowerCase() === 'active') statusBadge = 'warning';
+                const st = (row.status || '').toLowerCase();
+                if(st === 'completed') statusBadge = 'success';
+                else if(st === 'cancelled') statusBadge = 'danger';
+                else if(st === 'active') statusBadge = 'warning';
 
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid var(--card-border)';
@@ -4074,7 +4075,7 @@
                     <td style="padding: 12px 10px;">${row.created_at}</td>
                     <td style="padding: 12px 10px;"><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
                     <td style="padding: 12px 10px;">${escapeHtml(row.details || '')}</td>
-                    <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${row.status}</span></td>
+                    <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${row.status || 'Unknown'}</span></td>
                     <td style="padding: 12px 10px;">${escapeHtml(row.payment_method || 'Pending')}</td>
                     <td class="price-text" style="font-weight:700; text-align:right; padding: 12px 10px;">${parseFloat(row.total).toFixed(window.PRICE_DECIMALS || 3)} <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small></td>
                     <td style="text-align: center; padding: 12px 10px;">
@@ -4122,7 +4123,9 @@
                 endDate = today;
             }
 
-            fetch(`${rootPath}/counter/reports/transactions?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
+            fetch(`${rootPath}/counter/reports/transactions?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&_=${Date.now()}`, {
+                cache: 'no-store'
+            })
                 .then(res => res.json())
                 .then(res => {
                     if(res.status === 'success') {
@@ -4306,6 +4309,11 @@
                 allowOutsideClick: () => !Swal.isLoading()
             }).then((result) => {
                 if (result.isConfirmed && result.value && result.value.success) {
+                    if (Array.isArray(currentCounterTransData)) {
+                        currentCounterTransData = currentCounterTransData.filter(t => t.order_id != orderId);
+                        renderCounterTransactionsTable();
+                    }
+
                     Swal.fire({
                         title: 'Deleted Successfully!',
                         text: result.value.message || 'Transaction removed and shift updated.',
