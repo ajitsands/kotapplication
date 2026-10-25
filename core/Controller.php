@@ -25,7 +25,6 @@ class Controller {
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
         header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
         header("Content-Type: application/json; charset=utf-8");
-        header("Content-Length: " . strlen($json));
         http_response_code($statusCode);
         echo $json;
         exit;

@@ -146,8 +146,14 @@ class ApiController extends Controller {
         $customerMobile = $data['customer_mobile'] ?? null;
         $items = $data['items'] ?? []; // Array of ['product_id' => X, 'quantity' => Y, 'notes' => Z]
 
-        if (($orderType === 'dine_in' && $tableNumber <= 0) || empty($items)) {
-            $this->json(['error' => 'Invalid parameters'], 400);
+        // Any order with table <= 0 is guaranteed to be take_away
+        if ($tableNumber <= 0 || $orderType === 'takeaway') {
+            $orderType = 'take_away';
+            $tableNumber = 0;
+        }
+
+        if (empty($items)) {
+            $this->json(['error' => 'Your cart is empty'], 400);
         }
 
         // Detect waiter session if logged in
@@ -187,12 +193,13 @@ class ApiController extends Controller {
 
                 // Return token number if it's take_away
                 $orderInfo = $orderModel->getOrderDetails($orderId);
+                $tokenNumber = $orderInfo['token_number'] ?? ($orderType === 'take_away' ? ('TW-' . str_pad($orderId, 3, '0', STR_PAD_LEFT)) : null);
                 
                 $this->json([
                     'success' => true,
                     'order_id' => $orderId,
                     'kot_id' => $kotId,
-                    'token_number' => $orderInfo['token_number'] ?? null,
+                    'token_number' => $tokenNumber,
                     'message' => 'Order placed successfully'
                 ]);
             } else {

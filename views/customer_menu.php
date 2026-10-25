@@ -935,7 +935,7 @@
 
     <script>
         const tableNumber = <?= $tableNumber ?>;
-        const isTakeaway = <?= $isTakeaway ? 'true' : 'false' ?>;
+        const isTakeaway = <?= $isTakeaway ? 'true' : 'false' ?> || (tableNumber === 0) || window.location.href.includes('takeaway');
         const _urlParams = new URLSearchParams(window.location.search);
         const takeawayName = _urlParams.get('name') || sessionStorage.getItem('takeaway_name') || 'Takeaway Customer';
         const takeawayMobile = _urlParams.get('mobile') || sessionStorage.getItem('takeaway_mobile') || '';
@@ -1159,9 +1159,9 @@
                 cache: 'no-cache',
                 body: JSON.stringify({
                     table_number: tableNumber,
-                    order_type: isTakeaway ? 'take_away' : 'dine_in',
-                    customer_name: isTakeaway ? curTakeawayName : null,
-                    customer_mobile: isTakeaway ? curTakeawayMobile : null,
+                    order_type: (tableNumber === 0 || isTakeaway) ? 'take_away' : 'dine_in',
+                    customer_name: (tableNumber === 0 || isTakeaway) ? curTakeawayName : null,
+                    customer_mobile: (tableNumber === 0 || isTakeaway) ? curTakeawayMobile : null,
                     items: itemsList
                 })
             })
@@ -1185,18 +1185,18 @@
                     submitBtn.innerText = originalBtnText;
                 }
 
-                if (data && (data.success || res.ok)) {
+                if ((data && (data.success || data.order_id)) || (res.ok && !data?.error)) {
                     closeReviewModal();
                     
-                    if (isTakeaway && data.token_number) {
+                    const tokenNum = (data && data.token_number) || 'TW-' + ((data && data.order_id) || '');
+                    if (isTakeaway || tableNumber === 0) {
                         const tokenEl = document.getElementById('success-token-display');
                         if (tokenEl) {
-                            tokenEl.innerText = 'Token: ' + data.token_number;
+                            tokenEl.innerText = 'Token: ' + tokenNum;
                             tokenEl.style.display = 'block';
                         }
-                        // Save to session storage in case they reload
-                        sessionStorage.setItem('takeaway_active_order_id', data.order_id);
-                        sessionStorage.setItem('takeaway_token', data.token_number);
+                        if (data && data.order_id) sessionStorage.setItem('takeaway_active_order_id', data.order_id);
+                        sessionStorage.setItem('takeaway_token', tokenNum);
                     }
 
                     // Show success overlay

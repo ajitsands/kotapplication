@@ -23,9 +23,10 @@ class Order extends Model {
         }
 
         $tokenNumber = null;
-        if ($orderType === 'take_away') {
+        if ($orderType === 'take_away' || $orderType === 'takeaway' || empty($tableNumber)) {
             $tokenNumber = str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
             $tableNumber = null;
+            $orderType = 'take_away';
         }
 
         $stmt = $this->db->prepare("INSERT INTO orders (table_number, waiter_id, status, order_type, customer_name, customer_mobile, token_number) VALUES (?, ?, 'active', ?, ?, ?, ?)");
