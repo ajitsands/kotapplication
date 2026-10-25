@@ -156,8 +156,15 @@ class ApiController extends Controller {
             $this->json(['error' => 'Your cart is empty'], 400);
         }
 
-        // Detect waiter session if logged in
-        $waiterId = isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'waiter' ? $_SESSION['user_id'] : null;
+        $customerName = !empty($data['customer_name']) ? mb_substr(trim($data['customer_name']), 0, 95) : null;
+        $customerMobile = !empty($data['customer_mobile']) ? mb_substr(trim($data['customer_mobile']), 0, 20) : null;
+
+        // For takeaway orders, waiterId is always null (customer self-service)
+        if ($orderType === 'take_away') {
+            $waiterId = null;
+        } else {
+            $waiterId = isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'waiter' ? (int)$_SESSION['user_id'] : null;
+        }
 
         $orderModel = new Order();
         $orderId = $orderModel->createOrder($tableNumber, $waiterId, $orderType, $customerName, $customerMobile);

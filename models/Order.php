@@ -29,9 +29,14 @@ class Order extends Model {
             $orderType = 'take_away';
         }
 
-        $stmt = $this->db->prepare("INSERT INTO orders (table_number, waiter_id, status, order_type, customer_name, customer_mobile, token_number) VALUES (?, ?, 'active', ?, ?, ?, ?)");
-        $stmt->execute([$tableNumber, $waiterId, $orderType, $customerName, $customerMobile, $tokenNumber]);
-        return $this->db->lastInsertId();
+        try {
+            $stmt = $this->db->prepare("INSERT INTO orders (table_number, waiter_id, status, order_type, customer_name, customer_mobile, token_number) VALUES (?, ?, 'active', ?, ?, ?, ?)");
+            $stmt->execute([$tableNumber, $waiterId, $orderType, $customerName, $customerMobile, $tokenNumber]);
+            return $this->db->lastInsertId();
+        } catch (Exception $e) {
+            error_log("Order createOrder error: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function createOnlineOrder($platformId, $platformOrderNumber, $customerName = null, $customerMobile = null) {

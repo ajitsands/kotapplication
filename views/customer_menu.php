@@ -1211,10 +1211,11 @@
                         div.innerHTML = `<button class="btn-add" onclick="location.reload()">Add</button>`;
                     });
                 } else {
-                    const cleanErr = data?.error || (rawText ? rawText.replace(/<[^>]*>/g, '').trim().substring(0, 100) : 'Failed to place order.');
+                    const statusMsg = (!res.ok && res.status) ? ` [HTTP ${res.status}]` : '';
+                    const detail = data?.error || (rawText ? rawText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) : '') || 'Failed to place order';
                     Swal.fire({
-                        title: 'Order Failed',
-                        text: cleanErr,
+                        title: 'Order Failed' + statusMsg,
+                        text: detail,
                         icon: 'error',
                         background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                         color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
