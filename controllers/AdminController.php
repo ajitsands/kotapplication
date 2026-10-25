@@ -446,8 +446,8 @@ class AdminController extends Controller {
      * Delete a single transaction (Order, Bill, KOTs, KOT Items, restore inventory stock, update shift)
      * Authorized for Superadmin, Admin, or with Superadmin password validation
      */
-    public function deleteSingleTransaction($orderId) {
-        $orderId = (int)$orderId;
+    public function deleteSingleTransaction($params) {
+        $orderId = is_array($params) ? (int)($params['id'] ?? $params['orderId'] ?? 0) : (int)$params;
         if ($orderId <= 0) {
             $this->json(['success' => false, 'error' => 'Invalid Order ID.'], 400);
             return;
@@ -457,7 +457,8 @@ class AdminController extends Controller {
             $db = Database::getInstance()->getConnection();
 
             $sessionUser = $_SESSION['username'] ?? '';
-            if ($sessionUser !== 'superadmin') {
+            $sessionRole = $_SESSION['role'] ?? '';
+            if ($sessionUser !== 'superadmin' && $sessionRole !== 'admin') {
                 $this->json(['success' => false, 'error' => 'Unauthorized. Super Admin privilege required.'], 403);
                 return;
             }
