@@ -444,14 +444,9 @@ class AdminController extends Controller {
 
     /**
      * Delete a single transaction (Order, Bill, KOTs, KOT Items, restore inventory stock, update shift)
-     * Superadmin Only
+     * Authorized for Superadmin, Admin, or with Superadmin password validation
      */
     public function deleteSingleTransaction($orderId) {
-        if (($_SESSION['username'] ?? '') !== 'superadmin') {
-            $this->json(['success' => false, 'error' => 'Unauthorized. Superadmin privilege required.'], 403);
-            return;
-        }
-
         $orderId = (int)$orderId;
         if ($orderId <= 0) {
             $this->json(['success' => false, 'error' => 'Invalid Order ID.'], 400);
@@ -460,6 +455,37 @@ class AdminController extends Controller {
 
         try {
             $db = Database::getInstance()->getConnection();
+
+            $isAuthorized = false;
+            $sessionUser = $_SESSION['username'] ?? '';
+            $sessionRole = $_SESSION['user_role'] ?? '';
+
+            if ($sessionUser === 'superadmin' || $sessionUser === 'admin' || $sessionRole === 'admin') {
+                $isAuthorized = true;
+            }
+
+            // If not authorized by session, check for superadmin / admin password in request payload
+            if (!$isAuthorized) {
+                $rawInput = file_get_contents('php://input');
+                $input = json_decode($rawInput, true) ?: [];
+                $authPassword = $input['admin_password'] ?? '';
+
+                if (!empty($authPassword)) {
+                    $adminUsersStmt = $db->query("SELECT id, username, password FROM users WHERE username IN ('superadmin', 'admin') AND is_active = 1");
+                    $adminUsers = $adminUsersStmt->fetchAll(PDO::FETCH_ASSOC);
+                    foreach ($adminUsers as $adminUser) {
+                        if (password_verify($authPassword, $adminUser['password'])) {
+                            $isAuthorized = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!$isAuthorized) {
+                $this->json(['success' => false, 'error' => 'Unauthorized. Super Admin or Administrator authorization required.'], 403);
+                return;
+            }
             
             // Check if order exists
             $stmt = $db->prepare("SELECT id, table_number, order_type, token_number FROM orders WHERE id = ?");
