@@ -463,9 +463,27 @@ class PrinterService {
 
         // Payment status
         if (!empty($bill['payment_method'])) {
-            $payMethod = strtoupper(str_replace('_', ' ', $bill['payment_method']));
-            $payStatus = strtoupper($bill['status'] ?? 'PAID');
-            $data .= self::formatRow("Payment: $payMethod", "Status: $payStatus", $width, $marginCols);
+            if ($bill['payment_method'] === 'split') {
+                $payStatus = strtoupper($bill['status'] ?? 'PAID');
+                $data .= self::formatRow("Payment: SPLIT", "Status: $payStatus", $width, $marginCols);
+                $cur = $currency;
+                if ((float)($bill['cash_amount'] ?? 0) > 0) {
+                    $amtStr = number_format((float)$bill['cash_amount'], $decimals) . " $cur";
+                    $data .= self::formatRow("  - Cash:", $amtStr, $width, $marginCols);
+                }
+                if ((float)($bill['card_amount'] ?? 0) > 0) {
+                    $amtStr = number_format((float)$bill['card_amount'], $decimals) . " $cur";
+                    $data .= self::formatRow("  - Card:", $amtStr, $width, $marginCols);
+                }
+                if ((float)($bill['qr_amount'] ?? 0) > 0) {
+                    $amtStr = number_format((float)$bill['qr_amount'], $decimals) . " $cur";
+                    $data .= self::formatRow("  - QR Pay:", $amtStr, $width, $marginCols);
+                }
+            } else {
+                $payMethod = strtoupper(str_replace('_', ' ', $bill['payment_method']));
+                $payStatus = strtoupper($bill['status'] ?? 'PAID');
+                $data .= self::formatRow("Payment: $payMethod", "Status: $payStatus", $width, $marginCols);
+            }
         }
 
         // Footer

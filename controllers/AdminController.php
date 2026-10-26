@@ -7,7 +7,12 @@ require_once __DIR__ . '/../models/User.php';
 
 class AdminController extends Controller {
     public function __construct() {
-        $this->requireAuth('admin');
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (strpos($uri, '/counter/transactions/') !== false || strpos($uri, '/transactions/cancel/') !== false) {
+            $this->requireAuth(['admin', 'counter', 'cashier']);
+        } else {
+            $this->requireAuth('admin');
+        }
     }
 
     public function index() {
@@ -561,21 +566,22 @@ class AdminController extends Controller {
             $db = Database::getInstance()->getConnection();
 
             $sessionUser = $_SESSION['username'] ?? '';
-            $sessionRole = $_SESSION['role'] ?? '';
-            // Only admin and superadmin are authorized
-            if ($sessionUser !== 'superadmin' && $sessionRole !== 'admin') {
-                $this->json(['success' => false, 'error' => 'Unauthorized. Admin or Super Admin privilege required to cancel transactions.'], 403);
+            $sessionRole = $_SESSION['user_role'] ?? $_SESSION['role'] ?? '';
+            // Authorized roles: superadmin, admin, counter, cashier
+            $isAuthorized = ($sessionUser === 'superadmin' || in_array($sessionRole, ['admin', 'superadmin', 'counter', 'cashier']) || in_array($sessionUser, ['admin', 'counter']));
+            if (!$isAuthorized) {
+                $this->json(['success' => false, 'error' => 'Unauthorized. Admin or Counter privilege required to cancel transactions.'], 403);
                 return;
             }
 
             // Read JSON input or POST for reason
             $input = json_decode(file_get_contents('php://input'), true);
-            $reason = trim($input['reason'] ?? $_POST['reason'] ?? 'Cancelled by Admin');
+            $reason = trim($input['reason'] ?? $_POST['reason'] ?? 'Cancelled by Staff');
             if (empty($reason)) {
-                $reason = 'Cancelled by Admin';
+                $reason = 'Cancelled by Staff';
             }
 
-            $cancelledBy = $_SESSION['name'] ?? $_SESSION['username'] ?? 'Admin';
+            $cancelledBy = $_SESSION['name'] ?? $_SESSION['user_name'] ?? $_SESSION['username'] ?? ($sessionRole ? ucfirst($sessionRole) : 'Admin');
 
             // Auto-heal schema if columns are not present yet
             try {

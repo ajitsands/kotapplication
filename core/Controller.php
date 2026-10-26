@@ -49,11 +49,37 @@ class Controller {
 
     // Verify session auth and redirect if missing
     protected function requireAuth($role = null) {
-        if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {
+        $userRole = $_SESSION['user_role'] ?? $_SESSION['role'] ?? null;
+        $username = $_SESSION['username'] ?? '';
+        $isLoggedIn = isset($_SESSION['user_id']) && $userRole !== null;
+        
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+            || (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false)
+            || (strpos($_SERVER['REQUEST_URI'] ?? '', '/json') !== false)
+            || (strpos($_SERVER['REQUEST_URI'] ?? '', '/cancel/') !== false)
+            || (strpos($_SERVER['REQUEST_URI'] ?? '', '/delete/') !== false)
+            || (strpos($_SERVER['REQUEST_URI'] ?? '', '/pay/') !== false);
+
+        if (!$isLoggedIn) {
+            if ($isAjax) {
+                $this->json(['success' => false, 'error' => 'Session expired. Please log in again.'], 401);
+            }
             $this->redirect('/login');
         }
-        if ($role && $_SESSION['user_role'] !== $role && $_SESSION['user_role'] !== 'admin') {
-            $this->redirect('/login'); // unauthorized redirect
+
+        if ($username === 'superadmin') {
+            return;
+        }
+
+        if ($role) {
+            $allowed = is_array($role) ? $role : [$role, 'admin'];
+            if (!in_array($userRole, $allowed)) {
+                if ($isAjax) {
+                    $this->json(['success' => false, 'error' => 'Unauthorized access for role ' . htmlspecialchars($userRole)], 403);
+                }
+                $this->redirect('/login');
+            }
         }
     }
 

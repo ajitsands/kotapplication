@@ -83,9 +83,9 @@ class CounterSession extends Model {
 
         $stmt = $this->db->prepare(
             "SELECT 
-                COALESCE(SUM(CASE WHEN payment_method='cash' THEN grand_total ELSE 0 END), 0) AS cash_total,
-                COALESCE(SUM(CASE WHEN payment_method='card' THEN grand_total ELSE 0 END), 0) AS card_total,
-                COALESCE(SUM(CASE WHEN payment_method='qr_pay' THEN grand_total ELSE 0 END), 0) AS qr_total,
+                COALESCE(SUM(CASE WHEN payment_method='split' THEN cash_amount WHEN payment_method='cash' THEN grand_total ELSE 0 END), 0) AS cash_total,
+                COALESCE(SUM(CASE WHEN payment_method='split' THEN card_amount WHEN payment_method='card' THEN grand_total ELSE 0 END), 0) AS card_total,
+                COALESCE(SUM(CASE WHEN payment_method='split' THEN qr_amount WHEN payment_method='qr_pay' THEN grand_total ELSE 0 END), 0) AS qr_total,
                 COALESCE(SUM(grand_total), 0) AS system_total
              FROM bills
              WHERE cashier_id = ? AND status = 'paid' AND created_at BETWEEN ? AND ?"

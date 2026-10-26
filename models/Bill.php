@@ -1,6 +1,22 @@
 <?php
 
 class Bill extends Model {
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM bills LIKE 'cash_amount'")->fetchAll();
+            if (empty($cols)) {
+                $this->db->exec("ALTER TABLE `bills` MODIFY COLUMN `payment_method` ENUM('cash', 'card', 'qr_pay', 'split') DEFAULT NULL");
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `cash_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `grand_total`");
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `card_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `cash_amount`");
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `qr_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `card_amount`");
+            }
+        } catch (Exception $e) {}
+    }
     public function getPendingBills() {
         $stmt = $this->db->query("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.created_at as order_created_at
                                   FROM bills b
@@ -36,7 +52,7 @@ class Bill extends Model {
         return $bill;
     }
 
-    public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '') {
+    public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '', $breakdown = []) {
         $this->db->beginTransaction();
         try {
             // Get bill details and order type
@@ -87,9 +103,29 @@ class Bill extends Model {
             $discountAmount = $grandTotal * ($discountPercent / 100);
             $newGrandTotal = $grandTotal - $discountAmount;
 
-            // Update bill status, payment method, discount, grand total, cashier_id, and customer_id
-            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ? WHERE id = ?");
-            $stmtBill->execute([$paymentMethod, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
+            // Handle payment method amounts
+            if ($paymentMethod === 'split') {
+                $cashAmount = round((float)($breakdown['cash_amount'] ?? 0), 3);
+                $cardAmount = round((float)($breakdown['card_amount'] ?? 0), 3);
+                $qrAmount   = round((float)($breakdown['qr_amount'] ?? 0), 3);
+            } else if ($paymentMethod === 'card') {
+                $cashAmount = 0.000;
+                $cardAmount = $newGrandTotal;
+                $qrAmount   = 0.000;
+            } else if ($paymentMethod === 'qr_pay') {
+                $cashAmount = 0.000;
+                $cardAmount = 0.000;
+                $qrAmount   = $newGrandTotal;
+            } else { // default 'cash'
+                $paymentMethod = 'cash';
+                $cashAmount = $newGrandTotal;
+                $cardAmount = 0.000;
+                $qrAmount   = 0.000;
+            }
+
+            // Update bill status, payment method, breakdown amounts, discount, grand total, cashier_id, and customer_id
+            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, cash_amount = ?, card_amount = ?, qr_amount = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ? WHERE id = ?");
+            $stmtBill->execute([$paymentMethod, $cashAmount, $cardAmount, $qrAmount, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
 
             // For Dine In orders, payment completes the order flow.
             // For Take Away orders, payment just pays the bill. The order remains 'closed' until it is delivered.
@@ -269,9 +305,9 @@ class Bill extends Model {
         }
         // Query to get overall summary totals in date range
         $sql = "SELECT 
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
                     COALESCE(SUM(b.grand_total), 0) as grand_total,
                     COALESCE(SUM(CASE WHEN o.order_type = 'take_away' THEN b.grand_total ELSE 0 END), 0) as takeaway_total
                 FROM bills b
@@ -336,9 +372,9 @@ class Bill extends Model {
         // Query to get summary per cashier in date range
         $sql = "SELECT 
                     u.name as cashier_name,
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
-                    COALESCE(SUM(CASE WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
                     COALESCE(SUM(b.grand_total), 0) as grand_total
                 FROM bills b
                 JOIN users u ON b.cashier_id = u.id

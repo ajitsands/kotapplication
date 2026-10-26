@@ -468,9 +468,9 @@
 
         .payment-methods-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin: 25px 0;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
         }
 
         .pay-method-btn {
@@ -1425,7 +1425,7 @@
 
     <!-- Collect Payment Modal -->
     <div id="payment-modal" class="modal">
-        <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-content" style="max-width: 520px; width: 95%; max-height: 92vh; overflow-y: auto;">
             <h3>Collect Payment</h3>
             <p style="color: var(--text-muted); font-size:14px; margin-top:5px;" id="modal-table-label">Table 0</p>
             
@@ -1446,6 +1446,56 @@
                     <span style="font-size:20px;">📱</span>
                     QR Pay
                 </button>
+                <button class="pay-method-btn" onclick="selectPaymentMethod('split', this)">
+                    <span style="font-size:20px;">🔀</span>
+                    Split
+                </button>
+            </div>
+
+            <!-- Split Payment Breakdown Section -->
+            <div id="modal-split-section" style="display:none; margin-top: 15px; text-align: left; background: rgba(99, 102, 241, 0.05); padding: 14px; border-radius: 14px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <span style="font-size: 12.5px; font-weight: 700; color: #818cf8; text-transform: uppercase;">🔀 Split Breakdown</span>
+                    <button type="button" onclick="autoBalanceSplit()" style="background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.4); color: #818cf8; font-size: 11px; padding: 3px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">⚡ Auto Fill Remaining</button>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <label style="font-size: 12px; font-weight: 600; width: 85px; display: flex; align-items: center; gap: 4px;">💵 Cash:</label>
+                        <div style="flex: 1;">
+                            <input type="number" step="0.001" min="0" id="modal-split-cash" class="discount-input" style="width: 100%; text-align: right; font-weight: 700; font-size: 14px; padding: 6px 10px;" value="0.000" oninput="onSplitAmountChanged()">
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); width: 32px;"><?= htmlspecialchars($settings['currency_code']) ?></span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <label style="font-size: 12px; font-weight: 600; width: 85px; display: flex; align-items: center; gap: 4px;">💳 Card:</label>
+                        <div style="flex: 1;">
+                            <input type="number" step="0.001" min="0" id="modal-split-card" class="discount-input" style="width: 100%; text-align: right; font-weight: 700; font-size: 14px; padding: 6px 10px;" value="0.000" oninput="onSplitAmountChanged()">
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); width: 32px;"><?= htmlspecialchars($settings['currency_code']) ?></span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <label style="font-size: 12px; font-weight: 600; width: 85px; display: flex; align-items: center; gap: 4px;">📱 QR Pay:</label>
+                        <div style="flex: 1;">
+                            <input type="number" step="0.001" min="0" id="modal-split-qr" class="discount-input" style="width: 100%; text-align: right; font-weight: 700; font-size: 14px; padding: 6px 10px;" value="0.000" oninput="onSplitAmountChanged()">
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); width: 32px;"><?= htmlspecialchars($settings['currency_code']) ?></span>
+                    </div>
+                </div>
+
+                <!-- Live Balance Status -->
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--card-border); display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                    <div>
+                        <span style="color: var(--text-muted);">Entered:</span>
+                        <strong id="modal-split-entered-label" style="margin-left: 4px; font-size: 13px;">0.000</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted);">Remaining:</span>
+                        <strong id="modal-split-remaining-label" style="margin-left: 4px; font-size: 13px; color: #ef4444;">0.000</strong>
+                    </div>
+                </div>
             </div>
 
             <!-- Customer Loyalty Details -->
@@ -1606,7 +1656,7 @@
         let counterProducts = [];
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
-        const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin') ? 'true' : 'false' ?>;
+        const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin', 'counter']) || in_array(($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''), ['admin', 'counter', 'cashier'])) ? 'true' : 'false' ?>;
 
         function toggleQrDropdown(e) {
             if (e) e.stopPropagation();
@@ -2315,8 +2365,83 @@
             // Reset button highlights
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
             document.querySelector('.pay-method-btn').classList.add('selected');
+            selectedPaymentMethod = 'cash';
+
+            // Reset split section
+            const splitSection = document.getElementById('modal-split-section');
+            if (splitSection) {
+                splitSection.style.display = 'none';
+            }
+            if (document.getElementById('modal-split-cash')) document.getElementById('modal-split-cash').value = '0.000';
+            if (document.getElementById('modal-split-card')) document.getElementById('modal-split-card').value = '0.000';
+            if (document.getElementById('modal-split-qr')) document.getElementById('modal-split-qr').value = '0.000';
 
             document.getElementById('payment-modal').style.display = 'flex';
+        }
+
+        function getCurrentNetPayable() {
+            if (!selectedBillId) return 0;
+            const bill = pendingBills.find(b => b.id === selectedBillId);
+            if (!bill) return 0;
+            const grandTotal = parseFloat(bill.grand_total) || 0;
+            const discountInput = document.getElementById('modal-discount-input');
+            let discountPercent = parseFloat(discountInput.value) || 0;
+            discountPercent = Math.max(0, Math.min(100, discountPercent));
+            const discountAmount = grandTotal * (discountPercent / 100);
+            return Math.max(0, grandTotal - discountAmount);
+        }
+
+        function autoBalanceSplit() {
+            const net = getCurrentNetPayable();
+            const decimals = window.PRICE_DECIMALS || 3;
+            const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
+            const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
+            const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
+            
+            const remaining = Math.max(0, net - (cash + card + qr));
+            if (remaining > 0) {
+                if (cash === 0 && card === 0 && qr === 0) {
+                    document.getElementById('modal-split-cash').value = net.toFixed(decimals);
+                } else if (qr === 0 && (cash > 0 || card > 0)) {
+                    document.getElementById('modal-split-qr').value = remaining.toFixed(decimals);
+                } else if (card === 0) {
+                    document.getElementById('modal-split-card').value = remaining.toFixed(decimals);
+                } else {
+                    document.getElementById('modal-split-cash').value = (cash + remaining).toFixed(decimals);
+                }
+            }
+            updateSplitTotals();
+        }
+
+        function onSplitAmountChanged() {
+            updateSplitTotals();
+        }
+
+        function updateSplitTotals() {
+            const decimals = window.PRICE_DECIMALS || 3;
+            const net = getCurrentNetPayable();
+            const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
+            const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
+            const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
+            
+            const entered = cash + card + qr;
+            const remaining = net - entered;
+            
+            const enteredLabel = document.getElementById('modal-split-entered-label');
+            const remainingLabel = document.getElementById('modal-split-remaining-label');
+            
+            if (enteredLabel) enteredLabel.innerText = entered.toFixed(decimals) + ' ' + currencyCode;
+            if (remainingLabel) {
+                remainingLabel.innerText = remaining.toFixed(decimals) + ' ' + currencyCode;
+                if (Math.abs(remaining) < 0.001) {
+                    remainingLabel.style.color = '#10b981';
+                    remainingLabel.innerHTML = `0.000 ${currencyCode} <span style="font-size:11px;">✓ Balanced</span>`;
+                } else if (remaining > 0) {
+                    remainingLabel.style.color = '#ef4444';
+                } else {
+                    remainingLabel.style.color = '#f59e0b';
+                }
+            }
         }
 
         function calculateDiscountedTotal() {
@@ -2342,6 +2467,10 @@
 
             document.getElementById('modal-discount-amount-label').innerText = discountAmount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
             document.getElementById('modal-net-payable-label').innerText = netPayable.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            if (selectedPaymentMethod === 'split') {
+                updateSplitTotals();
+            }
         }
 
         function closePaymentModal() {
@@ -2352,6 +2481,16 @@
             selectedPaymentMethod = method;
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
             element.classList.add('selected');
+
+            const splitSection = document.getElementById('modal-split-section');
+            if (splitSection) {
+                if (method === 'split') {
+                    splitSection.style.display = 'block';
+                    autoBalanceSplit();
+                } else {
+                    splitSection.style.display = 'none';
+                }
+            }
         }
 
         function confirmPayment() {
@@ -2362,16 +2501,49 @@
             const customerMobile = document.getElementById('modal-cust-mobile').value.trim();
             const gender = document.getElementById('modal-cust-gender').value;
 
+            const payload = { 
+                payment_method: selectedPaymentMethod,
+                discount_percent: discountPercent,
+                customer_name: customerName,
+                customer_mobile: customerMobile,
+                gender: gender
+            };
+
+            if (selectedPaymentMethod === 'split') {
+                const net = getCurrentNetPayable();
+                const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
+                const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
+                const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
+                const totalEntered = cash + card + qr;
+                const diff = Math.abs(net - totalEntered);
+                
+                if (diff > 0.005) {
+                    Swal.fire({
+                        title: 'Split Balance Mismatch',
+                        html: `
+                            <div style="font-size: 13.5px; text-align: left; line-height: 1.6;">
+                                <p>Total Net Payable is: <strong>${net.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong></p>
+                                <p>Total Entered amounts: <strong>${totalEntered.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong></p>
+                                <p style="color: #ef4444; font-weight: 700; margin-top: 8px;">
+                                    ${totalEntered < net ? `Remaining to collect: ${(net - totalEntered).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}` : `Overpaid by: ${(totalEntered - net).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}`}
+                                </p>
+                                <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Please adjust Cash, Card, or QR amounts so they match the total.</p>
+                            </div>
+                        `,
+                        icon: 'warning'
+                    });
+                    return;
+                }
+
+                payload.cash_amount = cash;
+                payload.card_amount = card;
+                payload.qr_amount = qr;
+            }
+
             fetch(basePath + '/pay/' + selectedBillId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    payment_method: selectedPaymentMethod,
-                    discount_percent: discountPercent,
-                    customer_name: customerName,
-                    customer_mobile: customerMobile,
-                    gender: gender
-                })
+                body: JSON.stringify(payload)
             })
             .then(res => res.json())
             .then(data => {
@@ -2380,9 +2552,17 @@
                     fetchBills(); // Refresh list
                     fetchSummary(); // Refresh summary totals
                     fetchCustomers(); // Refresh customer loyalty directory list
+                    if (typeof loadCounterTransactionsReport === 'function') {
+                        loadCounterTransactionsReport();
+                    }
+                } else {
+                    Swal.fire({ title: 'Payment Failed', text: data.error || 'Failed to process payment.', icon: 'error' });
                 }
             })
-            .catch(err => console.error('Error confirming payment:', err));
+            .catch(err => {
+                console.error('Error confirming payment:', err);
+                Swal.fire({ title: 'Error', text: 'An unexpected network error occurred.', icon: 'error' });
+            });
         }
 
         function lookupCustomerLoyalty() {
@@ -4097,6 +4277,22 @@
                     amountDisplay = `<div style="text-align: right;"><span style="color:#ef4444; text-decoration:line-through; font-size:11px; margin-right:4px;">${orig.toFixed(window.PRICE_DECIMALS || 3)}</span><span style="font-weight:700; color:var(--text-muted);">0.000</span> <small style="font-size: 0.7em; color: var(--text-muted);">${currencyCode}</small></div>`;
                 }
 
+                let payMethodDisplay = 'Pending';
+                if ((row.payment_method||'').toLowerCase() === 'split' || row.raw_payment_method === 'split') {
+                    const pCash = parseFloat(row.cash_amount || 0);
+                    const pCard = parseFloat(row.card_amount || 0);
+                    const pQr = parseFloat(row.qr_amount || 0);
+                    let parts = [];
+                    if (pCash > 0) parts.push(`💵 ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pCard > 0) parts.push(`💳 ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pQr > 0) parts.push(`📱 ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    payMethodDisplay = `<span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size:11px;" title="${parts.join(' | ')}">🔀 Split</span><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${parts.join(', ')}</div>`;
+                } else if (row.payment_method && row.payment_method !== 'Pending') {
+                    const m = (row.payment_method || '').toLowerCase();
+                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : '📱');
+                    payMethodDisplay = `${icon} ${escapeHtml(row.payment_method)}`;
+                }
+
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid var(--card-border)';
                 tr.innerHTML = `
@@ -4105,7 +4301,7 @@
                     <td style="padding: 12px 10px;"><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
                     <td style="padding: 12px 10px;">${detailsHtml}</td>
                     <td style="padding: 12px 10px;"><span class="badge ${statusBadge}">${isCancelled ? 'CANCELLED' : (row.status || 'Unknown')}</span></td>
-                    <td style="padding: 12px 10px;">${escapeHtml(row.payment_method || 'Pending')}</td>
+                    <td style="padding: 12px 10px;">${payMethodDisplay}</td>
                     <td class="price-text" style="font-weight:700; text-align:right; padding: 12px 10px;">${amountDisplay}</td>
                     <td style="text-align: center; padding: 12px 10px;">
                         <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap;">
@@ -4113,7 +4309,7 @@
                                 <span>📋</span> Order Details
                             </button>
                             ${(!isCancelled && canCancel) ? `
-                                <button type="button" class="btn-action" onclick="cancelCounterTransaction(${row.order_id})" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Admin / Superadmin: Cancel Transaction">
+                                <button type="button" class="btn-action" onclick="cancelCounterTransaction(${row.order_id})" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Cancel Transaction">
                                     <span>🚫</span> Cancel
                                 </button>
                             ` : ''}
@@ -4197,10 +4393,24 @@
                     else if((o.status||'').toLowerCase() === 'cancelled') statusBadge = 'danger';
                     else if((o.status||'').toLowerCase() === 'active') statusBadge = 'warning';
 
+                    let payBadge = '<span class="badge secondary">Payment Pending</span>';
+                    if ((o.payment_method || '').toLowerCase() === 'split') {
+                        const pCash = parseFloat(o.cash_amount || 0);
+                        const pCard = parseFloat(o.card_amount || 0);
+                        const pQr = parseFloat(o.qr_amount || 0);
+                        let parts = [];
+                        if (pCash > 0) parts.push(`Cash: ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        if (pCard > 0) parts.push(`Card: ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        if (pQr > 0) parts.push(`QR: ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        payBadge = `<span class="badge success" style="background: rgba(99,102,241,0.2); color:#818cf8;">🔀 SPLIT (${parts.join(', ')})</span>`;
+                    } else if (o.payment_method) {
+                        payBadge = `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>`;
+                    }
+
                     document.getElementById('counter-modal-order-badges').innerHTML = `
                         <span class="badge ${badgeClass}">${(o.order_type||'').replace('_', ' ').toUpperCase()}</span>
                         <span class="badge ${statusBadge}">${(o.status||'').toUpperCase()}</span>
-                        ${o.payment_method ? `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>` : '<span class="badge secondary">Payment Pending</span>'}
+                        ${payBadge}
                     `;
 
                     let detailDisplay = 'Dine In';
@@ -4301,7 +4511,7 @@
             if (!canCancel) {
                 Swal.fire({
                     title: 'Access Denied',
-                    text: 'Only Admins and Super Admin can cancel transactions.',
+                    text: 'Only Admins and Counter staff can cancel transactions.',
                     icon: 'error',
                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
@@ -4613,7 +4823,7 @@
             <!-- Modal Actions -->
             <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
                 <div style="margin-right: auto; display: flex; gap: 8px;">
-                    <?php if (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin'): ?>
+                    <?php if (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin', 'counter']) || in_array(($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''), ['admin', 'counter', 'cashier'])): ?>
                         <button type="button" id="counter-modal-cancel-btn" onclick="cancelCurrentCounterModalTransaction()" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                             <span>🚫</span> Cancel Order
                         </button>

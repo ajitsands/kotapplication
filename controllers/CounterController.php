@@ -224,8 +224,13 @@ class CounterController extends Controller {
         $billPrintResult = null;
         if ($billId && ($payNow || ($orderType === 'take_away' && !empty($settings['auto_print_bill'])))) {
             if ($payNow) {
+                $breakdown = [
+                    'cash_amount' => (float)($data['cash_amount'] ?? 0),
+                    'card_amount' => (float)($data['card_amount'] ?? 0),
+                    'qr_amount'   => (float)($data['qr_amount'] ?? 0)
+                ];
                 $billModel = new Bill();
-                $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+                $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown);
             }
             
             try {
@@ -389,8 +394,14 @@ class CounterController extends Controller {
             }
         }
 
+        $breakdown = [
+            'cash_amount' => (float)($data['cash_amount'] ?? 0),
+            'card_amount' => (float)($data['card_amount'] ?? 0),
+            'qr_amount'   => (float)($data['qr_amount'] ?? 0)
+        ];
+
         $billModel = new Bill();
-        $success = $billModel->payBill($billId, $method, $discountPercent, $cashierId, $customerName, $customerMobile, $gender);
+        $success = $billModel->payBill($billId, $method, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown);
         if ($success) {
             try {
                 require_once __DIR__ . '/../services/PrinterService.php';
@@ -730,6 +741,9 @@ class CounterController extends Controller {
                 $order['discount_amount'] = (float)$b['discount_amount'];
                 $order['grand_total'] = (float)$b['grand_total'];
                 $order['payment_method'] = $b['payment_method'];
+                $order['cash_amount'] = (float)($b['cash_amount'] ?? 0);
+                $order['card_amount'] = (float)($b['card_amount'] ?? 0);
+                $order['qr_amount'] = (float)($b['qr_amount'] ?? 0);
             } else {
                 // Calculate totals from items
                 $subtotal = 0.0;

@@ -32,11 +32,13 @@ class ApiController extends Controller {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_role'] = $user['role'];
+            $_SESSION['role'] = $user['role'];
             
             // Clean waiter prefix from user name
             $name = $user['name'];
             $name = preg_replace('/^waiter\s+/i', '', $name);
             $_SESSION['user_name'] = $name;
+            $_SESSION['name'] = $name;
             $user['name'] = $name;
 
             // Track login status

@@ -1822,7 +1822,7 @@
                 <!-- Modal Actions -->
                 <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px;">
                     <div style="margin-right: auto; display: flex; gap: 8px;">
-                        <?php if (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin'): ?>
+                        <?php if (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin', 'counter']) || in_array(($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''), ['admin', 'counter', 'cashier'])): ?>
                             <button type="button" id="admin-modal-cancel-btn" onclick="cancelCurrentModalTransaction()" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                 <span>🚫</span> Cancel Order
                             </button>
@@ -2210,7 +2210,7 @@
 
     <script>
         const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
-        const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin']) || ($_SESSION['role'] ?? '') === 'admin') ? 'true' : 'false' ?>;
+        const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin', 'counter']) || in_array(($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''), ['admin', 'counter', 'cashier'])) ? 'true' : 'false' ?>;
 
         function openSandsProductsModal() {
             closeSandsModal();
@@ -3127,13 +3127,29 @@
                 }
 
                 const tr = document.createElement('tr');
+                let payMethodDisplay = 'Pending';
+                if ((row.payment_method||'').toLowerCase() === 'split' || row.raw_payment_method === 'split') {
+                    const pCash = parseFloat(row.cash_amount || 0);
+                    const pCard = parseFloat(row.card_amount || 0);
+                    const pQr = parseFloat(row.qr_amount || 0);
+                    let parts = [];
+                    if (pCash > 0) parts.push(`💵 ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pCard > 0) parts.push(`💳 ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pQr > 0) parts.push(`📱 ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    payMethodDisplay = `<span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size:11px;" title="${parts.join(' | ')}">🔀 Split</span><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${parts.join(', ')}</div>`;
+                } else if (row.payment_method && row.payment_method !== 'Pending') {
+                    const m = (row.payment_method || '').toLowerCase();
+                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : '📱');
+                    payMethodDisplay = `${icon} ${escapeHtmlAdmin(row.payment_method)}`;
+                }
+
                 tr.innerHTML = `
                     <td>#${row.order_id}</td>
                     <td>${row.created_at}</td>
                     <td><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
                     <td>${detailsHtml}</td>
                     <td><span class="badge ${statusBadge}">${isCancelled ? 'CANCELLED' : (row.status || 'Unknown')}</span></td>
-                    <td>${row.payment_method || 'Pending'}</td>
+                    <td>${payMethodDisplay}</td>
                     <td class="price-text" style="font-weight:600; text-align:right;">${amountDisplay}</td>
                     <td style="text-align: center;">
                         <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap;">
@@ -3141,7 +3157,7 @@
                                 <span>📋</span> Order Details
                             </button>
                             ${(!isCancelled && canCancel) ? `
-                                <button type="button" class="btn-action" onclick="cancelTransaction(${row.order_id})" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Admin / Superadmin: Cancel Transaction">
+                                <button type="button" class="btn-action" onclick="cancelTransaction(${row.order_id})" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Cancel Transaction">
                                     <span>🚫</span> Cancel
                                 </button>
                             ` : ''}
@@ -3214,10 +3230,24 @@
                     else if((o.status||'').toLowerCase() === 'cancelled') statusBadge = 'danger';
                     else if((o.status||'').toLowerCase() === 'active') statusBadge = 'warning';
 
+                    let payBadge = '<span class="badge secondary">Payment Pending</span>';
+                    if ((o.payment_method || '').toLowerCase() === 'split') {
+                        const pCash = parseFloat(o.cash_amount || 0);
+                        const pCard = parseFloat(o.card_amount || 0);
+                        const pQr = parseFloat(o.qr_amount || 0);
+                        let parts = [];
+                        if (pCash > 0) parts.push(`Cash: ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        if (pCard > 0) parts.push(`Card: ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        if (pQr > 0) parts.push(`QR: ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                        payBadge = `<span class="badge success" style="background: rgba(99,102,241,0.2); color:#818cf8;">🔀 SPLIT (${parts.join(', ')})</span>`;
+                    } else if (o.payment_method) {
+                        payBadge = `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>`;
+                    }
+
                     document.getElementById('admin-modal-order-badges').innerHTML = `
                         <span class="badge ${badgeClass}">${(o.order_type||'').replace('_', ' ').toUpperCase()}</span>
                         <span class="badge ${statusBadge}">${(o.status||'').toUpperCase()}</span>
-                        ${o.payment_method ? `<span class="badge success">💳 ${(o.payment_method).toUpperCase()}</span>` : '<span class="badge secondary">Payment Pending</span>'}
+                        ${payBadge}
                     `;
 
                     let detailDisplay = 'Dine In';
@@ -3318,7 +3348,7 @@
             if (!canCancel) {
                 Swal.fire({
                     title: 'Access Denied',
-                    text: 'Only Admins and Super Admin can cancel transactions.',
+                    text: 'Only Admins and Counter staff can cancel transactions.',
                     icon: 'error',
                     background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
                     color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'

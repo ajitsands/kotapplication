@@ -228,11 +228,29 @@
             </tr>
             <?php if (!empty($bill['payment_method'])): ?>
             <tr>
-                <td class="text-left">
-                    Pay: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b>
-                </td>
-                <td class="text-right">
-                    Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b>
+                <td class="text-left" colspan="2" style="padding-top: 3px;">
+                    <?php if ($bill['payment_method'] === 'split'): ?>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Pay: <b>SPLIT PAYMENT</b></span>
+                            <span>Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b></span>
+                        </div>
+                        <div style="font-size: 10px; margin-top: 2px; padding-left: 6px; color: #222;">
+                            <?php if ((float)($bill['cash_amount'] ?? 0) > 0): ?>
+                                <div>• Cash: <b><?= format_price($bill['cash_amount']) ?></b></div>
+                            <?php endif; ?>
+                            <?php if ((float)($bill['card_amount'] ?? 0) > 0): ?>
+                                <div>• Card: <b><?= format_price($bill['card_amount']) ?></b></div>
+                            <?php endif; ?>
+                            <?php if ((float)($bill['qr_amount'] ?? 0) > 0): ?>
+                                <div>• QR Pay: <b><?= format_price($bill['qr_amount']) ?></b></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Pay: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b></span>
+                            <span>Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b></span>
+                        </div>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endif; ?>

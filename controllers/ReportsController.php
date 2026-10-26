@@ -278,6 +278,9 @@ class ReportsController extends Controller {
                     o.cancelled_at,
                     b.id as bill_id,
                     b.payment_method,
+                    b.cash_amount,
+                    b.card_amount,
+                    b.qr_amount,
                     b.grand_total as bill_total,
                     b.status as bill_status,
                     op.name as platform_name,
@@ -354,6 +357,10 @@ class ReportsController extends Controller {
                 'cancelled_by' => $row['cancelled_by'] ?? null,
                 'cancelled_at' => !empty($row['cancelled_at']) ? date('d M Y, h:i A', strtotime($row['cancelled_at'])) : null,
                 'payment_method' => $row['payment_method'] ? ucfirst(str_replace('_', ' ', $row['payment_method'])) : 'Pending',
+                'raw_payment_method' => $row['payment_method'],
+                'cash_amount' => (float)($row['cash_amount'] ?? 0),
+                'card_amount' => (float)($row['card_amount'] ?? 0),
+                'qr_amount' => (float)($row['qr_amount'] ?? 0),
                 'details' => $details,
                 'bill_id' => $row['bill_id'] ? (int)$row['bill_id'] : null
             ];

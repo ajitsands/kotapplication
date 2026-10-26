@@ -129,9 +129,10 @@ class AdminAppController extends Controller {
                         COUNT(DISTINCT CASE WHEN b.payment_method = 'cash' THEN b.id END) as cash_bills,
                         COUNT(DISTINCT CASE WHEN b.payment_method = 'card' THEN b.id END) as card_bills,
                         COUNT(DISTINCT CASE WHEN b.payment_method = 'qr_pay' THEN b.id END) as qr_bills,
-                        COALESCE(SUM(CASE WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
-                        COALESCE(SUM(CASE WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
-                        COALESCE(SUM(CASE WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                        COUNT(DISTINCT CASE WHEN b.payment_method = 'split' THEN b.id END) as split_bills,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
+                        COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
                         COALESCE(SUM(b.grand_total), 0) as grand_total,
                         COALESCE(SUM(b.tax_amount), 0) as total_tax,
                         COALESCE(SUM(b.discount_amount), 0) as total_discount
