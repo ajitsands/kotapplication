@@ -112,13 +112,27 @@ try {
         }
     }
 
-    // Check is_counter_item column in products table
+    // Check is_counter_item and sort_order columns in categories & products tables
+    $categoriesTableCheck = $pdo->query("SHOW TABLES LIKE 'categories'")->fetch();
+    if ($categoriesTableCheck) {
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `categories` LIKE 'sort_order'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `categories` ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `name`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'sort_order' column to 'categories' table.</p>";
+        }
+    }
+
     $productsTableCheck = $pdo->query("SHOW TABLES LIKE 'products'")->fetch();
     if ($productsTableCheck) {
         $colCheck = $pdo->query("SHOW COLUMNS FROM `products` LIKE 'is_counter_item'")->fetch();
         if (!$colCheck) {
             $pdo->exec("ALTER TABLE `products` ADD COLUMN `is_counter_item` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_available`");
             echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'is_counter_item' column to 'products' table.</p>";
+        }
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `products` LIKE 'sort_order'")->fetch();
+        if (!$colCheck) {
+            $pdo->exec("ALTER TABLE `products` ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `price`");
+            echo "<p style='color:green; font-family:sans-serif;'>✓ Migrated: Added 'sort_order' column to 'products' table.</p>";
         }
     }
 

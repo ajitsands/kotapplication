@@ -1,6 +1,52 @@
 <?php
 
 class Order extends Model {
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM orders")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('order_type', $cols)) {
+                $this->db->exec("ALTER TABLE orders MODIFY COLUMN table_number INT NULL DEFAULT NULL");
+                $this->db->exec("ALTER TABLE orders ADD COLUMN order_type ENUM('dine_in','take_away','online') NOT NULL DEFAULT 'dine_in' AFTER status");
+            } else {
+                $this->db->exec("ALTER TABLE orders MODIFY COLUMN order_type ENUM('dine_in','take_away','online') NOT NULL DEFAULT 'dine_in'");
+            }
+            $this->db->exec("ALTER TABLE orders MODIFY COLUMN status ENUM('active','closed','completed','cancelled') DEFAULT 'active'");
+            if (!in_array('platform_id', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN platform_id INT DEFAULT NULL AFTER order_type");
+            }
+            if (!in_array('platform_order_number', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN platform_order_number VARCHAR(100) DEFAULT NULL AFTER platform_id");
+            }
+            if (!in_array('customer_name', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN customer_name VARCHAR(100) DEFAULT NULL");
+            }
+            if (!in_array('customer_mobile', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN customer_mobile VARCHAR(20) DEFAULT NULL");
+            }
+            if (!in_array('token_number', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN token_number VARCHAR(10) DEFAULT NULL");
+            }
+            if (!in_array('cancellation_reason', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255) DEFAULT NULL");
+                $this->db->exec("ALTER TABLE orders ADD COLUMN cancelled_by VARCHAR(100) DEFAULT NULL");
+                $this->db->exec("ALTER TABLE orders ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL");
+            }
+
+            $kotCols = $this->db->query("SHOW COLUMNS FROM kot_items")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('price', $kotCols)) {
+                $this->db->exec("ALTER TABLE kot_items ADD COLUMN price DECIMAL(10,3) NULL DEFAULT NULL AFTER quantity");
+            }
+            if (!in_array('refund_status', $kotCols)) {
+                $this->db->exec("ALTER TABLE kot_items ADD COLUMN refund_status ENUM('pending','refunded') DEFAULT 'pending' AFTER status");
+            }
+        } catch (Exception $e) {}
+    }
+
     public function getActiveOrderByTable($tableNumber) {
         $stmt = $this->db->prepare("SELECT o.*, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name 
                                     FROM orders o 

@@ -1,6 +1,24 @@
 <?php
 
 class Category extends Model {
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM categories")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('sort_order', $cols)) {
+                $this->db->exec("ALTER TABLE categories ADD COLUMN sort_order INT NOT NULL DEFAULT 0 AFTER name");
+                $this->normalizeSortOrders();
+            }
+            if (!in_array('image_url', $cols)) {
+                $this->db->exec("ALTER TABLE categories ADD COLUMN image_url VARCHAR(255) DEFAULT NULL AFTER sort_order");
+            }
+        } catch (Exception $e) {}
+    }
+
     public function getAll() {
         $stmt = $this->db->query("SELECT * FROM categories ORDER BY sort_order ASC, name ASC");
         return $stmt->fetchAll();

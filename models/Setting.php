@@ -52,6 +52,12 @@ class Setting extends Model {
     private function ensurePrinterColumns() {
         try {
             $cols = $this->db->query("SHOW COLUMNS FROM settings")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('custom_units', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN custom_units VARCHAR(255) DEFAULT 'Nos, Box, Packet, Gram, KG, Litre, ML' AFTER currency_code");
+            }
+            if (!in_array('software_expiry_date', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN software_expiry_date DATE DEFAULT '2027-12-31' AFTER logo_path");
+            }
             if (!in_array('printer_ip', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN printer_ip VARCHAR(45) NOT NULL DEFAULT '192.168.8.101'");
             }

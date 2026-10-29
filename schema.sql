@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
 CREATE TABLE IF NOT EXISTS `categories` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(100) NOT NULL UNIQUE,
+    `sort_order` INT NOT NULL DEFAULT 0,
     `image_url` VARCHAR(255) DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS `products` (
     `name` VARCHAR(100) NOT NULL,
     `description` TEXT,
     `price` DECIMAL(10,3) NOT NULL, -- Supporting 3 decimals for BHD
+    `sort_order` INT NOT NULL DEFAULT 0,
     `image_url` VARCHAR(255) DEFAULT NULL,
     `is_available` TINYINT(1) DEFAULT 1,
     `is_counter_item` TINYINT(1) DEFAULT 0,
