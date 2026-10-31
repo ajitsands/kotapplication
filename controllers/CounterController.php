@@ -3,12 +3,43 @@ require_once __DIR__ . '/../models/Bill.php';
 require_once __DIR__ . '/../models/Setting.php';
 require_once __DIR__ . '/../models/CounterSession.php';
 require_once __DIR__ . '/../models/Order.php';
+require_once __DIR__ . '/../models/User.php';
 
 class CounterController extends Controller {
     public function __construct() {
         if (strpos($_SERVER['REQUEST_URI'], '/counter/print/') !== 0) {
             $this->requireAuth('counter');
+            if (!empty($_SESSION['user_id'])) {
+                $userModel = new User();
+                $userModel->setLoggedIn($_SESSION['user_id'], 1);
+            }
         }
+    }
+
+    /**
+     * Dynamically resolve the cashier's unified active session across any number of logged-in locations.
+     */
+    private function resolveActiveCounterSession() {
+        $cashierId = $_SESSION['user_id'] ?? null;
+        if (!$cashierId) {
+            return null;
+        }
+        $csModel = new CounterSession();
+        $activeSession = $csModel->getActiveSession($cashierId);
+        if ($activeSession) {
+            if ($activeSession['status'] === 'close_requested') {
+                unset($_SESSION['counter_session_id']);
+                return null;
+            }
+            $_SESSION['counter_session_id'] = $activeSession['id'];
+            return (int)$activeSession['id'];
+        }
+        if (($_SESSION['user_role'] ?? '') === 'counter') {
+            $sessionId = $csModel->ensureSession($cashierId);
+            $_SESSION['counter_session_id'] = $sessionId;
+            return (int)$sessionId;
+        }
+        return $_SESSION['counter_session_id'] ?? null;
     }
 
     public function index() {
@@ -137,6 +168,7 @@ class CounterController extends Controller {
         }
 
         $cashierId = $_SESSION['user_id'] ?? null;
+        $this->resolveActiveCounterSession();
 
         // Process item prices based on platform markup
         require_once __DIR__ . '/../models/Product.php';
@@ -384,8 +416,9 @@ class CounterController extends Controller {
         $gender = trim($data['gender'] ?? '');
         $cashierId = $_SESSION['user_id'] ?? null;
 
-        // Safety check: Ensure cashier has an active open session
+        // Safety check: Ensure cashier has an active open session (synced across locations)
         if ($cashierId && ($_SESSION['user_role'] ?? '') === 'counter') {
+            $this->resolveActiveCounterSession();
             $csModel = new CounterSession();
             $activeSession = $csModel->getActiveSession($cashierId);
             if (!$activeSession || $activeSession['status'] !== 'open') {
@@ -600,6 +633,7 @@ class CounterController extends Controller {
             
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
         } else {
+            $this->resolveActiveCounterSession();
             // For cashier, default to current active session if date range is exactly today
             if ($startDate === date('Y-m-d') && $endDate === date('Y-m-d')) {
                 $csModel = new CounterSession();
@@ -610,7 +644,7 @@ class CounterController extends Controller {
 
                 if ($activeSession) {
                     if ($activeSession['status'] === 'open') {
-                        $totals = $csModel->refreshSessionTotals($activeSession['id']);
+                        $totals = $csModel->refreshSessionTotals($activeSession['id'], null, null, false);
                     } else {
                         $totals = [
                             'cash_total' => $activeSession['cash_total'],
@@ -624,7 +658,7 @@ class CounterController extends Controller {
                         'card_total' => $totals['card_total'],
                         'qr_total' => $totals['qr_total'],
                         'grand_total' => $totals['system_total'],
-                        'takeaway_total' => 0.000 // We don't track session-level takeaway yet
+                        'takeaway_total' => 0.000
                     ];
                 } else {
                     $summary = [
@@ -651,7 +685,7 @@ class CounterController extends Controller {
 
     // AJAX: Get current session info + live totals
     public function sessionInfo() {
-        $sessionId = $_SESSION['counter_session_id'] ?? null;
+        $sessionId = $this->resolveActiveCounterSession() ?: ($_SESSION['counter_session_id'] ?? null);
         if (!$sessionId) {
             $this->json(['session' => null]);
             return;
@@ -660,14 +694,22 @@ class CounterController extends Controller {
         $endTime   = $_GET['end_time'] ?? null;
 
         $csModel = new CounterSession();
-        $totals  = $csModel->refreshSessionTotals($sessionId, $startTime, $endTime);
+        // Preview totals without persisting start_time/end_time window to DB
+        $totals  = $csModel->refreshSessionTotals($sessionId, $startTime, $endTime, false);
         $session = $csModel->getSession($sessionId);
+        if ($session) {
+            $session['daily_breakdown'] = $csModel->getSessionDailyBreakdown(
+                $session['cashier_id'],
+                !empty($startTime) ? $startTime : $session['opened_at'],
+                !empty($endTime) ? $endTime : date('Y-m-d H:i:s')
+            );
+        }
         $this->json(['session' => $session, 'totals' => $totals]);
     }
 
     // AJAX: Cashier submits close counter request
     public function requestClose() {
-        $sessionId = $_SESSION['counter_session_id'] ?? null;
+        $sessionId = $this->resolveActiveCounterSession() ?: ($_SESSION['counter_session_id'] ?? null);
         if (!$sessionId) {
             $this->json(['success' => false, 'error' => 'No active session']);
             return;
@@ -681,7 +723,8 @@ class CounterController extends Controller {
         $endTime       = $data['end_time'] ?? null;
 
         $csModel = new CounterSession();
-        $csModel->refreshSessionTotals($sessionId, $startTime, $endTime);
+        // Persist window only when actually submitting the close request
+        $csModel->refreshSessionTotals($sessionId, $startTime, $endTime, true);
         $success = $csModel->requestClose($sessionId, $collectedCash, $collectedCard, $collectedQr, $notes, $endTime);
         $this->json(['success' => $success]);
     }

@@ -2895,6 +2895,12 @@
         setInterval(fetchCompletedTakeaways, 8000);
         setInterval(fetchPendingRefunds, 5000);
         setInterval(fetchSummary, 10000);
+        setInterval(() => {
+            const allTransSec = document.getElementById('section-all-transactions');
+            if (allTransSec && allTransSec.style.display !== 'none') {
+                loadCounterTransactionsReport(true);
+            }
+        }, 6000);
 
         let currentPendingRefunds = {};
         
@@ -4341,7 +4347,9 @@
             document.getElementById('counter-trans-total-count').innerText = filteredData.length;
         }
 
-        function loadCounterTransactionsReport() {
+        let lastCounterTransJson = '';
+
+        function loadCounterTransactionsReport(isBackgroundPoll = false) {
             let startDate = document.getElementById('counter-trans-start-date').value;
             let endDate = document.getElementById('counter-trans-end-date').value;
 
@@ -4359,7 +4367,13 @@
                 .then(res => res.json())
                 .then(res => {
                     if(res.status === 'success') {
-                        currentCounterTransData = res.data || [];
+                        const nextData = res.data || [];
+                        const nextJson = JSON.stringify(nextData);
+                        if (isBackgroundPoll && nextJson === lastCounterTransJson) {
+                            return;
+                        }
+                        lastCounterTransJson = nextJson;
+                        currentCounterTransData = nextData;
                         renderCounterTransactionsTable();
                     }
                 })

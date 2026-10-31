@@ -17,6 +17,7 @@ class Bill extends Model {
             }
         } catch (Exception $e) {}
     }
+
     public function getPendingBills() {
         $stmt = $this->db->query("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.created_at as order_created_at
                                   FROM bills b
@@ -160,8 +161,8 @@ class Bill extends Model {
                 $qrAmount   = 0.000;
             }
 
-            // Update bill status, payment method, breakdown amounts, discount, grand total, cashier_id, and customer_id
-            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, cash_amount = ?, card_amount = ?, qr_amount = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ? WHERE id = ?");
+            // Update bill status, payment method, breakdown amounts, discount, grand total, cashier_id, customer_id, and payment timestamp
+            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, cash_amount = ?, card_amount = ?, qr_amount = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ?, created_at = NOW() WHERE id = ?");
             $stmtBill->execute([$paymentMethod, $cashAmount, $cardAmount, $qrAmount, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
 
             // For Dine In orders, payment completes the order flow.
@@ -408,7 +409,9 @@ class Bill extends Model {
         }
         // Query to get summary per cashier in date range
         $sql = "SELECT 
+                    b.cashier_id,
                     u.name as cashier_name,
+                    COUNT(b.id) as total_bills,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
@@ -420,7 +423,28 @@ class Bill extends Model {
                 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$startDate, $endDate]);
-        return $stmt->fetchAll();
+        $cashiers = $stmt->fetchAll();
+
+        $stmtDaily = $this->db->prepare(
+            "SELECT 
+                DATE(b.created_at) AS collection_date,
+                COUNT(b.id) AS total_bills,
+                COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) AS cash_total,
+                COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) AS card_total,
+                COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) AS qr_total,
+                COALESCE(SUM(b.grand_total), 0) AS day_total
+             FROM bills b
+             WHERE b.status = 'paid' AND b.cashier_id = ? AND DATE(b.created_at) BETWEEN ? AND ?
+             GROUP BY DATE(b.created_at)
+             ORDER BY collection_date DESC"
+        );
+
+        foreach ($cashiers as &$c) {
+            $stmtDaily->execute([$c['cashier_id'], $startDate, $endDate]);
+            $c['daily_breakdown'] = $stmtDaily->fetchAll();
+        }
+
+        return $cashiers;
     }
 
     public function getTaxReport($startDate, $endDate) {

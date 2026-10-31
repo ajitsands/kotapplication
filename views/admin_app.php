@@ -1555,6 +1555,33 @@
         </div>
     </div>
 
+    <!-- ==================== CASHIER DAY-WISE BREAKDOWN MODAL ==================== -->
+    <div id="cashier-days-modal" class="app-modal" onclick="if(event.target===this) closeCashierDaysModal()">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <h3 class="modal-title" id="modal-cashier-title">Cashier Collection</h3>
+                        <span id="modal-cashier-badge"></span>
+                    </div>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 3px;" id="modal-cashier-subtitle"></p>
+                </div>
+                <button class="btn-close-modal" onclick="closeCashierDaysModal()">&times;</button>
+            </div>
+
+            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: -6px;">
+                📅 Day-by-Day Collection Breakdown
+            </div>
+
+            <div id="modal-cashier-days-list" style="display: flex; flex-direction: column; gap: 10px;">
+                Loading daily breakdown...
+            </div>
+
+            <div id="modal-cashier-footer-box" style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+            </div>
+        </div>
+    </div>
+
 <?php endif; ?>
 
 <script>
@@ -1564,6 +1591,7 @@
     let syncCountdownSec = 10;
     let currentActiveTab = 'dashboard';
     let previousPendingCount = 0;
+    let cashierModalDataMap = {};
 
     // Theme Management
     function initAppTheme() {
@@ -1589,6 +1617,96 @@
     function fmt(val) {
         const num = parseFloat(val) || 0;
         return num.toFixed(3);
+    }
+
+    // Format YYYY-MM-DD into human-friendly date e.g. "31 Oct 2026"
+    function formatDayLabel(dateStr) {
+        if (!dateStr) return '-';
+        try {
+            const parts = String(dateStr).split('-');
+            if (parts.length === 3) {
+                const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                const todayStr = formatLocalDate(new Date(), 0);
+                const yestStr = formatLocalDate(new Date(), -1);
+                const formatted = dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                if (dateStr === todayStr) return `${formatted} <span style="font-size:10px; background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:5px; margin-left:4px; font-weight:800;">TODAY</span>`;
+                if (dateStr === yestStr) return `${formatted} <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#6366f1; padding:2px 6px; border-radius:5px; margin-left:4px; font-weight:800;">YESTERDAY</span>`;
+                return formatted;
+            }
+        } catch (e) {}
+        return dateStr;
+    }
+
+    function openCashierDaysModal(key) {
+        const info = cashierModalDataMap[key];
+        if (!info) return;
+
+        document.getElementById('modal-cashier-title').innerText = info.cashier_name || 'Cashier';
+        document.getElementById('modal-cashier-badge').innerHTML = info.badge_html || '';
+        document.getElementById('modal-cashier-subtitle').innerText = info.subtitle || '';
+
+        const daysList = document.getElementById('modal-cashier-days-list');
+        const days = Array.isArray(info.daily_breakdown) ? info.daily_breakdown : [];
+
+        if (days.length === 0) {
+            daysList.innerHTML = `
+                <div style="text-align: center; padding: 24px 12px; color: var(--text-muted); background: var(--surface-2); border-radius: 14px; font-size: 13px;">
+                    No paid bills recorded in this shift / period yet.
+                </div>
+            `;
+        } else {
+            let daysHtml = '';
+            days.forEach(d => {
+                const billsCount = parseInt(d.total_bills || 0, 10);
+                daysHtml += `
+                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 14px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">
+                                <span>📆</span>
+                                <span>${formatDayLabel(d.collection_date)}</span>
+                            </div>
+                            <div style="font-size: 15px; font-weight: 900; color: #10b981;">
+                                ${CURRENCY} ${fmt(d.day_total)}
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap; gap: 6px;">
+                            <span>🧾 Bills: <strong>${billsCount}</strong></span>
+                            <span>💵 Cash: <strong>${fmt(d.cash_total)}</strong> • 💳 Card: <strong>${fmt(d.card_total)}</strong> • 📱 QR: <strong>${fmt(d.qr_total)}</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+            daysList.innerHTML = daysHtml;
+        }
+
+        const footerBox = document.getElementById('modal-cashier-footer-box');
+        let actionBtnHtml = '';
+        if (info.is_close_requested) {
+            actionBtnHtml = `
+                <button class="btn-confirm-closing" style="margin-top: 6px; width: 100%;" onclick="closeCashierDaysModal(); switchNavTab('closings');">
+                    🔒 Review & Approve Shift Close
+                </button>
+            `;
+        }
+
+        footerBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">${info.total_label || 'Total Closing Amount'}</span>
+                <span style="font-size: 18px; font-weight: 900; color: ${info.price_color || '#10b981'};">${CURRENCY} ${fmt(info.grand_total)}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 6px;">
+                <span>💵 Cash: <strong>${fmt(info.cash_total)}</strong></span>
+                <span>💳 Card: <strong>${fmt(info.card_total)}</strong></span>
+                <span>📱 QR: <strong>${fmt(info.qr_total)}</strong></span>
+            </div>
+            ${actionBtnHtml}
+        `;
+
+        document.getElementById('cashier-days-modal').style.display = 'flex';
+    }
+
+    function closeCashierDaysModal() {
+        document.getElementById('cashier-days-modal').style.display = 'none';
     }
 
     // Navigation Switcher
@@ -1837,9 +1955,6 @@
         const activeCashiersList = document.getElementById('dash-active-cashiers-list');
         const activeSessions = (data.collection && data.collection.active_sessions) || (closures && closures.active_sessions) || [];
 
-        // Filter: ONLY show open shifts on the Dashboard active counters list.
-        // Sessions with status === 'close_requested' are shown in the Shift Closings section / banner.
-        // If cashier is logged out and has 0.000 total, treat as normal (no shift in progress, no close needed).
         const openSessions = activeSessions.filter(s => {
             if (s.status !== 'open') return false;
             const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
@@ -1862,9 +1977,24 @@
                     const badgeBg = isOnline ? 'var(--emerald-grad)' : 'linear-gradient(135deg, #ef4444, #dc2626)';
                     const badgeIcon = isOnline ? '🟢' : '⚠️';
                     const priceColor = isOnline ? '#10b981' : '#ef4444';
+                    const modalKey = 'dash_session_' + s.id;
+
+                    cashierModalDataMap[modalKey] = {
+                        cashier_name: s.cashier_name || 'Cashier',
+                        badge_html: statusBadge,
+                        subtitle: 'Shift Started: ' + (formatLocalDateTime(s.opened_at) || '-'),
+                        daily_breakdown: s.daily_breakdown || [],
+                        cash_total: s.cash_total,
+                        card_total: s.card_total,
+                        qr_total: s.qr_total,
+                        grand_total: s.system_total || s.collected_total,
+                        total_label: 'Total Shift Amount (For Closing)',
+                        price_color: priceColor,
+                        is_close_requested: false
+                    };
 
                     cashiersHtml += `
-                        <div class="list-item-card" style="cursor: default; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
+                        <div class="list-item-card" onclick="openCashierDaysModal('${modalKey}')" style="cursor: pointer; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
                             <div class="list-item-left">
                                 <div class="list-item-badge" style="background: ${badgeBg}; color: #ffffff;">
                                     ${badgeIcon}
@@ -1873,12 +2003,14 @@
                                     <div class="list-item-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                         <span style="font-weight: 800;">${s.cashier_name || 'Cashier'}</span>
                                         ${statusBadge}
+                                        <span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 700; background: rgba(99, 102, 241, 0.12); color: #6366f1;">📅 View Days</span>
                                     </div>
                                     <div class="list-item-meta">Shift Started: ${formatLocalDateTime(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
                                 </div>
                             </div>
                             <div class="list-item-right">
                                 <div class="list-item-price" style="color: ${priceColor};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                                <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">Closing Total ›</div>
                             </div>
                         </div>
                     `;
@@ -1922,6 +2054,21 @@
                     varianceBadge = `<span style="color: #ef4444; font-weight: 800;">⚠️ Shortage ${fmt(variance)}</span>`;
                 }
 
+                const modalKey = 'closure_' + c.id;
+                cashierModalDataMap[modalKey] = {
+                    cashier_name: c.cashier_name || 'Cashier',
+                    badge_html: `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: #f59e0b; color: #fff; text-transform: uppercase;">⏳ Close Requested</span>`,
+                    subtitle: `Shift: ${formatLocalDateTime(c.opened_at)} → ${formatLocalDateTime(c.close_requested_at || c.opened_at)}`,
+                    daily_breakdown: c.daily_breakdown || [],
+                    cash_total: c.cash_total,
+                    card_total: c.card_total,
+                    qr_total: c.qr_total,
+                    grand_total: c.system_total,
+                    total_label: 'System Expected Closing Total',
+                    price_color: '#f59e0b',
+                    is_close_requested: false
+                };
+
                 const cardHtml = `
                     <div class="closing-alert-card">
                         <div class="closing-alert-top">
@@ -1929,12 +2076,14 @@
                                 <div class="cashier-avatar">${(c.cashier_name || 'C').charAt(0).toUpperCase()}</div>
                                 <div>
                                     <div class="closing-title">${c.cashier_name || 'Cashier'}</div>
-                                    <div class="closing-time">Shift Request: ${c.close_requested_at || c.opened_at}</div>
+                                    <div class="closing-time">Started: ${formatLocalDateTime(c.opened_at)}</div>
+                                    <div class="closing-time">Close Req: ${formatLocalDateTime(c.close_requested_at || c.opened_at)}</div>
                                 </div>
                             </div>
-                            <div class="closing-amount-pill">
+                            <div class="closing-amount-pill" onclick="openCashierDaysModal('${modalKey}')" style="cursor: pointer;" title="Tap to view day-wise breakdown">
                                 <div class="label">Collected Total</div>
                                 <div class="val">${CURRENCY} ${fmt(c.collected_total)}</div>
+                                <div style="font-size: 10px; font-weight: 700; color: #6366f1; margin-top: 2px;">📅 View Days ›</div>
                             </div>
                         </div>
 
@@ -2035,6 +2184,7 @@
                                 showConfirmButton: false
                             });
                             fetchDashboardLive();
+                            if (currentActiveTab === 'collections') fetchCollectionSummary();
                         } else {
                             Swal.fire({ icon: 'error', title: 'Action Failed', text: data.error });
                         }
@@ -2068,6 +2218,7 @@
                                 showConfirmButton: false
                             });
                             fetchDashboardLive();
+                            if (currentActiveTab === 'collections') fetchCollectionSummary();
                         } else {
                             Swal.fire({ icon: 'error', title: 'Action Failed', text: data.error });
                         }
@@ -2405,22 +2556,38 @@
         document.getElementById('pct-qr').innerText = pQr + '%';
         document.getElementById('pct-online').innerText = pOnline + '%';
 
-        // Render Cashiers List & Active Shift Sessions
+        // Render Unified Cashier-Wise Collections (Single Card per Cashier + Click for Day-Wise Popup)
         const cashiersContainer = document.getElementById('col-cashiers-list');
+        const rangeLabel = (document.getElementById('col-range-label') && document.getElementById('col-range-label').innerText) || 'Selected Period';
         let html = '';
 
-        // 1. Show Active Cashier Shifts (Live in Progress / Logged Out with Balance / Close Requested)
+        // Index period breakdown by cashier_id (or cashier_name fallback)
+        const periodByCashier = {};
+        if (data.cashiers && data.cashiers.length > 0) {
+            data.cashiers.forEach(c => {
+                const cid = c.cashier_id ? ('id_' + c.cashier_id) : ('name_' + (c.cashier_name || '').toLowerCase());
+                periodByCashier[cid] = c;
+            });
+        }
+
+        const renderedCashierKeys = new Set();
+
+        // 1. Render Cashiers with Active / Close-Requested Shifts (Merged with their Period data)
         if (data.active_sessions && data.active_sessions.length > 0) {
             data.active_sessions.forEach(s => {
                 const isRequested = s.status === 'close_requested';
                 const isOnline = (parseInt(s.is_online) === 1 || parseInt(s.is_logged_in) === 1);
-                const total = parseFloat(s.system_total || s.collected_total || 0);
+                const shiftTotal = parseFloat(s.system_total || s.collected_total || 0);
 
                 // If cashier is logged out and has 0.000 amount, skip showing as unclosed alert
-                if (!isRequested && !isOnline && total <= 0) {
+                if (!isRequested && !isOnline && shiftTotal <= 0) {
                     return;
                 }
-                
+
+                const cid = s.cashier_id ? ('id_' + s.cashier_id) : ('name_' + (s.cashier_name || '').toLowerCase());
+                renderedCashierKeys.add(cid);
+                const periodData = periodByCashier[cid] || null;
+
                 let badgeHtml = '';
                 let cardBorder = '';
                 let cardBg = '';
@@ -2451,8 +2618,28 @@
                     priceColor = '#ef4444';
                 }
 
+                let periodSubLine = '';
+                if (periodData && Math.abs(parseFloat(periodData.grand_total || 0) - shiftTotal) > 0.0005) {
+                    periodSubLine = `<div class="list-item-meta" style="color: var(--text-main); font-weight: 600; margin-top: 3px;">📅 ${rangeLabel}: <strong>${CURRENCY} ${fmt(periodData.grand_total)}</strong> (Bills: ${periodData.total_bills || 0} • Cash: ${fmt(periodData.cash_total)} • Card: ${fmt(periodData.card_total)} • QR: ${fmt(periodData.qr_total)})</div>`;
+                }
+
+                const modalKey = 'col_session_' + s.id;
+                cashierModalDataMap[modalKey] = {
+                    cashier_name: s.cashier_name || 'Cashier',
+                    badge_html: badgeHtml,
+                    subtitle: 'Shift Started: ' + (formatLocalDateTime(s.opened_at) || '-'),
+                    daily_breakdown: s.daily_breakdown || (periodData && periodData.daily_breakdown) || [],
+                    cash_total: s.cash_total,
+                    card_total: s.card_total,
+                    qr_total: s.qr_total,
+                    grand_total: shiftTotal,
+                    total_label: 'Total Shift Amount (For Closing)',
+                    price_color: priceColor,
+                    is_close_requested: isRequested
+                };
+
                 html += `
-                    <div class="list-item-card" style="cursor: default; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
+                    <div class="list-item-card" onclick="openCashierDaysModal('${modalKey}')" style="cursor: pointer; border: 1.5px solid ${cardBorder}; background: ${cardBg};">
                         <div class="list-item-left">
                             <div class="list-item-badge" style="background: ${badgeBg}; color: #ffffff;">
                                 ${badgeIcon}
@@ -2461,34 +2648,61 @@
                                 <div class="list-item-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                     <span>${s.cashier_name || 'Cashier'}</span>
                                     ${badgeHtml}
+                                    <span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 700; background: rgba(99, 102, 241, 0.12); color: #6366f1;">📅 View Days</span>
                                 </div>
                                 <div class="list-item-meta">Shift Started: ${formatLocalDateTime(s.opened_at) || '-'} • Cash: ${fmt(s.cash_total)} • Card: ${fmt(s.card_total)} • QR: ${fmt(s.qr_total)}</div>
+                                ${periodSubLine}
                             </div>
                         </div>
                         <div class="list-item-right">
-                            <div class="list-item-price" style="color: ${priceColor};">${CURRENCY} ${fmt(s.system_total || s.collected_total)}</div>
+                            <div class="list-item-price" style="color: ${priceColor};">${CURRENCY} ${fmt(shiftTotal)}</div>
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">Closing Total ›</div>
                         </div>
                     </div>
                 `;
             });
         }
 
-        // 2. Show Date Period Cashier Breakdown
+        // 2. Render Remaining Cashiers in Selected Period (Whose shifts are already closed)
         if (data.cashiers && data.cashiers.length > 0) {
-            data.cashiers.forEach(c => {
+            data.cashiers.forEach((c, idx) => {
+                const cid = c.cashier_id ? ('id_' + c.cashier_id) : ('name_' + (c.cashier_name || '').toLowerCase());
+                if (renderedCashierKeys.has(cid)) {
+                    return; // Already merged into the single unified shift card above
+                }
+
+                const modalKey = 'col_cashier_' + (c.cashier_id || idx);
+                cashierModalDataMap[modalKey] = {
+                    cashier_name: c.cashier_name || 'Cashier',
+                    badge_html: `<span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 800; background: rgba(99,102,241,0.15); color: #6366f1; text-transform: uppercase;">${rangeLabel}</span>`,
+                    subtitle: `Period Collection (${rangeLabel})`,
+                    daily_breakdown: c.daily_breakdown || [],
+                    cash_total: c.cash_total,
+                    card_total: c.card_total,
+                    qr_total: c.qr_total,
+                    grand_total: c.grand_total,
+                    total_label: `Total (${rangeLabel})`,
+                    price_color: '#10b981',
+                    is_close_requested: false
+                };
+
                 html += `
-                    <div class="list-item-card" style="cursor: default;">
+                    <div class="list-item-card" onclick="openCashierDaysModal('${modalKey}')" style="cursor: pointer;">
                         <div class="list-item-left">
                             <div class="list-item-badge" style="background: var(--surface-2); color: var(--text-main); border: 1px solid var(--card-border);">
                                 👤
                             </div>
                             <div>
-                                <div class="list-item-title">${c.cashier_name || 'Cashier'}</div>
+                                <div class="list-item-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span>${c.cashier_name || 'Cashier'}</span>
+                                    <span style="font-size: 9.5px; padding: 2px 7px; border-radius: 6px; font-weight: 700; background: rgba(99, 102, 241, 0.12); color: #6366f1;">📅 View Days</span>
+                                </div>
                                 <div class="list-item-meta">Bills: ${c.total_bills || 0} • Cash: ${fmt(c.cash_total)} • Card: ${fmt(c.card_total)} • QR: ${fmt(c.qr_total)}</div>
                             </div>
                         </div>
                         <div class="list-item-right">
                             <div class="list-item-price">${CURRENCY} ${fmt(c.grand_total)}</div>
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">Tap for Days ›</div>
                         </div>
                     </div>
                 `;
@@ -2506,6 +2720,9 @@
     function triggerManualSync() {
         syncCountdownSec = 10;
         fetchDashboardLive();
+        if (currentActiveTab === 'collections') {
+            fetchCollectionSummary();
+        }
     }
 
     // Polling interval (every 10 seconds)
@@ -2519,6 +2736,9 @@
         if (syncCountdownSec <= 0) {
             syncCountdownSec = 10;
             fetchDashboardLive();
+            if (currentActiveTab === 'collections') {
+                fetchCollectionSummary();
+            }
         }
     }, 1000);
     <?php endif; ?>
