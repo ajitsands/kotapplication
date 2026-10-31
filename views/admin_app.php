@@ -987,13 +987,13 @@
             border: 1px solid var(--card-border);
             width: 100%;
             max-width: 460px;
-            max-height: 85vh;
+            height: auto;
+            max-height: 88vh;
             border-radius: 22px;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            overflow: hidden;
+            display: block;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
             position: relative;
             margin: auto;
@@ -1004,7 +1004,7 @@
             align-items: flex-start;
             justify-content: space-between;
             gap: 10px;
-            flex-shrink: 0;
+            margin-bottom: 14px;
         }
 
         .modal-title {
@@ -1535,10 +1535,10 @@
                 </div>
                 <button class="btn-close-modal" onclick="closeOrderModal()">&times;</button>
             </div>
-            <div id="modal-order-items" style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; max-height: 52vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px;">
+            <div id="modal-order-items" style="display: block; max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; padding-right: 4px;">
                 Loading items...
             </div>
-            <div style="background: var(--surface-2); border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 900; flex-shrink: 0;">
+            <div style="background: var(--surface-2); border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 900;">
                 <span>Total Amount:</span>
                 <span id="modal-order-grand-total" style="color: #10b981;">0.000</span>
             </div>
@@ -1559,15 +1559,15 @@
                 <button class="btn-close-modal" style="flex-shrink: 0;" onclick="closeCashierDaysModal()">&times;</button>
             </div>
 
-            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); flex-shrink: 0;">
+            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px;">
                 📅 Day-by-Day Collection Breakdown
             </div>
 
-            <div id="modal-cashier-days-list" style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; max-height: 48vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px;">
+            <div id="modal-cashier-days-list" style="display: block; max-height: 48vh; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; padding-right: 4px;">
                 Loading daily breakdown...
             </div>
 
-            <div id="modal-cashier-footer-box" style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+            <div id="modal-cashier-footer-box" style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: block;">
             </div>
         </div>
     </div>
@@ -1649,8 +1649,8 @@
             days.forEach(d => {
                 const billsCount = parseInt(d.total_bills || 0, 10);
                 daysHtml += `
-                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <div style="font-size: 14px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">
                                 <span>📆</span>
                                 <span>${formatDayLabel(d.collection_date)}</span>
@@ -1680,11 +1680,11 @@
         }
 
         footerBox.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">${info.total_label || 'Total Closing Amount'}</span>
                 <span style="font-size: 18px; font-weight: 900; color: ${info.price_color || '#10b981'};">${CURRENCY} ${fmt(info.grand_total)}</span>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 6px;">
+            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 8px;">
                 <span>💵 Cash: <strong>${fmt(info.cash_total)}</strong></span>
                 <span>💳 Card: <strong>${fmt(info.card_total)}</strong></span>
                 <span>📱 QR: <strong>${fmt(info.qr_total)}</strong></span>
