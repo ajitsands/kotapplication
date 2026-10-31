@@ -37,22 +37,59 @@ class Bill extends Model {
         $bill = $stmt->fetch();
 
         if ($bill) {
-            // Fetch item summary
-            $sqlItems = "SELECT p.name as product_name, p.price, SUM(ki.quantity) as total_quantity, (p.price * SUM(ki.quantity)) as subtotal_price 
+            // Fetch item summary (excluding cancelled items and honoring custom/markup price)
+            $sqlItems = "SELECT p.name as product_name, 
+                                COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) as price, 
+                                SUM(ki.quantity) as total_quantity, 
+                                SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal_price 
                          FROM kot_items ki 
                          JOIN kots k ON ki.kot_id = k.id 
+                         JOIN orders o ON k.order_id = o.id
+                         LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
-                         WHERE k.order_id = ? 
-                         GROUP BY ki.product_id";
+                         WHERE k.order_id = ? AND ki.status != 'cancelled'
+                         GROUP BY p.id, p.name, COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price))";
             $stmtItems = $this->db->prepare($sqlItems);
             $stmtItems->execute([$bill['order_id']]);
             $bill['items'] = $stmtItems->fetchAll();
+
+            // Safety guard: if bill is still pending, ensure stored subtotal & grand_total match live items
+            if (($bill['status'] ?? '') === 'pending') {
+                $liveSubtotal = 0.0;
+                foreach ($bill['items'] as $it) {
+                    $liveSubtotal += (float)$it['subtotal_price'];
+                }
+                if (abs($liveSubtotal - (float)$bill['subtotal']) > 0.0005) {
+                    $stmtSettings = $this->db->query("SELECT * FROM settings ORDER BY id DESC LIMIT 1");
+                    $settings = $stmtSettings->fetch();
+                    $taxType = $settings['tax_type'] ?? 'VAT';
+                    $taxAmount = ($taxType === 'VAT')
+                        ? ($liveSubtotal * ((float)($settings['vat_percent'] ?? 10.00) / 100.0))
+                        : ($liveSubtotal * (((float)($settings['cgst_percent'] ?? 2.50) + (float)($settings['sgst_percent'] ?? 2.50)) / 100.0));
+                    $discountPercent = (float)($bill['discount_percent'] ?? 0.0);
+                    $discountAmount = ($discountPercent > 0)
+                        ? ($liveSubtotal * ($discountPercent / 100.0))
+                        : min((float)($bill['discount_amount'] ?? 0.0), $liveSubtotal);
+                    $grandTotal = max(0.0, ($liveSubtotal - $discountAmount) + $taxAmount);
+
+                    $stmtUpd = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+                    $stmtUpd->execute([$liveSubtotal, $discountAmount, $taxAmount, $grandTotal, $billId]);
+
+                    $bill['subtotal'] = $liveSubtotal;
+                    $bill['discount_amount'] = $discountAmount;
+                    $bill['tax_amount'] = $taxAmount;
+                    $bill['grand_total'] = $grandTotal;
+                }
+            }
         }
 
         return $bill;
     }
 
     public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '', $breakdown = []) {
+        // Ensure pending bill totals are synced with active KOT items before processing payment
+        $this->getBillDetails($billId);
+
         $this->db->beginTransaction();
         try {
             // Get bill details and order type

@@ -956,7 +956,7 @@ class CounterController extends Controller {
                          JOIN orders o ON k.order_id = o.id
                          LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
-                         WHERE k.order_id = ?";
+                         WHERE k.order_id = ? AND ki.status != 'cancelled'";
             $stmtSum = $db->prepare($sqlItems);
             $stmtSum->execute([$orderId]);
             $subtotal = (float)$stmtSum->fetchColumn();

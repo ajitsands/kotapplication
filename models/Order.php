@@ -192,7 +192,7 @@ class Order extends Model {
             $stmt->execute([$orderId]);
             $order = $stmt->fetch();
 
-            if (!$order || $order['status'] !== 'active') {
+            if (!$order || !in_array($order['status'], ['active', 'closed'])) {
                 throw new Exception("Order is not active or not found.");
             }
 
@@ -218,12 +218,27 @@ class Order extends Model {
                 $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
             }
 
-            $grandTotal = $subtotal + $taxAmount;
+            // Check if a pending bill already exists for this order
+            $stmtExistingBill = $this->db->prepare("SELECT id, discount_percent, discount_amount FROM bills WHERE order_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+            $stmtExistingBill->execute([$orderId]);
+            $existingBill = $stmtExistingBill->fetch();
 
-            // Create Pending Bill
-            $stmtBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, tax_amount, grand_total, status) 
-                                            VALUES (?, ?, ?, ?, 'pending')");
-            $stmtBill->execute([$orderId, $subtotal, $taxAmount, $grandTotal]);
+            if ($existingBill) {
+                $discountPercent = (float)($existingBill['discount_percent'] ?? 0.0);
+                $discountAmount = ($discountPercent > 0)
+                    ? ($subtotal * ($discountPercent / 100.0))
+                    : min((float)($existingBill['discount_amount'] ?? 0.0), $subtotal);
+                $grandTotal = max(0.0, ($subtotal - $discountAmount) + $taxAmount);
+
+                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+                $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $grandTotal, $existingBill['id']]);
+            } else {
+                $grandTotal = $subtotal + $taxAmount;
+                // Create Pending Bill
+                $stmtBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, tax_amount, grand_total, status) 
+                                                VALUES (?, ?, ?, ?, 'pending')");
+                $stmtBill->execute([$orderId, $subtotal, $taxAmount, $grandTotal]);
+            }
 
             // Update order status to closed
             $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'closed' WHERE id = ?");

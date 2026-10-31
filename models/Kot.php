@@ -22,12 +22,61 @@ class Kot extends Model {
                 ]);
             }
 
+            // Option A: If a pending bill already exists for this order (table already closed for billing),
+            // automatically recalculate and update the pending bill so new items reflect in the bill total immediately.
+            $this->syncPendingBillTotals($orderId);
+
             $this->db->commit();
             return $kotId;
         } catch (Exception $e) {
             $this->db->rollBack();
             return false;
         }
+    }
+
+    public function syncPendingBillTotals($orderId) {
+        $stmtBillCheck = $this->db->prepare("SELECT id, discount_percent, discount_amount FROM bills WHERE order_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+        $stmtBillCheck->execute([$orderId]);
+        $bill = $stmtBillCheck->fetch();
+        if (!$bill) {
+            return;
+        }
+
+        $sqlItems = "SELECT COALESCE(SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0.0) as subtotal
+                     FROM kot_items ki 
+                     JOIN kots k ON ki.kot_id = k.id 
+                     JOIN orders o ON k.order_id = o.id
+                     LEFT JOIN online_platforms op ON o.platform_id = op.id
+                     JOIN products p ON ki.product_id = p.id 
+                     WHERE k.order_id = ? AND ki.status != 'cancelled'";
+        $stmtSum = $this->db->prepare($sqlItems);
+        $stmtSum->execute([$orderId]);
+        $subtotal = (float)($stmtSum->fetchColumn() ?: 0.0);
+
+        $stmtSettings = $this->db->query("SELECT * FROM settings ORDER BY id DESC LIMIT 1");
+        $settings = $stmtSettings->fetch();
+        $taxType = $settings['tax_type'] ?? 'VAT';
+        $taxAmount = 0.0;
+        if ($taxType === 'VAT') {
+            $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+            $taxAmount = $subtotal * ($vatPercent / 100.0);
+        } else {
+            $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+            $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+            $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
+        }
+
+        $discountPercent = (float)($bill['discount_percent'] ?? 0.0);
+        $discountAmount = 0.0;
+        if ($discountPercent > 0) {
+            $discountAmount = $subtotal * ($discountPercent / 100.0);
+        } else {
+            $discountAmount = min((float)($bill['discount_amount'] ?? 0.0), $subtotal);
+        }
+
+        $grandTotal = max(0.0, ($subtotal - $discountAmount) + $taxAmount);
+        $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
+        $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $grandTotal, $bill['id']]);
     }
 
     public function getKotDetails($kotId) {
@@ -60,7 +109,7 @@ class Kot extends Model {
                                   LEFT JOIN users u ON k.waiter_id = u.id 
                                   WHERE k.status NOT IN ('dispatched', 'cancelled')
                                   AND (
-                                      (o.order_type = 'dine_in' AND o.status = 'active') 
+                                      (o.order_type = 'dine_in' AND o.status != 'cancelled') 
                                       OR 
                                       (o.order_type = 'take_away' AND o.status != 'completed' AND (EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid') OR k.waiter_id IS NOT NULL))
                                       OR
@@ -246,13 +295,13 @@ class Kot extends Model {
     }
 
     public function getWaiterNotifications($waiterId) {
-        // Fetch ready items that waiter should deliver
+        // Fetch ready items that waiter should deliver (even if table bill was already generated)
         $sql = "SELECT ki.id as kot_item_id, p.name as product_name, ki.quantity, o.table_number, k.kot_number, ki.notes
                 FROM kot_items ki
                 JOIN kots k ON ki.kot_id = k.id
                 JOIN orders o ON k.order_id = o.id
                 JOIN products p ON ki.product_id = p.id
-                WHERE o.status = 'active' 
+                WHERE o.status IN ('active', 'closed') 
                   AND o.order_type = 'dine_in'
                   AND (o.waiter_id = ? OR o.waiter_id IS NULL) 
                   AND ki.status = 'ready'
@@ -277,9 +326,11 @@ class Kot extends Model {
 
             $kotId = $item['kot_id'];
             
-            $stmtOrderType = $this->db->prepare("SELECT o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
-            $stmtOrderType->execute([$kotId]);
-            $orderType = $stmtOrderType->fetchColumn();
+            $stmtOrderInfo = $this->db->prepare("SELECT o.id as order_id, o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
+            $stmtOrderInfo->execute([$kotId]);
+            $orderInfo = $stmtOrderInfo->fetch();
+            $orderId = $orderInfo['order_id'] ?? null;
+            $orderType = $orderInfo['order_type'] ?? 'dine_in';
 
             if ($orderType === 'take_away') {
                 $stmtDel = $this->db->prepare("UPDATE kot_items SET status = 'cancelled', refund_status = 'pending' WHERE id = ?");
@@ -324,6 +375,10 @@ class Kot extends Model {
                 }
             }
 
+            if ($orderId) {
+                $this->syncPendingBillTotals($orderId);
+            }
+
             $this->db->commit();
             return true;
         } catch (Exception $e) {
@@ -345,9 +400,11 @@ class Kot extends Model {
                 return "KOT not found or not pending";
             }
             
-            $stmtOrderType = $this->db->prepare("SELECT o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
-            $stmtOrderType->execute([$kotId]);
-            $orderType = $stmtOrderType->fetchColumn();
+            $stmtOrderInfo = $this->db->prepare("SELECT o.id as order_id, o.order_type FROM kots k JOIN orders o ON k.order_id = o.id WHERE k.id = ?");
+            $stmtOrderInfo->execute([$kotId]);
+            $orderInfo = $stmtOrderInfo->fetch();
+            $orderId = $orderInfo['order_id'] ?? null;
+            $orderType = $orderInfo['order_type'] ?? 'dine_in';
 
             if ($orderType === 'take_away') {
                 $stmtDelItems = $this->db->prepare("UPDATE kot_items SET status = 'cancelled', refund_status = 'pending' WHERE kot_id = ?");
@@ -359,6 +416,10 @@ class Kot extends Model {
                 // Delete the KOT (will cascade delete items)
                 $stmtDel = $this->db->prepare("DELETE FROM kots WHERE id = ?");
                 $stmtDel->execute([$kotId]);
+            }
+
+            if ($orderId) {
+                $this->syncPendingBillTotals($orderId);
             }
 
             $this->db->commit();
