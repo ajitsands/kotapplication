@@ -963,58 +963,48 @@
             animation: pulseAlert 1.5s infinite;
         }
 
-        /* Modal Drawer */
+        /* Modal Popup */
         .app-modal {
             display: none;
             position: fixed;
+            inset: 0;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            z-index: 1000;
-            align-items: flex-end;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.78);
+            z-index: 9999;
+            align-items: center;
             justify-content: center;
-        }
-
-        @media (min-width: 640px) {
-            .app-modal {
-                align-items: center;
-            }
+            padding: 16px;
+            overflow-y: auto;
         }
 
         .modal-sheet {
             background: var(--surface-1);
             border: 1px solid var(--card-border);
             width: 100%;
-            max-width: 500px;
+            max-width: 460px;
             max-height: 85vh;
-            border-radius: 24px 24px 0 0;
-            padding: 24px 20px 30px;
+            border-radius: 22px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-            animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @media (min-width: 640px) {
-            .modal-sheet {
-                border-radius: 24px;
-            }
-        }
-
-        @keyframes slideUpModal {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            gap: 14px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+            position: relative;
+            margin: auto;
         }
 
         .modal-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .modal-title {
@@ -1536,7 +1526,7 @@
     </div>
 
     <!-- ==================== ORDER DETAILS MODAL ==================== -->
-    <div id="order-details-modal" class="app-modal">
+    <div id="order-details-modal" class="app-modal" onclick="if(event.target===this) closeOrderModal()">
         <div class="modal-sheet">
             <div class="modal-header">
                 <div>
@@ -1545,10 +1535,10 @@
                 </div>
                 <button class="btn-close-modal" onclick="closeOrderModal()">&times;</button>
             </div>
-            <div id="modal-order-items" style="display: flex; flex-direction: column; gap: 8px;">
+            <div id="modal-order-items" style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; max-height: 52vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px;">
                 Loading items...
             </div>
-            <div style="background: var(--surface-2); border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 900;">
+            <div style="background: var(--surface-2); border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 900; flex-shrink: 0;">
                 <span>Total Amount:</span>
                 <span id="modal-order-grand-total" style="color: #10b981;">0.000</span>
             </div>
@@ -1559,25 +1549,25 @@
     <div id="cashier-days-modal" class="app-modal" onclick="if(event.target===this) closeCashierDaysModal()">
         <div class="modal-sheet">
             <div class="modal-header">
-                <div>
+                <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <h3 class="modal-title" id="modal-cashier-title">Cashier Collection</h3>
                         <span id="modal-cashier-badge"></span>
                     </div>
                     <p style="font-size: 12px; color: var(--text-muted); margin-top: 3px;" id="modal-cashier-subtitle"></p>
                 </div>
-                <button class="btn-close-modal" onclick="closeCashierDaysModal()">&times;</button>
+                <button class="btn-close-modal" style="flex-shrink: 0;" onclick="closeCashierDaysModal()">&times;</button>
             </div>
 
-            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: -6px;">
+            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); flex-shrink: 0;">
                 📅 Day-by-Day Collection Breakdown
             </div>
 
-            <div id="modal-cashier-days-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div id="modal-cashier-days-list" style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; max-height: 48vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px;">
                 Loading daily breakdown...
             </div>
 
-            <div id="modal-cashier-footer-box" style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <div id="modal-cashier-footer-box" style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
             </div>
         </div>
     </div>
@@ -1703,10 +1693,12 @@
         `;
 
         document.getElementById('cashier-days-modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
     }
 
     function closeCashierDaysModal() {
         document.getElementById('cashier-days-modal').style.display = 'none';
+        document.body.style.overflow = '';
     }
 
     // Navigation Switcher
