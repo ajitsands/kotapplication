@@ -439,8 +439,9 @@ class Bill extends Model {
              ORDER BY collection_date DESC"
         );
 
+        $dailyStart = ($startDate === $endDate) ? date('Y-m-d', strtotime($startDate . ' -6 days')) : $startDate;
         foreach ($cashiers as &$c) {
-            $stmtDaily->execute([$c['cashier_id'], $startDate, $endDate]);
+            $stmtDaily->execute([$c['cashier_id'], $dailyStart, $endDate]);
             $c['daily_breakdown'] = $stmtDaily->fetchAll();
         }
 

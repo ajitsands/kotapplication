@@ -1631,25 +1631,39 @@
         const info = cashierModalDataMap[key];
         if (!info) return;
 
-        document.getElementById('modal-cashier-title').innerText = info.cashier_name || 'Cashier';
-        document.getElementById('modal-cashier-badge').innerHTML = info.badge_html || '';
-        document.getElementById('modal-cashier-subtitle').innerText = info.subtitle || '';
-
-        const daysList = document.getElementById('modal-cashier-days-list');
         const days = Array.isArray(info.daily_breakdown) ? info.daily_breakdown : [];
+        let daysHtml = '';
 
         if (days.length === 0) {
-            daysList.innerHTML = `
-                <div style="text-align: center; padding: 24px 12px; color: var(--text-muted); background: var(--surface-2); border-radius: 14px; font-size: 13px;">
-                    No paid bills recorded in this shift / period yet.
-                </div>
-            `;
+            const fallbackTotal = parseFloat(info.grand_total || 0);
+            if (fallbackTotal > 0) {
+                daysHtml = `
+                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 14px; font-weight: 800; color: var(--text-main);">
+                                📆 ${info.subtitle || 'Current Shift / Period'}
+                            </div>
+                            <div style="font-size: 15px; font-weight: 900; color: #10b981;">
+                                ${CURRENCY} ${fmt(info.grand_total)}
+                            </div>
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--text-muted);">
+                            💵 Cash: <strong>${fmt(info.cash_total)}</strong> • 💳 Card: <strong>${fmt(info.card_total)}</strong> • 📱 QR: <strong>${fmt(info.qr_total)}</strong>
+                        </div>
+                    </div>
+                `;
+            } else {
+                daysHtml = `
+                    <div style="text-align: center; padding: 20px 12px; color: var(--text-muted); background: var(--surface-2); border-radius: 14px; font-size: 13px; margin-bottom: 10px;">
+                        No paid bills recorded in this shift / period yet.
+                    </div>
+                `;
+            }
         } else {
-            let daysHtml = '';
             days.forEach(d => {
                 const billsCount = parseInt(d.total_bills || 0, 10);
                 daysHtml += `
-                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;">
+                    <div style="background: var(--surface-2); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; text-align: left;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <div style="font-size: 14px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 4px;">
                                 <span>📆</span>
@@ -1666,32 +1680,70 @@
                     </div>
                 `;
             });
-            daysList.innerHTML = daysHtml;
         }
 
-        const footerBox = document.getElementById('modal-cashier-footer-box');
         let actionBtnHtml = '';
         if (info.is_close_requested) {
             actionBtnHtml = `
-                <button class="btn-confirm-closing" style="margin-top: 6px; width: 100%;" onclick="closeCashierDaysModal(); switchNavTab('closings');">
+                <button class="btn-confirm-closing" style="margin-top: 10px; width: 100%;" onclick="Swal.close(); switchNavTab('closings');">
                     🔒 Review & Approve Shift Close
                 </button>
             `;
         }
 
-        footerBox.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 13px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">${info.total_label || 'Total Closing Amount'}</span>
-                <span style="font-size: 18px; font-weight: 900; color: ${info.price_color || '#10b981'};">${CURRENCY} ${fmt(info.grand_total)}</span>
+        const popupHtml = `
+            <div style="text-align: left; font-family: 'Outfit', sans-serif; color: var(--text-main);">
+                <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--card-border);">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 18px; font-weight: 900; color: var(--text-main);">${info.cashier_name || 'Cashier'}</span>
+                        ${info.badge_html || ''}
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${info.subtitle || ''}</div>
+                </div>
+
+                <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px;">
+                    📅 Day-by-Day Collection Breakdown (${days.length || 1} ${days.length === 1 ? 'Day' : 'Days'})
+                </div>
+
+                <div style="max-height: 45vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 2px; margin-bottom: 12px;">
+                    ${daysHtml}
+                </div>
+
+                <div style="background: var(--surface-2); border: 1.5px solid var(--card-border); border-radius: 16px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">${info.total_label || 'Total Closing Amount'}</span>
+                        <span style="font-size: 18px; font-weight: 900; color: ${info.price_color || '#10b981'};">${CURRENCY} ${fmt(info.grand_total)}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 8px; flex-wrap: wrap; gap: 6px;">
+                        <span>💵 Cash: <strong style="color: var(--text-main);">${fmt(info.cash_total)}</strong></span>
+                        <span>💳 Card: <strong style="color: var(--text-main);">${fmt(info.card_total)}</strong></span>
+                        <span>📱 QR: <strong style="color: var(--text-main);">${fmt(info.qr_total)}</strong></span>
+                    </div>
+                    ${actionBtnHtml}
+                </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 8px;">
-                <span>💵 Cash: <strong>${fmt(info.cash_total)}</strong></span>
-                <span>💳 Card: <strong>${fmt(info.card_total)}</strong></span>
-                <span>📱 QR: <strong>${fmt(info.qr_total)}</strong></span>
-            </div>
-            ${actionBtnHtml}
         `;
 
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                html: popupHtml,
+                showConfirmButton: true,
+                confirmButtonText: 'Close',
+                confirmButtonColor: '#6366f1',
+                showCloseButton: true,
+                width: '440px',
+                padding: '18px',
+                background: 'var(--surface-1)',
+                color: 'var(--text-main)',
+                heightAuto: false
+            });
+            return;
+        }
+
+        document.getElementById('modal-cashier-title').innerText = info.cashier_name || 'Cashier';
+        document.getElementById('modal-cashier-badge').innerHTML = info.badge_html || '';
+        document.getElementById('modal-cashier-subtitle').innerText = info.subtitle || '';
+        document.getElementById('modal-cashier-days-list').innerHTML = daysHtml;
         document.getElementById('cashier-days-modal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
@@ -2616,11 +2668,14 @@
                 }
 
                 const modalKey = 'col_session_' + s.id;
+                const sessionDays = (Array.isArray(s.daily_breakdown) && s.daily_breakdown.length > 0)
+                    ? s.daily_breakdown
+                    : ((periodData && Array.isArray(periodData.daily_breakdown)) ? periodData.daily_breakdown : []);
                 cashierModalDataMap[modalKey] = {
                     cashier_name: s.cashier_name || 'Cashier',
                     badge_html: badgeHtml,
                     subtitle: 'Shift Started: ' + (formatLocalDateTime(s.opened_at) || '-'),
-                    daily_breakdown: s.daily_breakdown || (periodData && periodData.daily_breakdown) || [],
+                    daily_breakdown: sessionDays,
                     cash_total: s.cash_total,
                     card_total: s.card_total,
                     qr_total: s.qr_total,
