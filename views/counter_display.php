@@ -3008,7 +3008,7 @@
             currentPendingRefunds = {};
 
             if (refunds.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
+                tbody.innerHTML = '';
                 takeawayRefundsTable = $('#takeaway-refunds-table').DataTable({
                     destroy: true,
                     dom: '<"dt-header"fl>rt<"dt-footer"ip>',
@@ -3300,7 +3300,7 @@
             if (!tbody) return;
 
             if (orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No orders in takeaway queue.</td></tr>';
+                tbody.innerHTML = '';
                 takeawayReadyTable = $('#takeaway-ready-table').DataTable({
                     destroy: true,
                     dom: '<"dt-header"fl>rt<"dt-footer"ip>',
