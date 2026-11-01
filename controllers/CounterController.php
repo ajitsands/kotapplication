@@ -1039,8 +1039,10 @@ class CounterController extends Controller {
     }
 
     public function pendingRefunds() {
+        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : (!empty($_GET['start_date']) ? trim($_GET['start_date']) : null);
+        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : (!empty($_GET['end_date']) ? trim($_GET['end_date']) : null);
         $billModel = new Bill();
-        $refunds = $billModel->getPendingRefunds();
+        $refunds = $billModel->getPendingRefunds($startDate, $endDate);
         $this->json(['refunds' => $refunds]);
     }
 

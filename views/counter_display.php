@@ -1211,7 +1211,7 @@
                         fetchCompletedTakeaways();
                     } else if (tab === 'refunds') {
                         document.getElementById('takeaway-refunds-section').style.display = 'block';
-                        fetchPendingRefunds();
+                        fetchPendingRefunds(false);
                     } else if (tab === 'refunded-list') {
                         document.getElementById('takeaway-refunded-list-section').style.display = 'block';
                         fetchRefundedItemsList();
@@ -1308,11 +1308,27 @@
             </div>
 
             <div id="takeaway-refunds-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date:</span>
+                        <input type="date" id="refunds-live-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
+                        <input type="date" id="refunds-live-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <button onclick="fetchPendingRefunds(false)" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Search</button>
+                        <button onclick="resetRefundsLiveDates()" class="btn-pay" style="padding: 8px 14px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid var(--card-border); font-weight: 600; cursor: pointer;">All Dates</button>
+                    </div>
+
+                    <div id="refunds-live-summary" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); padding: 10px 18px; border-radius: 10px; display: flex; gap: 20px; font-size: 13px; align-items: center;">
+                        <div><strong style="color:var(--text-muted);">Pending Cancel Refunds:</strong> <span id="refunds-live-count" style="font-weight:700; color:#ef4444; font-size:16px;">0</span></div>
+                    </div>
+                </div>
+
                 <div style="overflow-x: auto;">
                     <table id="takeaway-refunds-table" class="display" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Date & Time</th>
                                 <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
                                 <th style="text-align: left; padding: 12px 10px;">Customer Mobile</th>
                                 <th style="text-align: left; padding: 12px 10px;">Total Refund Amount</th>
@@ -2910,7 +2926,7 @@
         setInterval(() => fetchTakeawayDeliveryQueue(true), 4000);
         setInterval(fetchActiveOnlineOrders, 4000);
         setInterval(fetchCompletedTakeaways, 8000);
-        setInterval(fetchPendingRefunds, 5000);
+        setInterval(() => fetchPendingRefunds(true), 5000);
         setInterval(fetchSummary, 10000);
         setInterval(() => {
             const allTransSec = document.getElementById('section-all-transactions');
@@ -2920,57 +2936,143 @@
         }, 6000);
 
         let currentPendingRefunds = {};
-        
-        function fetchPendingRefunds() {
-            fetch(basePath + '/refunds/pending')
+        let takeawayRefundsTable = null;
+        let lastPendingRefundsJson = '';
+
+        function resetRefundsLiveDates() {
+            const startInput = document.getElementById('refunds-live-start-date');
+            const endInput = document.getElementById('refunds-live-end-date');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            fetchPendingRefunds(false);
+        }
+
+        function fetchPendingRefunds(isBackgroundPoll = false) {
+            const startInput = document.getElementById('refunds-live-start-date');
+            const endInput = document.getElementById('refunds-live-end-date');
+            const startDate = startInput ? startInput.value : '';
+            const endDate = endInput ? endInput.value : '';
+
+            let url = `${basePath}/refunds/pending?_=${Date.now()}`;
+            if (startDate && endDate) {
+                url += `&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
+            }
+
+            fetch(url, { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
-                    const tbody = document.getElementById('takeaway-refunds-body');
-                    const badge = document.getElementById('refund-badge');
-                    if (data.refunds && data.refunds.length > 0) {
-                        badge.innerText = data.refunds.length;
-                        badge.style.display = 'inline-block';
-                        let html = '';
-                        currentPendingRefunds = {};
-                        data.refunds.forEach(r => {
-                            currentPendingRefunds[r.order_id] = r;
-                            html += `
-                                <tr style="border-bottom: 1px solid var(--card-border); cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'" onclick="openRefundModal(${r.order_id})">
-                                    <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--text-color);">${escapeHtml(r.token_number || '-')}</td>
-                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_name || '-')}</td>
-                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_mobile || '-')}</td>
-                                    <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${r.total_refund_amount} ${currencyCode}</td>
-                                    <td style="padding: 12px 10px; text-align:right;">
-                                        <button class="btn-pay" onclick="event.stopPropagation(); openRefundModal(${r.order_id})" style="background:#6366f1; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View Details</button>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                        if (tbody) {
-                            if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
-                                $('#takeaway-refunds-table').DataTable().destroy();
-                            }
-                            tbody.innerHTML = html;
-                            $('#takeaway-refunds-table').DataTable({
-                                "order": [[0, "desc"]],
-                                "pageLength": 20,
-                                "bDestroy": true,
-                                "language": {
-                                    "emptyTable": "No cancelled items pending refund."
-                                }
-                            });
-                        }
-                    } else {
-                        badge.style.display = 'none';
-                        if (tbody) {
-                            if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
-                                $('#takeaway-refunds-table').DataTable().destroy();
-                            }
-                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
-                        }
+                    const refunds = data.refunds || [];
+                    const nextJson = JSON.stringify(refunds);
+
+                    if (isBackgroundPoll && nextJson === lastPendingRefundsJson) {
+                        return;
                     }
+
+                    const searchInput = document.querySelector('#takeaway-refunds-table_filter input');
+                    if (isBackgroundPoll && searchInput && document.activeElement === searchInput) {
+                        return;
+                    }
+
+                    lastPendingRefundsJson = nextJson;
+                    renderPendingRefundsTable(refunds);
                 })
                 .catch(err => console.error('Error fetching refunds:', err));
+        }
+
+        function renderPendingRefundsTable(refunds) {
+            let prevSearch = '';
+            let prevPage = 0;
+            if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
+                const dt = $('#takeaway-refunds-table').DataTable();
+                prevSearch = dt.search();
+                prevPage = dt.page();
+                dt.destroy();
+            }
+
+            const badge = document.getElementById('refund-badge');
+            const countEl = document.getElementById('refunds-live-count');
+            if (countEl) countEl.innerText = refunds.length;
+
+            if (refunds.length > 0) {
+                if (badge) {
+                    badge.innerText = refunds.length;
+                    badge.style.display = 'inline-block';
+                }
+            } else {
+                if (badge) badge.style.display = 'none';
+            }
+
+            const tbody = document.getElementById('takeaway-refunds-body');
+            if (!tbody) return;
+
+            currentPendingRefunds = {};
+
+            if (refunds.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No cancelled items pending refund.</td></tr>';
+                takeawayRefundsTable = $('#takeaway-refunds-table').DataTable({
+                    destroy: true,
+                    dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                    pageLength: 15,
+                    lengthMenu: [[15, 30, 50, -1], [15, 30, 50, "All"]],
+                    lengthChange: true,
+                    language: {
+                        search: "",
+                        searchPlaceholder: "Search cancel list...",
+                        lengthMenu: "Show _MENU_ entries",
+                        emptyTable: "No cancelled items pending refund."
+                    },
+                    columnDefs: [
+                        { targets: 5, orderable: false, className: 'dt-right' }
+                    ]
+                });
+                return;
+            }
+
+            let html = '';
+            refunds.forEach(r => {
+                currentPendingRefunds[r.order_id] = r;
+                const dateStr = r.created_at ? new Date(r.created_at.replace(' ', 'T')).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : '-';
+                const rawSortTime = r.created_at || '';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--card-border); cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'" onclick="openRefundModal(${r.order_id})">
+                        <td style="padding: 12px 10px; font-weight:800; font-size:18px; color:var(--text-color);">${escapeHtml(r.token_number || '-')}</td>
+                        <td style="padding: 12px 10px; font-size: 13px; color: var(--text-muted);" data-order="${escapeHtml(rawSortTime)}">${escapeHtml(dateStr)}</td>
+                        <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_name || '-')}</td>
+                        <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(r.customer_mobile || '-')}</td>
+                        <td style="padding: 12px 10px; font-weight:700; color:#ef4444;" class="price-text">${r.total_refund_amount} ${currencyCode}</td>
+                        <td style="padding: 12px 10px; text-align:right;">
+                            <button class="btn-pay" onclick="event.stopPropagation(); openRefundModal(${r.order_id})" style="background:#6366f1; border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">View Details</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            takeawayRefundsTable = $('#takeaway-refunds-table').DataTable({
+                destroy: true,
+                dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                pageLength: 15,
+                lengthMenu: [[15, 30, 50, -1], [15, 30, 50, "All"]],
+                lengthChange: true,
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search cancel list...",
+                    lengthMenu: "Show _MENU_ entries",
+                    emptyTable: "No cancelled items pending refund."
+                },
+                order: [[1, "desc"]],
+                columnDefs: [
+                    { targets: 5, orderable: false, className: 'dt-right' }
+                ]
+            });
+
+            if (prevSearch) {
+                takeawayRefundsTable.search(prevSearch).draw(false);
+            }
+            if (prevPage && prevPage < takeawayRefundsTable.page.info().pages) {
+                takeawayRefundsTable.page(prevPage).draw(false);
+            }
         }
 
         function openRefundModal(orderId) {

@@ -503,18 +503,24 @@ class Bill extends Model {
         return $stmt->fetchAll();
     }
 
-    public function getPendingRefunds() {
+    public function getPendingRefunds($startDate = null, $endDate = null) {
         $sql = "SELECT ki.id as item_id, ki.quantity, ki.status as item_status, 
                        p.name as product_name, p.price as base_price,
-                       k.kot_number, k.id as kot_id,
-                       o.token_number, o.id as order_id, o.customer_mobile, o.customer_name
+                       k.kot_number, k.id as kot_id, k.created_at as created_at,
+                       o.token_number, o.id as order_id, o.customer_mobile, o.customer_name, o.created_at as order_created_at
                 FROM kot_items ki
                 JOIN products p ON ki.product_id = p.id
                 JOIN kots k ON ki.kot_id = k.id
                 JOIN orders o ON k.order_id = o.id
-                WHERE ki.refund_status = 'pending' AND ki.status = 'cancelled' AND o.order_type = 'take_away'
-                ORDER BY ki.id ASC";
-        $stmt = $this->db->query($sql);
+                WHERE ki.refund_status = 'pending' AND ki.status = 'cancelled' AND o.order_type = 'take_away'";
+        $params = [];
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(k.created_at) BETWEEN ? AND ?";
+            $params = [$startDate, $endDate];
+        }
+        $sql .= " ORDER BY ki.id DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         $items = $stmt->fetchAll();
 
         $stmtSettings = $this->db->query("SELECT tax_type, vat_percent, cgst_percent, sgst_percent FROM settings LIMIT 1");
@@ -544,6 +550,7 @@ class Bill extends Model {
                     'token_number' => $item['token_number'],
                     'customer_mobile' => $item['customer_mobile'],
                     'customer_name' => $item['customer_name'],
+                    'created_at' => $item['created_at'] ?? $item['order_created_at'] ?? null,
                     'total_refund_amount' => 0,
                     'items' => []
                 ];
