@@ -311,8 +311,10 @@ class CounterController extends Controller {
     }
 
     public function getDeliveryQueue() {
+        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : null;
+        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : null;
         $orderModel = new Order();
-        $orders = $orderModel->getReadyTakeawayOrders();
+        $orders = $orderModel->getReadyTakeawayOrders($startDate, $endDate);
         $this->json(['orders' => $orders]);
     }
 

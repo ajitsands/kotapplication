@@ -1202,6 +1202,7 @@
 
                     if (tab === 'live') {
                         document.getElementById('takeaway-live-section').style.display = 'block';
+                        fetchTakeawayDeliveryQueue(false);
                     } else if (tab === 'online-active') {
                         document.getElementById('online-active-section').style.display = 'block';
                         fetchActiveOnlineOrders();
@@ -1222,11 +1223,27 @@
             </script>
 
             <div id="takeaway-live-section" class="panel-card" style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date:</span>
+                        <input type="date" id="takeaway-live-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
+                        <input type="date" id="takeaway-live-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <button onclick="fetchTakeawayDeliveryQueue(false)" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Search</button>
+                        <button onclick="resetTakeawayLiveDates()" class="btn-pay" style="padding: 8px 14px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid var(--card-border); font-weight: 600; cursor: pointer;">All Dates</button>
+                    </div>
+
+                    <div id="takeaway-live-summary" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 10px 18px; border-radius: 10px; display: flex; gap: 20px; font-size: 13px; align-items: center;">
+                        <div><strong style="color:var(--text-muted);">Active Live Orders:</strong> <span id="takeaway-live-count" style="font-weight:700; color:var(--accent-green); font-size:16px;">0</span></div>
+                    </div>
+                </div>
+
                 <div style="overflow-x: auto;">
-                    <table id="takeaway-ready-table" style="width: 100%; border-collapse: collapse;">
+                    <table id="takeaway-ready-table" class="display" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <th style="text-align: left; padding: 12px 10px;">Token No</th>
+                                <th style="text-align: left; padding: 12px 10px;">Date & Time</th>
                                 <th style="text-align: left; padding: 12px 10px;">Customer Name</th>
                                 <th style="text-align: left; padding: 12px 10px;">Mobile</th>
                                 <th style="text-align: left; padding: 12px 10px;">Status</th>
@@ -2890,7 +2907,7 @@
         
         setInterval(fetchBills, 4000);
         setInterval(fetchEngagedTables, 4000);
-        setInterval(fetchTakeawayDeliveryQueue, 4000);
+        setInterval(() => fetchTakeawayDeliveryQueue(true), 4000);
         setInterval(fetchActiveOnlineOrders, 4000);
         setInterval(fetchCompletedTakeaways, 8000);
         setInterval(fetchPendingRefunds, 5000);
@@ -3121,42 +3138,140 @@
         }
 
 
-        function fetchTakeawayDeliveryQueue() {
-            fetch(basePath + '/delivery-queue')
+        let takeawayReadyTable = null;
+        let lastTakeawayDeliveryQueueJson = '';
+
+        function resetTakeawayLiveDates() {
+            const startInput = document.getElementById('takeaway-live-start-date');
+            const endInput = document.getElementById('takeaway-live-end-date');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            fetchTakeawayDeliveryQueue(false);
+        }
+
+        function fetchTakeawayDeliveryQueue(isBackgroundPoll = false) {
+            const startInput = document.getElementById('takeaway-live-start-date');
+            const endInput = document.getElementById('takeaway-live-end-date');
+            const startDate = startInput ? startInput.value : '';
+            const endDate = endInput ? endInput.value : '';
+
+            let url = `${basePath}/delivery-queue?_=${Date.now()}`;
+            if (startDate && endDate) {
+                url += `&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
+            }
+
+            fetch(url, { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
-                    const tbody = document.getElementById('takeaway-ready-body');
-                    if (data.orders && data.orders.length > 0) {
-                        let html = '';
-                        data.orders.forEach(o => {
-                            const isReady = parseInt(o.pending_items_count) === 0;
-                            const statusLabel = isReady ? 'Ready to Deliver' : 'Preparing in Kitchen';
-                            const statusColor = isReady ? 'var(--accent-green)' : 'var(--accent-orange)';
-                            const btnDisplay = 'inline-block';
-                            
-                            const tokenDisplay = o.order_type === 'online' 
-                                ? `<div style="font-weight:800; font-size:18px; color:var(--accent-green);"><span style="font-size:14px;">🌐 ${escapeHtml(o.platform_name || 'Online')}</span><br>${escapeHtml(o.platform_order_number || o.token_number)}</div>`
-                                : `<div style="font-weight:800; font-size:18px; color:${statusColor};">${escapeHtml(o.token_number || '-')}</div>`;
+                    const orders = data.orders || [];
+                    const nextJson = JSON.stringify(orders);
 
-                            html += `
-                                <tr style="border-bottom: 1px solid var(--card-border); background: ${isReady ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)'};">
-                                    <td style="padding: 12px 10px;">${tokenDisplay}</td>
-                                    <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.customer_name || 'Guest')}</td>
-                                    <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
-                                    <td style="padding: 12px 10px; font-weight:700; color:${statusColor};">${statusLabel}</td>
-                                    <td style="padding: 12px 10px; text-align:right;">
-                                        <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="display:${btnDisplay}; background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
-                                        ${!isReady ? '<span style="color:var(--text-muted); font-size:12px;">Waiting...</span>' : ''}
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                        tbody.innerHTML = html;
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No orders ready for delivery.</td></tr>';
+                    if (isBackgroundPoll && nextJson === lastTakeawayDeliveryQueueJson) {
+                        return;
                     }
+
+                    const searchInput = document.querySelector('#takeaway-ready-table_filter input');
+                    if (isBackgroundPoll && searchInput && document.activeElement === searchInput) {
+                        return;
+                    }
+
+                    lastTakeawayDeliveryQueueJson = nextJson;
+                    renderTakeawayReadyTable(orders);
                 })
                 .catch(err => console.error('Error fetching delivery queue:', err));
+        }
+
+        function renderTakeawayReadyTable(orders) {
+            let prevSearch = '';
+            let prevPage = 0;
+            if ($.fn.DataTable.isDataTable('#takeaway-ready-table')) {
+                const dt = $('#takeaway-ready-table').DataTable();
+                prevSearch = dt.search();
+                prevPage = dt.page();
+                dt.destroy();
+            }
+
+            const countEl = document.getElementById('takeaway-live-count');
+            if (countEl) countEl.innerText = orders.length;
+
+            const tbody = document.getElementById('takeaway-ready-body');
+            if (!tbody) return;
+
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No orders in takeaway queue.</td></tr>';
+                takeawayReadyTable = $('#takeaway-ready-table').DataTable({
+                    destroy: true,
+                    dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                    pageLength: 15,
+                    lengthMenu: [[15, 30, 50, -1], [15, 30, 50, "All"]],
+                    lengthChange: true,
+                    language: {
+                        search: "",
+                        searchPlaceholder: "Search takeaway orders...",
+                        lengthMenu: "Show _MENU_ entries",
+                        emptyTable: "No orders in takeaway queue."
+                    },
+                    columnDefs: [
+                        { targets: 5, orderable: false, className: 'dt-right' }
+                    ]
+                });
+                return;
+            }
+
+            let html = '';
+            orders.forEach(o => {
+                const isReady = parseInt(o.pending_items_count) === 0;
+                const statusLabel = isReady ? 'Ready to Deliver' : 'Preparing in Kitchen';
+                const statusColor = isReady ? 'var(--accent-green)' : 'var(--accent-orange)';
+                const btnDisplay = 'inline-block';
+                
+                const tokenDisplay = o.order_type === 'online' 
+                    ? `<div style="font-weight:800; font-size:16px; color:var(--accent-green);"><span style="font-size:12px;">🌐 ${escapeHtml(o.platform_name || 'Online')}</span><br>${escapeHtml(o.platform_order_number || o.token_number)}</div>`
+                    : `<div style="font-weight:800; font-size:18px; color:${statusColor};">${escapeHtml(o.token_number || '-')}</div>`;
+
+                const dateStr = o.created_at ? new Date(o.created_at.replace(' ', 'T')).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : '-';
+                const rawSortTime = o.created_at || '';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--card-border); background: ${isReady ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)'};">
+                        <td style="padding: 12px 10px;">${tokenDisplay}</td>
+                        <td style="padding: 12px 10px; font-size: 13px; color: var(--text-muted);" data-order="${escapeHtml(rawSortTime)}">${escapeHtml(dateStr)}</td>
+                        <td style="padding: 12px 10px; font-weight:600;">${escapeHtml(o.customer_name || 'Guest')}</td>
+                        <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
+                        <td style="padding: 12px 10px; font-weight:700; color:${statusColor};">${statusLabel}</td>
+                        <td style="padding: 12px 10px; text-align:right;">
+                            <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="display:${btnDisplay}; background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
+                            ${!isReady ? '<span style="color:var(--text-muted); font-size:12px; margin-left:6px;">Waiting...</span>' : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            takeawayReadyTable = $('#takeaway-ready-table').DataTable({
+                destroy: true,
+                dom: '<"dt-header"fl>rt<"dt-footer"ip>',
+                pageLength: 15,
+                lengthMenu: [[15, 30, 50, -1], [15, 30, 50, "All"]],
+                lengthChange: true,
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search takeaway orders...",
+                    lengthMenu: "Show _MENU_ entries",
+                    emptyTable: "No orders in takeaway queue."
+                },
+                order: [[1, "desc"]],
+                columnDefs: [
+                    { targets: 5, orderable: false, className: 'dt-right' }
+                ]
+            });
+
+            if (prevSearch) {
+                takeawayReadyTable.search(prevSearch).draw(false);
+            }
+            if (prevPage && prevPage < takeawayReadyTable.page.info().pages) {
+                takeawayReadyTable.page(prevPage).draw(false);
+            }
         }
 
         let completedTakeawayTable = null;

@@ -407,18 +407,24 @@ class Order extends Model {
         return $order;
     }
 
-    public function getReadyTakeawayOrders() {
+    public function getReadyTakeawayOrders($startDate = null, $endDate = null) {
         // Find takeaway and online orders that are paid but not 'completed'
         // They will appear in the Live Takeaway queue as soon as they are paid and sent to KOT.
-        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status, o.order_type, o.platform_order_number, p.name as platform_name,
+        $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status, o.order_type, o.platform_order_number, p.name as platform_name, o.created_at,
                        (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing')) as pending_items_count
                   FROM orders o
                   JOIN bills b ON b.order_id = o.id
                   LEFT JOIN online_platforms p ON o.platform_id = p.id
                   WHERE o.order_type IN ('take_away') AND o.status = 'closed' AND b.status = 'paid'
-                  AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0
-                  ORDER BY o.id ASC";
-        $stmt = $this->db->query($sql);
+                  AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0";
+        $params = [];
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(o.created_at) BETWEEN ? AND ?";
+            $params = [$startDate, $endDate];
+        }
+        $sql .= " ORDER BY o.id DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
