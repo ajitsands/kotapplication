@@ -1687,6 +1687,12 @@
         let customerLoyaltyData = null;
         let currentOpenOrderId = null;
         let counterProducts = [];
+        var takeawayReadyTable = null;
+        var lastTakeawayDeliveryQueueJson = '';
+        window.lastTakeawayDeliveryQueueJson = '';
+        var takeawayRefundsTable = null;
+        var lastPendingRefundsJson = '';
+        window.lastPendingRefundsJson = '';
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const isSuperAdmin = <?= (($_SESSION['username'] ?? '') === 'superadmin') ? 'true' : 'false' ?>;
         const canCancel = <?= (in_array(($_SESSION['username'] ?? ''), ['superadmin', 'admin', 'counter']) || in_array(($_SESSION['user_role'] ?? $_SESSION['role'] ?? ''), ['admin', 'counter', 'cashier'])) ? 'true' : 'false' ?>;
@@ -2936,8 +2942,6 @@
         }, 6000);
 
         let currentPendingRefunds = {};
-        let takeawayRefundsTable = null;
-        let lastPendingRefundsJson = '';
 
         function resetRefundsLiveDates() {
             const startInput = document.getElementById('refunds-live-start-date');
@@ -2964,7 +2968,7 @@
                     const refunds = data.refunds || [];
                     const nextJson = JSON.stringify(refunds);
 
-                    if (isBackgroundPoll && nextJson === lastPendingRefundsJson) {
+                    if (isBackgroundPoll && window.lastPendingRefundsJson && nextJson === window.lastPendingRefundsJson) {
                         return;
                     }
 
@@ -2973,6 +2977,7 @@
                         return;
                     }
 
+                    window.lastPendingRefundsJson = nextJson;
                     lastPendingRefundsJson = nextJson;
                     renderPendingRefundsTable(refunds);
                 })
@@ -2983,10 +2988,12 @@
             let prevSearch = '';
             let prevPage = 0;
             if ($.fn.DataTable.isDataTable('#takeaway-refunds-table')) {
-                const dt = $('#takeaway-refunds-table').DataTable();
-                prevSearch = dt.search();
-                prevPage = dt.page();
-                dt.destroy();
+                try {
+                    const dt = $('#takeaway-refunds-table').DataTable();
+                    prevSearch = dt.search();
+                    prevPage = dt.page();
+                    dt.destroy();
+                } catch(e) {}
             }
 
             const badge = document.getElementById('refund-badge');
@@ -3240,9 +3247,6 @@
         }
 
 
-        let takeawayReadyTable = null;
-        let lastTakeawayDeliveryQueueJson = '';
-
         function resetTakeawayLiveDates() {
             const startInput = document.getElementById('takeaway-live-start-date');
             const endInput = document.getElementById('takeaway-live-end-date');
@@ -3268,7 +3272,7 @@
                     const orders = data.orders || [];
                     const nextJson = JSON.stringify(orders);
 
-                    if (isBackgroundPoll && nextJson === lastTakeawayDeliveryQueueJson) {
+                    if (isBackgroundPoll && window.lastTakeawayDeliveryQueueJson && nextJson === window.lastTakeawayDeliveryQueueJson) {
                         return;
                     }
 
@@ -3277,6 +3281,7 @@
                         return;
                     }
 
+                    window.lastTakeawayDeliveryQueueJson = nextJson;
                     lastTakeawayDeliveryQueueJson = nextJson;
                     renderTakeawayReadyTable(orders);
                 })
@@ -3287,10 +3292,12 @@
             let prevSearch = '';
             let prevPage = 0;
             if ($.fn.DataTable.isDataTable('#takeaway-ready-table')) {
-                const dt = $('#takeaway-ready-table').DataTable();
-                prevSearch = dt.search();
-                prevPage = dt.page();
-                dt.destroy();
+                try {
+                    const dt = $('#takeaway-ready-table').DataTable();
+                    prevSearch = dt.search();
+                    prevPage = dt.page();
+                    dt.destroy();
+                } catch(e) {}
             }
 
             const countEl = document.getElementById('takeaway-live-count');
