@@ -3167,13 +3167,6 @@
             });
         }
 
-        window.openRefundModal = openRefundModal;
-        window.closeRefundModal = closeRefundModal;
-        window.processRefundOrder = processRefundOrder;
-        window.confirmOnlineOrderToKOT = confirmOnlineOrderToKOT;
-        window.cancelOnlineOrder = cancelOnlineOrder;
-        window.markOnlineOrderCompleted = markOnlineOrderCompleted;
-
         function fetchActiveOnlineOrders() {
             fetch(basePath + '/online-orders/active')
                 .then(res => res.json())
