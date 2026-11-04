@@ -357,6 +357,17 @@ class Delivery extends Model {
                              SET cod_handed_over = 1, handover_session_id = " . ($sessionId ? (int)$sessionId : "NULL") . " 
                              WHERE id IN ($inClause)");
 
+            // Also mark any associated pending bills as paid in cash
+            $cashierVal = $adminUserId ? (int)$adminUserId : "NULL";
+            $this->db->exec("UPDATE bills 
+                             SET status = 'paid', 
+                                 payment_method = 'cash', 
+                                 cash_amount = grand_total, 
+                                 cashier_id = COALESCE($cashierVal, cashier_id), 
+                                 paid_at = NOW() 
+                             WHERE id IN (SELECT bill_id FROM deliveries WHERE id IN ($inClause) AND bill_id IS NOT NULL) 
+                               AND status != 'paid'");
+
             // Record in ledger
             $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
                                               (driver_id, entry_type, amount, session_id, notes, created_by) 
@@ -371,6 +382,93 @@ class Delivery extends Model {
 
             $this->db->commit();
             return ['success' => true, 'total_cash' => $totalCash, 'orders_count' => count($deliveryIds)];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function confirmSingleDeliveryHandover($deliveryId, $sessionId = null, $adminUserId = null) {
+        $sql = "SELECT d.*, u.name as driver_name, o.token_number, b.id as bill_id, b.status as bill_status
+                FROM deliveries d
+                LEFT JOIN users u ON d.driver_id = u.id
+                LEFT JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
+                WHERE d.id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$deliveryId]);
+        $d = $stmt->fetch();
+
+        if (!$d) {
+            return ['success' => false, 'error' => 'Delivery record not found.'];
+        }
+
+        if ($d['payment_type'] !== 'cod') {
+            return ['success' => false, 'error' => 'This order was already prepaid, no COD collection required.'];
+        }
+
+        if ((int)$d['cod_handed_over'] === 1) {
+            return ['success' => false, 'error' => 'COD cash for this delivery has already been handed over.'];
+        }
+
+        $codAmount = (float)$d['cod_amount'];
+        $driverId = (int)$d['driver_id'];
+
+        $this->db->beginTransaction();
+        try {
+            // 1. Mark delivery as handed over
+            $stmtUp = $this->db->prepare("UPDATE deliveries 
+                                          SET cod_collected = 1, 
+                                              cod_handed_over = 1, 
+                                              handover_session_id = ? 
+                                          WHERE id = ?");
+            $stmtUp->execute([
+                $sessionId ? (int)$sessionId : null,
+                (int)$deliveryId
+            ]);
+
+            // 2. Log in driver wallet ledger (entry_type = 'cod_handover' -> reduces driver liability)
+            if ($driverId > 0 && $codAmount > 0) {
+                $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                                  (driver_id, entry_type, amount, delivery_id, session_id, notes, created_by) 
+                                                  VALUES (?, 'cod_handover', ?, ?, ?, ?, ?)");
+                $stmtLedger->execute([
+                    $driverId,
+                    $codAmount,
+                    (int)$deliveryId,
+                    $sessionId ? (int)$sessionId : null,
+                    "COD cash handover for Order #" . ($d['token_number'] ?: $d['order_id']) . " confirmed by Counter",
+                    $adminUserId ? (int)$adminUserId : null
+                ]);
+            }
+
+            // 3. If there is a bill and it was pending, mark bill as paid in cash by this cashier
+            if (!empty($d['bill_id'])) {
+                $stmtBill = $this->db->prepare("UPDATE bills 
+                                                SET status = 'paid', 
+                                                    payment_method = 'cash', 
+                                                    cash_amount = ?, 
+                                                    cashier_id = COALESCE(?, cashier_id), 
+                                                    paid_at = NOW() 
+                                                WHERE id = ?");
+                $stmtBill->execute([
+                    $codAmount,
+                    $adminUserId ? (int)$adminUserId : null,
+                    (int)$d['bill_id']
+                ]);
+            }
+
+            // 4. Ensure order status is completed
+            $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
+            $stmtOrder->execute([(int)$d['order_id']]);
+
+            $this->db->commit();
+            return [
+                'success' => true,
+                'cod_amount' => $codAmount,
+                'driver_name' => $d['driver_name'],
+                'delivery_id' => (int)$deliveryId
+            ];
         } catch (Exception $e) {
             $this->db->rollBack();
             return ['success' => false, 'error' => $e->getMessage()];

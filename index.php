@@ -215,8 +215,11 @@ $router->add('GET', '/delivery/api/ledger', 'DeliveryController@ledgerData');
 
 // Delivery Counter Operations
 $router->add('POST', '/counter/delivery/dispatch', 'CounterController@dispatchDelivery');
+$router->add('POST', '/admin/delivery/dispatch', 'CounterController@dispatchDelivery');
 $router->add('GET', '/counter/delivery/pending-handovers', 'CounterController@pendingCodHandovers');
 $router->add('POST', '/counter/delivery/confirm-handover', 'CounterController@confirmCodHandover');
+$router->add('POST', '/counter/delivery/confirm-order-handover', 'CounterController@confirmOrderCodHandover');
+$router->add('POST', '/admin/delivery/confirm-order-handover', 'CounterController@confirmOrderCodHandover');
 $router->add('GET', '/counter/delivery/summary', 'CounterController@deliverySummaryReport');
 $router->add('POST', '/counter/delivery/payout', 'CounterController@payoutDriverCommission');
 // Waiter App & Customer API Routes

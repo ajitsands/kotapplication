@@ -408,15 +408,29 @@ class Order extends Model {
     }
 
     public function getReadyTakeawayOrders($startDate = null, $endDate = null) {
-        // Find takeaway and online orders that are paid but not 'completed'
+        // Find takeaway and online orders that are paid or active in delivery
         // They will appear in the Live Takeaway queue as soon as they are paid and sent to KOT.
         $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.status, o.order_type, o.platform_order_number, p.name as platform_name, o.created_at,
+                       b.id as bill_id, b.grand_total as bill_grand_total,
+                       d.id as delivery_id,
+                       d.status as delivery_status,
+                       d.driver_id as delivery_driver_id,
+                       u_d.name as delivery_driver_name,
+                       d.payment_type as delivery_payment_type,
+                       d.cod_amount as delivery_cod_amount,
+                       d.cod_collected as delivery_cod_collected,
+                       d.cod_handed_over as delivery_cod_handed_over,
                        (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status IN ('pending', 'preparing')) as pending_items_count
                   FROM orders o
-                  JOIN bills b ON b.order_id = o.id
+                  LEFT JOIN bills b ON b.order_id = o.id
                   LEFT JOIN online_platforms p ON o.platform_id = p.id
-                  WHERE o.order_type IN ('take_away') AND o.status = 'closed' AND b.status = 'paid'
-                  AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0";
+                  LEFT JOIN deliveries d ON d.id = (
+                      SELECT MAX(id) FROM deliveries WHERE (order_id = o.id OR (b.id IS NOT NULL AND bill_id = b.id)) AND status != 'cancelled'
+                  )
+                  LEFT JOIN users u_d ON d.driver_id = u_d.id
+                  WHERE o.order_type IN ('take_away') 
+                    AND ((o.status = 'closed' AND b.status = 'paid') OR (d.id IS NOT NULL AND d.status != 'delivered') OR (d.id IS NOT NULL AND d.status = 'delivered' AND d.payment_type = 'cod' AND d.cod_handed_over = 0))
+                    AND (SELECT COUNT(*) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = o.id AND ki.status != 'cancelled') > 0";
         $params = [];
         if (!empty($startDate) && !empty($endDate)) {
             $sql .= " AND DATE(o.created_at) BETWEEN ? AND ?";
@@ -435,10 +449,22 @@ class Order extends Model {
         
         // Find takeaway and online orders that are 'completed'
         $sql = "SELECT o.id, o.token_number, o.customer_name, o.customer_mobile, o.order_type, o.platform_order_number, p.name as platform_name,
-                       b.grand_total, b.payment_method, o.updated_at, o.created_at
+                       b.id as bill_id, b.grand_total, b.payment_method, o.updated_at, o.created_at,
+                       d.id as delivery_id,
+                       d.status as delivery_status,
+                       d.driver_id as delivery_driver_id,
+                       u_d.name as delivery_driver_name,
+                       d.payment_type as delivery_payment_type,
+                       d.cod_amount as delivery_cod_amount,
+                       d.cod_collected as delivery_cod_collected,
+                       d.cod_handed_over as delivery_cod_handed_over
                 FROM orders o
                 LEFT JOIN bills b ON b.order_id = o.id
                 LEFT JOIN online_platforms p ON o.platform_id = p.id
+                LEFT JOIN deliveries d ON d.id = (
+                    SELECT MAX(id) FROM deliveries WHERE (order_id = o.id OR (b.id IS NOT NULL AND bill_id = b.id)) AND status != 'cancelled'
+                )
+                LEFT JOIN users u_d ON d.driver_id = u_d.id
                 WHERE o.order_type IN ('take_away', 'online') AND o.status = 'completed'
                 AND o.updated_at >= ? AND o.updated_at <= ?
                 ORDER BY o.updated_at DESC";

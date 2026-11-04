@@ -284,6 +284,14 @@ class ReportsController extends Controller {
                     b.grand_total as bill_total,
                     b.status as bill_status,
                     op.name as platform_name,
+                    d.id as delivery_id,
+                    d.status as delivery_status,
+                    d.driver_id as delivery_driver_id,
+                    u_d.name as delivery_driver_name,
+                    d.payment_type as delivery_payment_type,
+                    d.cod_amount as delivery_cod_amount,
+                    d.cod_collected as delivery_cod_collected,
+                    d.cod_handed_over as delivery_cod_handed_over,
                     (SELECT COALESCE(SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) 
                      FROM kots k 
                      JOIN kot_items ki ON k.id = ki.kot_id 
@@ -292,6 +300,10 @@ class ReportsController extends Controller {
                 FROM orders o
                 LEFT JOIN bills b ON o.id = b.order_id
                 LEFT JOIN online_platforms op ON o.platform_id = op.id
+                LEFT JOIN deliveries d ON d.id = (
+                    SELECT MAX(id) FROM deliveries WHERE (order_id = o.id OR (b.id IS NOT NULL AND bill_id = b.id)) AND status != 'cancelled'
+                )
+                LEFT JOIN users u_d ON d.driver_id = u_d.id
                 WHERE o.created_at BETWEEN :start AND :end
                 ORDER BY o.created_at DESC";
 
@@ -362,7 +374,15 @@ class ReportsController extends Controller {
                 'card_amount' => (float)($row['card_amount'] ?? 0),
                 'qr_amount' => (float)($row['qr_amount'] ?? 0),
                 'details' => $details,
-                'bill_id' => $row['bill_id'] ? (int)$row['bill_id'] : null
+                'bill_id' => $row['bill_id'] ? (int)$row['bill_id'] : null,
+                'delivery_id' => $row['delivery_id'] ? (int)$row['delivery_id'] : null,
+                'delivery_status' => $row['delivery_status'] ?? null,
+                'delivery_driver_id' => $row['delivery_driver_id'] ? (int)$row['delivery_driver_id'] : null,
+                'delivery_driver_name' => $row['delivery_driver_name'] ?? null,
+                'delivery_payment_type' => $row['delivery_payment_type'] ?? null,
+                'delivery_cod_amount' => (float)($row['delivery_cod_amount'] ?? 0),
+                'delivery_cod_collected' => (int)($row['delivery_cod_collected'] ?? 0),
+                'delivery_cod_handed_over' => (int)($row['delivery_cod_handed_over'] ?? 0)
             ];
         }
 

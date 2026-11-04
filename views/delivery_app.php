@@ -615,11 +615,20 @@
                 <div class="section-title">💰 Driver Ledger & Wallet</div>
                 <button onclick="fetchLedger()" style="background:none; border:none; color:var(--primary); font-weight:700; font-size:12px; cursor:pointer;">Refresh</button>
             </div>
-            <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:16px; margin-bottom:16px;">
-                <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">CASH TO HAND OVER TO COUNTER</div>
-                <div style="font-size:24px; font-weight:800; color:var(--accent-orange); margin-bottom:12px;" id="wallet-cash-total">0.000 <?= htmlspecialchars($settings['currency_code']) ?></div>
-                <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
-                    Hand this cash to the cashier at the end of your shift. Once counter cashier confirms the handover, it clears from your balance.
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:16px;">
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">CASH TO HAND OVER</div>
+                    <div style="font-size:20px; font-weight:800; color:var(--accent-orange); margin-bottom:6px;" id="wallet-cash-total">0.000 <?= htmlspecialchars($settings['currency_code']) ?></div>
+                    <div style="font-size:11px; color:var(--text-muted); line-height:1.3;">
+                        Collected COD cash. Clears when Counter confirms handover.
+                    </div>
+                </div>
+                <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:16px;">
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">COMMISSION BALANCE</div>
+                    <div style="font-size:20px; font-weight:800; color:var(--accent-green); margin-bottom:6px;" id="wallet-commission-total">0.000 <?= htmlspecialchars($settings['currency_code']) ?></div>
+                    <div style="font-size:11px; color:var(--text-muted); line-height:1.3;">
+                        Your earnings wallet. Paid out by Counter/Admin.
+                    </div>
                 </div>
             </div>
             <div id="ledger-list"></div>
@@ -702,6 +711,9 @@
                     document.getElementById('stat-cash').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3);
                     document.getElementById('stat-wallet').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3);
                     document.getElementById('wallet-cash-total').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3) + ' ' + currencyCode;
+                    if (document.getElementById('wallet-commission-total')) {
+                        document.getElementById('wallet-commission-total').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3) + ' ' + currencyCode;
+                    }
 
                     // Active Delivery Section
                     renderActiveDelivery(data.active_delivery);

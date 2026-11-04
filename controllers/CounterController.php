@@ -1096,8 +1096,9 @@ class CounterController extends Controller {
 
         // Check if delivery already exists for this order
         $existing = $deliveryModel->getDeliveryByOrderId($orderId);
-        if ($existing && in_array($existing['status'], ['pending_pickup', 'out_for_delivery'])) {
-            $this->json(['success' => false, 'error' => 'This order is already assigned for delivery.']);
+        if ($existing && in_array($existing['status'], ['pending_pickup', 'out_for_delivery', 'delivered'])) {
+            $statusLabel = $existing['status'] === 'delivered' ? 'already delivered' : 'already in delivery queue';
+            $this->json(['success' => false, 'error' => "This order is $statusLabel and cannot be queued again."]);
             return;
         }
 
@@ -1128,6 +1129,25 @@ class CounterController extends Controller {
         $deliveryModel = new Delivery();
         $drivers = $deliveryModel->getCodPendingHandoverSummary();
         $this->json(['success' => true, 'drivers' => $drivers]);
+    }
+
+    public function confirmOrderCodHandover() {
+        $deliveryId = (int)($_POST['delivery_id'] ?? 0);
+        if ($deliveryId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid delivery ID.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        require_once __DIR__ . '/../models/CounterSession.php';
+
+        $counterSessionModel = new CounterSession();
+        $activeSession = $counterSessionModel->getActiveSession($_SESSION['user_id'] ?? 0);
+        $sessionId = $activeSession ? (int)$activeSession['id'] : null;
+
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->confirmSingleDeliveryHandover($deliveryId, $sessionId, $_SESSION['user_id'] ?? null);
+        $this->json($res);
     }
 
     public function confirmCodHandover() {

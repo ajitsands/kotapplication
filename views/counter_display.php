@@ -1871,9 +1871,7 @@
                                 <button onclick="printBill(${bill.id})" class="btn-action btn-print" style="margin-right: 4px; padding: 5px 10px; font-size: 11px;">
                                     Print
                                 </button>
-                                <button onclick="openDeliveryModal(${bill.order_id}, ${bill.id}, '${escapeHtml(bill.customer_name || '')}', '${escapeHtml(bill.customer_mobile || '')}', ${grand})" class="btn-action" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); color: #38bdf8; margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                                    🚴 Delivery
-                                </button>
+                                ${getDeliveryActionHtml(bill, bill.order_id, bill.id, bill.customer_name, bill.customer_mobile, grand)}
                                 <button onclick="deleteBill(${bill.id})" class="btn-action" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--accent-red); margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                                     Delete
                                 </button>
@@ -3348,8 +3346,8 @@
                         <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
                         <td style="padding: 12px 10px; font-weight:700; color:${statusColor};">${statusLabel}</td>
                         <td style="padding: 12px 10px; text-align:right;">
-                            <button class="btn-pay" onclick="openDeliveryModal(${o.id}, ${o.bill_id || 0}, '${escapeHtml(o.customer_name || '')}', '${escapeHtml(o.customer_mobile || '')}', 0)" style="background:rgba(2,132,199,0.15); border:1px solid rgba(2,132,199,0.3); color:#38bdf8; padding:8px 14px; border-radius:8px; font-weight:700; cursor:pointer; margin-right:6px;">🚴 Delivery</button>
-                            <button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="display:${btnDisplay}; background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>
+                            ${getDeliveryActionHtml(o, o.id, o.bill_id || 0, o.customer_name, o.customer_mobile, o.bill_grand_total || 0)}
+                            ${(!o.delivery_status || o.delivery_status !== 'delivered') ? `<button class="btn-pay" onclick="markTakeawayDelivered(${o.id})" style="display:${btnDisplay}; background:var(--accent-green); border:none; color:white; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer;">Mark Delivered</button>` : ''}
                             ${!isReady ? '<span style="color:var(--text-muted); font-size:12px; margin-left:6px;">Waiting...</span>' : ''}
                         </td>
                     </tr>
@@ -3424,7 +3422,10 @@
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_name || 'Guest')}</td>
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
                                 <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total || 0).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
-                                <td style="padding: 12px 10px; text-align:right; text-transform:capitalize;">${escapeHtml(o.payment_method || 'Cash')}</td>
+                                <td style="padding: 12px 10px; text-align:right;">
+                                    <span style="text-transform:capitalize; margin-right:4px;">${escapeHtml(o.payment_method || 'Cash')}</span>
+                                    ${o.delivery_status ? getDeliveryActionHtml(o, o.id, o.bill_id || 0, o.customer_name, o.customer_mobile, o.grand_total || 0) : ''}
+                                </td>
                             </tr>
                         `;
                     });
@@ -5061,6 +5062,91 @@
             });
         }
 
+        function getDeliveryActionHtml(d, orderId, billId, custName, custMobile, amount) {
+            const isDelivery = d && (d.delivery_status || d.delivery_id);
+            if (!isDelivery) {
+                return `<button onclick="openDeliveryModal(${orderId}, ${billId || 0}, '${escapeHtml(custName || '')}', '${escapeHtml(custMobile || '')}', ${amount || 0})" class="btn-action" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); color: #38bdf8; margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; cursor: pointer; transition: all 0.2s;" title="Dispatch to Delivery Driver Queue">🚴 Delivery</button>`;
+            }
+
+            const st = d.delivery_status;
+            const isCod = (d.delivery_payment_type === 'cod');
+            const isHandedOver = parseInt(d.delivery_cod_handed_over) === 1;
+            const codAmt = parseFloat(d.delivery_cod_amount || amount || 0).toFixed(window.PRICE_DECIMALS || 3);
+            const driverName = escapeHtml(d.delivery_driver_name || 'Driver');
+
+            if (st === 'pending_pickup') {
+                return `<span class="badge" style="background: rgba(2, 132, 199, 0.15); border: 1px solid rgba(2, 132, 199, 0.3); color: #38bdf8; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;" title="Dispatched: Waiting for a driver to accept">🚴 In Queue</span>`;
+            }
+
+            if (st === 'out_for_delivery') {
+                return `<span class="badge" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;" title="Accepted by ${driverName} • Out for delivery">🚴 On Way (${driverName})</span>`;
+            }
+
+            if (st === 'delivered') {
+                if (isCod && !isHandedOver) {
+                    return `<button onclick="confirmSingleDeliveryHandover(${d.delivery_id}, ${orderId}, '${driverName}', '${codAmt}')" class="btn-action" style="background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #eab308; margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);" title="Driver collected COD cash. Click to confirm cash handover to Counter!">💵 Confirm COD (${codAmt})</button>`;
+                } else {
+                    return `<span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;" title="Delivered successfully${isCod ? ' • COD settled' : ''}">✅ Delivered</span>`;
+                }
+            }
+
+            return '';
+        }
+
+        function confirmSingleDeliveryHandover(deliveryId, orderId, driverName, codAmount) {
+            Swal.fire({
+                title: '💵 Confirm COD Collection',
+                html: `
+                    <div style="text-align:center; font-size:14px; margin-top:10px;">
+                        <div style="font-size:32px; margin-bottom:8px;">🤝</div>
+                        <div>Driver: <strong style="color:#38bdf8;">${escapeHtml(driverName)}</strong></div>
+                        <div style="font-size:22px; font-weight:800; color:var(--accent-green); margin:12px 0;">
+                            ${codAmount} ${currencyCode}
+                        </div>
+                        <div style="color:var(--text-muted); font-size:12px; line-height:1.4;">
+                            Did the driver hand over this COD cash to the counter?
+                            <br>This will add to your active shift cash collection and clear the cash liability from the driver's wallet.
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Confirm & Receive Cash',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then(res => {
+                if (res.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('delivery_id', deliveryId);
+
+                    fetch(basePath + '/delivery/confirm-order-handover', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'COD Cash Received! 💵',
+                                text: `Received ${codAmount} ${currencyCode} from ${driverName}. Shift collection updated.`,
+                                timer: 2200,
+                                showConfirmButton: false
+                            });
+                            if (typeof fetchUnpaidBills === 'function') fetchUnpaidBills(true);
+                            if (typeof fetchTakeawayDeliveryQueue === 'function') fetchTakeawayDeliveryQueue(false);
+                            if (typeof fetchCompletedTakeaways === 'function') fetchCompletedTakeaways();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to confirm handover.', 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+                }
+            });
+        }
+
         function openDeliveryModal(orderId, billId, custName, custMobile, amount) {
             Swal.fire({
                 title: '🚴 Dispatch for Delivery',
@@ -5161,6 +5247,9 @@
                                 timer: 2000,
                                 showConfirmButton: false
                             });
+                            if (typeof fetchUnpaidBills === 'function') fetchUnpaidBills(true);
+                            if (typeof fetchTakeawayDeliveryQueue === 'function') fetchTakeawayDeliveryQueue(false);
+                            if (typeof fetchCompletedTakeaways === 'function') fetchCompletedTakeaways();
                         } else {
                             Swal.fire('Error', data.error || 'Failed to dispatch delivery.', 'error');
                         }

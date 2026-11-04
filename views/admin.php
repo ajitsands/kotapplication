@@ -3154,12 +3154,33 @@
                     payMethodDisplay = `${icon} ${escapeHtmlAdmin(row.payment_method)}`;
                 }
 
+                let deliveryBadge = '';
+                if (row.delivery_status) {
+                    const dst = row.delivery_status;
+                    const dDriver = escapeHtmlAdmin(row.delivery_driver_name || 'Driver');
+                    const dCodAmt = parseFloat(row.delivery_cod_amount || row.total || 0).toFixed(window.PRICE_DECIMALS || 3);
+                    const dIsCod = (row.delivery_payment_type === 'cod');
+                    const dHanded = parseInt(row.delivery_cod_handed_over) === 1;
+
+                    if (dst === 'pending_pickup') {
+                        deliveryBadge = `<div style="margin-top:4px;"><span class="badge" style="background:rgba(2,132,199,0.15); color:#38bdf8; border:1px solid rgba(2,132,199,0.3); font-size:10px;">🚴 In Queue</span></div>`;
+                    } else if (dst === 'out_for_delivery') {
+                        deliveryBadge = `<div style="margin-top:4px;"><span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:10px;">🚴 On Way (${dDriver})</span></div>`;
+                    } else if (dst === 'delivered') {
+                        if (dIsCod && !dHanded) {
+                            deliveryBadge = `<div style="margin-top:4px;"><button onclick="confirmAdminOrderCodHandover(${row.delivery_id}, ${row.order_id}, '${dDriver}', '${dCodAmt}')" style="background:rgba(234,179,8,0.2); border:1px solid #eab308; color:#eab308; padding:3px 7px; border-radius:6px; font-weight:800; font-size:10px; cursor:pointer;" title="Click to confirm COD handover">💵 Confirm COD (${dCodAmt})</button></div>`;
+                        } else {
+                            deliveryBadge = `<div style="margin-top:4px;"><span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px;">✅ Delivered</span></div>`;
+                        }
+                    }
+                }
+
                 tr.innerHTML = `
                     <td>#${row.order_id}</td>
                     <td>${row.created_at}</td>
                     <td><span class="badge ${badgeClass}">${(row.order_type||'').replace('_', ' ').toUpperCase()}</span></td>
                     <td>${detailsHtml}</td>
-                    <td><span class="badge ${statusBadge}">${isCancelled ? 'CANCELLED' : (row.status || 'Unknown')}</span></td>
+                    <td><span class="badge ${statusBadge}">${isCancelled ? 'CANCELLED' : (row.status || 'Unknown')}</span>${deliveryBadge}</td>
                     <td>${payMethodDisplay}</td>
                     <td class="price-text" style="font-weight:600; text-align:right;">${amountDisplay}</td>
                     <td style="text-align: center;">
@@ -3212,6 +3233,58 @@
         }
 
         let currentAdminViewOrderId = null;
+
+        function confirmAdminOrderCodHandover(deliveryId, orderId, driverName, codAmount) {
+            Swal.fire({
+                title: '💵 Confirm COD Collection',
+                html: `
+                    <div style="text-align:center; font-size:14px; margin-top:10px;">
+                        <div style="font-size:32px; margin-bottom:8px;">🤝</div>
+                        <div>Driver: <strong style="color:var(--primary);">${escapeHtmlAdmin(driverName)}</strong></div>
+                        <div style="font-size:22px; font-weight:800; color:var(--accent-green); margin:12px 0;">
+                            ${codAmount} ${cur}
+                        </div>
+                        <div style="color:var(--text-muted); font-size:12px;">
+                            Did the driver hand over this cash collection to the counter?
+                            <br>This will clear the cash liability from the driver's wallet.
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Confirm Collection',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+            }).then(res => {
+                if (res.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('delivery_id', deliveryId);
+
+                    fetch(basePath + '/delivery/confirm-order-handover', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Collection Confirmed!',
+                                text: `Received ${codAmount} ${cur} from ${driverName}. Driver liability cleared.`,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            if (typeof loadTransactionsReport === 'function') loadTransactionsReport();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to confirm handover.', 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+                }
+            });
+        }
 
         function viewOrderDetails(orderId) {
             currentAdminViewOrderId = orderId;
