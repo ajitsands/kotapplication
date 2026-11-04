@@ -554,7 +554,7 @@
         <div class="header-actions">
             <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
             <button class="icon-btn" onclick="fetchDashboardData(true)" title="Refresh">🔄</button>
-            <a href="delivery/logout" class="icon-btn" style="color:var(--accent-red); text-decoration:none;" title="Logout">🚪</a>
+            <a href="javascript:void(0)" onclick="window.location.href = basePath + '/logout'" class="icon-btn" style="color:var(--accent-red); text-decoration:none;" title="Logout">🚪</a>
         </div>
     </header>
 
@@ -644,6 +644,7 @@
     </nav>
 
     <script>
+        const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         let currentTab = 'deliveries';
         let pollTimer = null;
@@ -691,7 +692,7 @@
         }
 
         function fetchDashboardData(manual = false) {
-            fetch('delivery/api/dashboard?_=' + Date.now())
+            fetch(basePath + '/api/dashboard?_=' + Date.now())
                 .then(res => res.json())
                 .then(data => {
                     if (!data.success) return;
@@ -856,7 +857,7 @@
                 confirmButtonText: 'Yes, Accept & Start'
             }).then(result => {
                 if (result.isConfirmed) {
-                    fetch('delivery/api/claim/' + deliveryId, {
+                    fetch(basePath + '/api/claim/' + deliveryId, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     })
@@ -897,7 +898,7 @@
                     const formData = new FormData();
                     formData.append('notes', notes);
 
-                    fetch('delivery/api/deliver/' + deliveryId, {
+                    fetch(basePath + '/api/deliver/' + deliveryId, {
                         method: 'POST',
                         body: formData
                     })
@@ -924,7 +925,7 @@
             const listEl = document.getElementById('history-list');
             listEl.innerHTML = '<div class="empty-state">Loading history...</div>';
 
-            fetch('delivery/api/history?_=' + Date.now())
+            fetch(basePath + '/api/history?_=' + Date.now())
                 .then(res => res.json())
                 .then(data => {
                     if (!data.success || !data.deliveries || data.deliveries.length === 0) {
@@ -957,7 +958,7 @@
             const listEl = document.getElementById('ledger-list');
             listEl.innerHTML = '<div class="empty-state">Loading ledger...</div>';
 
-            fetch('delivery/api/ledger?_=' + Date.now())
+            fetch(basePath + '/api/ledger?_=' + Date.now())
                 .then(res => res.json())
                 .then(data => {
                     if (!data.success || !data.ledger || data.ledger.length === 0) {
@@ -1025,3 +1026,4 @@
     </script>
 </body>
 </html>
+

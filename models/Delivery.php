@@ -92,10 +92,12 @@ class Delivery extends Model {
     }
 
     public function getDeliveryById($id) {
-        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total, 
+        $sql = "SELECT d.*, o.token_number, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total,
                        u.name as driver_name, u.username as driver_username
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 LEFT JOIN users u ON d.driver_id = u.id
                 WHERE d.id = ?";
         $stmt = $this->db->prepare($sql);
@@ -119,9 +121,11 @@ class Delivery extends Model {
     }
 
     public function getAvailableDeliveries() {
-        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+        $sql = "SELECT d.*, o.token_number, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 WHERE d.status = 'pending_pickup'
                 ORDER BY d.id ASC";
         $stmt = $this->db->query($sql);
@@ -134,9 +138,11 @@ class Delivery extends Model {
     }
 
     public function getActiveDeliveryForDriver($driverId) {
-        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+        $sql = "SELECT d.*, o.token_number, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 WHERE d.driver_id = ? AND d.status = 'out_for_delivery'
                 ORDER BY d.id DESC LIMIT 1";
         $stmt = $this->db->prepare($sql);
@@ -175,9 +181,11 @@ class Delivery extends Model {
     }
 
     public function markDelivered($deliveryId, $driverId, $notes = '') {
-        $sql = "SELECT d.*, o.total_amount as order_total 
+        $sql = "SELECT d.*, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total 
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 WHERE d.id = ? AND d.driver_id = ? AND d.status = 'out_for_delivery'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([(int)$deliveryId, (int)$driverId]);
@@ -284,9 +292,11 @@ class Delivery extends Model {
     }
 
     public function getDriverDeliveriesHistory($driverId, $limit = 30) {
-        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+        $sql = "SELECT d.*, o.token_number, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 WHERE d.driver_id = ? AND d.status = 'delivered'
                 ORDER BY d.delivered_at DESC LIMIT ?";
         $stmt = $this->db->prepare($sql);
@@ -413,10 +423,12 @@ class Delivery extends Model {
     }
 
     public function getDeliveryReport($startDate = null, $endDate = null, $driverId = null) {
-        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total, 
+        $sql = "SELECT d.*, o.token_number, 
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total, 
                        u.name as driver_name, u.username as driver_username
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
                 LEFT JOIN users u ON d.driver_id = u.id
                 WHERE 1=1";
         $params = [];
@@ -442,7 +454,7 @@ class Delivery extends Model {
         $sql = "SELECT u.id as driver_id, u.name as driver_name, u.username as driver_username,
                        COUNT(d.id) as total_deliveries,
                        SUM(CASE WHEN d.status = 'delivered' THEN 1 ELSE 0 END) as completed_deliveries,
-                       SUM(CASE WHEN d.status = 'delivered' THEN o.total_amount ELSE 0 END) as total_delivered_sales,
+                       SUM(CASE WHEN d.status = 'delivered' THEN COALESCE(b.grand_total, d.cod_amount, 0) ELSE 0 END) as total_delivered_sales,
                        SUM(CASE WHEN d.status = 'delivered' AND d.payment_type = 'cod' THEN d.cod_amount ELSE 0 END) as total_cod_collected,
                        SUM(CASE WHEN d.status = 'delivered' THEN d.commission_amount ELSE 0 END) as total_commission_earned
                 FROM users u
@@ -454,6 +466,7 @@ class Delivery extends Model {
             $params = [$startDate, $endDate];
         }
         $sql .= " LEFT JOIN orders o ON d.order_id = o.id
+                  LEFT JOIN bills b ON d.bill_id = b.id
                   WHERE u.role = 'delivery'
                   GROUP BY u.id, u.name, u.username
                   ORDER BY completed_deliveries DESC, u.name ASC";
@@ -482,3 +495,4 @@ class Delivery extends Model {
         return $stmt->fetchAll();
     }
 }
+
