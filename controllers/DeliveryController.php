@@ -166,11 +166,20 @@ class DeliveryController extends Controller {
             return;
         }
 
-        $limit = max(1, min(100, (int)($_GET['limit'] ?? 30)));
-        $deliveryModel = new Delivery();
-        $history = $deliveryModel->getDriverDeliveriesHistory($driverId, $limit);
+        $today = date('Y-m-d');
+        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : $today;
+        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : $today;
+        $limit = max(1, min(200, (int)($_GET['limit'] ?? 100)));
 
-        $this->json(['success' => true, 'deliveries' => $history]);
+        $deliveryModel = new Delivery();
+        $history = $deliveryModel->getDriverDeliveriesHistory($driverId, $startDate, $endDate, $limit);
+
+        $this->json([
+            'success' => true,
+            'deliveries' => $history,
+            'start' => $startDate,
+            'end' => $endDate
+        ]);
     }
 
     public function ledgerData() {
@@ -180,8 +189,9 @@ class DeliveryController extends Controller {
             return;
         }
 
-        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : null;
-        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : null;
+        $today = date('Y-m-d');
+        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : $today;
+        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : $today;
 
         $deliveryModel = new Delivery();
         $ledger = $deliveryModel->getDriverLedger($driverId, $startDate, $endDate);
@@ -190,7 +200,9 @@ class DeliveryController extends Controller {
         $this->json([
             'success' => true,
             'stats' => $stats,
-            'ledger' => $ledger
+            'ledger' => $ledger,
+            'start' => $startDate,
+            'end' => $endDate
         ]);
     }
 }

@@ -604,8 +604,27 @@
         <div id="tab-pane-history" style="display: none;">
             <div class="section-header">
                 <div class="section-title">📜 Delivered History</div>
-                <button onclick="fetchHistory()" style="background:none; border:none; color:var(--primary); font-weight:700; font-size:12px; cursor:pointer;">Refresh</button>
+                <button onclick="fetchHistory(true)" style="background:none; border:none; color:var(--primary); font-weight:700; font-size:12px; cursor:pointer;">Refresh</button>
             </div>
+
+            <!-- Date Filter Bar for History -->
+            <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:12px; margin-bottom:14px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                    <div>
+                        <label style="font-size:10px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px; text-transform:uppercase;">From Date</label>
+                        <input type="date" id="history-start-date" style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); color:var(--text-color); border-radius:8px; padding:7px 8px; font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px; text-transform:uppercase;">To Date</label>
+                        <input type="date" id="history-end-date" style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); color:var(--text-color); border-radius:8px; padding:7px 8px; font-size:12px;">
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="fetchHistory(true)" style="flex:2; background:var(--primary); color:white; border:none; padding:8px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">🔍 Search History</button>
+                    <button onclick="resetHistoryToToday()" style="flex:1; background:rgba(255,255,255,0.08); color:var(--text-color); border:1px solid var(--card-border); padding:8px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">Today</button>
+                </div>
+            </div>
+
             <div id="history-list"></div>
         </div>
 
@@ -613,9 +632,9 @@
         <div id="tab-pane-wallet" style="display: none;">
             <div class="section-header">
                 <div class="section-title">💰 Driver Ledger & Wallet</div>
-                <button onclick="fetchLedger()" style="background:none; border:none; color:var(--primary); font-weight:700; font-size:12px; cursor:pointer;">Refresh</button>
+                <button onclick="fetchLedger(true)" style="background:none; border:none; color:var(--primary); font-weight:700; font-size:12px; cursor:pointer;">Refresh</button>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                 <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:16px;">
                     <div style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:4px;">CASH TO HAND OVER</div>
                     <div style="font-size:20px; font-weight:800; color:var(--accent-orange); margin-bottom:6px;" id="wallet-cash-total">0.000 <?= htmlspecialchars($settings['currency_code']) ?></div>
@@ -631,6 +650,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Date Filter Bar for Ledger -->
+            <div style="background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:12px; margin-bottom:14px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                    <div>
+                        <label style="font-size:10px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px; text-transform:uppercase;">From Date</label>
+                        <input type="date" id="ledger-start-date" style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); color:var(--text-color); border-radius:8px; padding:7px 8px; font-size:12px;">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px; text-transform:uppercase;">To Date</label>
+                        <input type="date" id="ledger-end-date" style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); color:var(--text-color); border-radius:8px; padding:7px 8px; font-size:12px;">
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="fetchLedger(true)" style="flex:2; background:var(--primary); color:white; border:none; padding:8px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">🔍 Search Ledger</button>
+                    <button onclick="resetLedgerToToday()" style="flex:1; background:rgba(255,255,255,0.08); color:var(--text-color); border:1px solid var(--card-border); padding:8px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">Today</button>
+                </div>
+            </div>
+
             <div id="ledger-list"></div>
         </div>
 
@@ -933,15 +971,57 @@
             });
         }
 
-        function fetchHistory() {
+        function getTodayDateString() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function initDateFilters() {
+            const today = getTodayDateString();
+            const hStart = document.getElementById('history-start-date');
+            const hEnd = document.getElementById('history-end-date');
+            const lStart = document.getElementById('ledger-start-date');
+            const lEnd = document.getElementById('ledger-end-date');
+
+            if (hStart && !hStart.value) hStart.value = today;
+            if (hEnd && !hEnd.value) hEnd.value = today;
+            if (lStart && !lStart.value) lStart.value = today;
+            if (lEnd && !lEnd.value) lEnd.value = today;
+        }
+
+        function resetHistoryToToday() {
+            const today = getTodayDateString();
+            document.getElementById('history-start-date').value = today;
+            document.getElementById('history-end-date').value = today;
+            fetchHistory(true);
+        }
+
+        function resetLedgerToToday() {
+            const today = getTodayDateString();
+            document.getElementById('ledger-start-date').value = today;
+            document.getElementById('ledger-end-date').value = today;
+            fetchLedger(true);
+        }
+
+        function fetchHistory(showToast = false) {
+            initDateFilters();
+            const start = document.getElementById('history-start-date') ? document.getElementById('history-start-date').value : getTodayDateString();
+            const end = document.getElementById('history-end-date') ? document.getElementById('history-end-date').value : getTodayDateString();
+
             const listEl = document.getElementById('history-list');
             listEl.innerHTML = '<div class="empty-state">Loading history...</div>';
 
-            fetch(basePath + '/api/history?_=' + Date.now())
+            fetch(basePath + '/api/history?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&_=' + Date.now())
                 .then(res => res.json())
                 .then(data => {
+                    if (showToast) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `Loaded (${data.deliveries ? data.deliveries.length : 0})`, showConfirmButton: false, timer: 1000 });
+                    }
                     if (!data.success || !data.deliveries || data.deliveries.length === 0) {
-                        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><div>No delivered orders yet.</div></div>';
+                        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><div>No deliveries completed for this date range.</div></div>';
                         return;
                     }
 
@@ -966,15 +1046,22 @@
                 });
         }
 
-        function fetchLedger() {
+        function fetchLedger(showToast = false) {
+            initDateFilters();
+            const start = document.getElementById('ledger-start-date') ? document.getElementById('ledger-start-date').value : getTodayDateString();
+            const end = document.getElementById('ledger-end-date') ? document.getElementById('ledger-end-date').value : getTodayDateString();
+
             const listEl = document.getElementById('ledger-list');
             listEl.innerHTML = '<div class="empty-state">Loading ledger...</div>';
 
-            fetch(basePath + '/api/ledger?_=' + Date.now())
+            fetch(basePath + '/api/ledger?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end) + '&_=' + Date.now())
                 .then(res => res.json())
                 .then(data => {
+                    if (showToast) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `Loaded (${data.ledger ? data.ledger.length : 0})`, showConfirmButton: false, timer: 1000 });
+                    }
                     if (!data.success || !data.ledger || data.ledger.length === 0) {
-                        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div>No ledger transactions yet.</div></div>';
+                        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div>No ledger transactions for this date range.</div></div>';
                         return;
                     }
 

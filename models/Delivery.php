@@ -291,18 +291,24 @@ class Delivery extends Model {
         ];
     }
 
-    public function getDriverDeliveriesHistory($driverId, $limit = 30) {
+    public function getDriverDeliveriesHistory($driverId, $startDate = null, $endDate = null, $limit = 100) {
         $sql = "SELECT d.*, o.token_number, 
                        COALESCE(b.grand_total, d.cod_amount, 0) as order_total
                 FROM deliveries d
                 JOIN orders o ON d.order_id = o.id
                 LEFT JOIN bills b ON d.bill_id = b.id
-                WHERE d.driver_id = ? AND d.status = 'delivered'
-                ORDER BY d.delivered_at DESC LIMIT ?";
+                WHERE d.driver_id = ? AND d.status = 'delivered'";
+        $params = [(int)$driverId];
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(d.delivered_at) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+        }
+
+        $sql .= " ORDER BY d.delivered_at DESC LIMIT " . (int)$limit;
         $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(1, (int)$driverId, PDO::PARAM_INT);
-        $stmt->bindValue(2, (int)$limit, PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute($params);
         $deliveries = $stmt->fetchAll();
 
         foreach ($deliveries as &$d) {
