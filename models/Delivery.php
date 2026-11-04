@@ -364,7 +364,7 @@ class Delivery extends Model {
                                  payment_method = 'cash', 
                                  cash_amount = grand_total, 
                                  cashier_id = COALESCE($cashierVal, cashier_id), 
-                                 paid_at = NOW() 
+                                 created_at = NOW() 
                              WHERE id IN (SELECT bill_id FROM deliveries WHERE id IN ($inClause) AND bill_id IS NOT NULL) 
                                AND status != 'paid'");
 
@@ -449,7 +449,7 @@ class Delivery extends Model {
                                                     payment_method = 'cash', 
                                                     cash_amount = ?, 
                                                     cashier_id = COALESCE(?, cashier_id), 
-                                                    paid_at = NOW() 
+                                                    created_at = NOW() 
                                                 WHERE id = ?");
                 $stmtBill->execute([
                     $codAmount,
