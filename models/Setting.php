@@ -30,6 +30,8 @@ class Setting extends Model {
                 'auto_print_bill' => 1,
                 'print_margin_left' => 5,
                 'print_margin_right' => 5,
+                'delivery_commission_percent' => 5.00,
+                'delivery_commission_type' => 'percent',
                 'logo_path' => null,
                 'software_expiry_date' => '2027-12-31'
             ];
@@ -95,6 +97,12 @@ class Setting extends Model {
             if (!in_array('print_margin_right', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN print_margin_right INT NOT NULL DEFAULT 5");
             }
+            if (!in_array('delivery_commission_percent', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN delivery_commission_percent DECIMAL(5,2) NOT NULL DEFAULT 5.00");
+            }
+            if (!in_array('delivery_commission_type', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN delivery_commission_type ENUM('percent', 'fixed') NOT NULL DEFAULT 'percent'");
+            }
         } catch (Exception $e) {
             // ignore if already present
         }
@@ -128,7 +136,8 @@ class Setting extends Model {
                 auto_print_kot = ?,
                 auto_print_bill = ?,
                 print_margin_left = ?,
-                print_margin_right = ?";
+                print_margin_right = ?,
+                delivery_commission_percent = ?";
         
         $params = [
             $data['restaurant_name'] ?? 'Gourmet Restaurant',
@@ -150,7 +159,8 @@ class Setting extends Model {
             isset($data['auto_print_kot']) ? 1 : 0,
             isset($data['auto_print_bill']) ? 1 : 0,
             max(0, min(30, (int)($data['print_margin_left'] ?? 5))),
-            max(0, min(30, (int)($data['print_margin_right'] ?? 5)))
+            max(0, min(30, (int)($data['print_margin_right'] ?? 5))),
+            isset($data['delivery_commission_percent']) ? max(0, (float)$data['delivery_commission_percent']) : 5.00
         ];
 
         if ($logoPath !== null) {

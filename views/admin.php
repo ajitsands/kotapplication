@@ -1468,6 +1468,15 @@
                         </div>
                     </div>
 
+                    <div style="border-top: 1px solid var(--card-border); margin-top: 25px; padding-top: 20px;">
+                        <h4 style="margin: 0 0 12px 0; color: #06b6d4; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">🚴 Delivery Driver Settings</h4>
+                        <div class="form-group" style="max-width: 50%;">
+                            <label class="form-label">Driver Commission Rate (%)</label>
+                            <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_commission_percent" value="<?= htmlspecialchars($settings['delivery_commission_percent'] ?? '5.00') ?>" required>
+                            <small style="color: var(--text-muted); font-size: 11px;">Automatic commission credited to driver's wallet upon each completed delivery (e.g. 5%).</small>
+                        </div>
+                    </div>
+
                     <?php if (($_SESSION['username'] ?? '') === 'superadmin'): ?>
                         <div style="border-top: 1px solid var(--card-border); margin-top: 25px; padding-top: 25px;">
                             <h4 style="margin: 0 0 15px 0; color: var(--accent-orange); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">🔑 Software License Management (Superadmin Only)</h4>
@@ -1595,6 +1604,7 @@
                                 <option value="waiter">Waiter</option>
                                 <option value="kot">Kitchen Chef</option>
                                 <option value="counter">Counter User</option>
+                                <option value="delivery">Delivery Driver</option>
                                 <option value="admin">Administrator</option>
                             </select>
                         </div>
@@ -1628,6 +1638,7 @@
                                                 case 'waiter': echo '<span class="table-status status-available">Waiter</span>'; break;
                                                 case 'kot': echo '<span class="table-status status-occupied">Kitchen Chef</span>'; break;
                                                 case 'counter': echo '<span class="table-status status-billing">Counter User</span>'; break;
+                                                case 'delivery': echo '<span class="table-status" style="background:rgba(14,165,233,0.15); color:#38bdf8; border:1px solid rgba(14,165,233,0.3);">Delivery Driver</span>'; break;
                                                 default: echo htmlspecialchars($usr['role']);
                                             }
                                         ?>

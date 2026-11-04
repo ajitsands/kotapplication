@@ -1080,4 +1080,98 @@ class CounterController extends Controller {
         $success = $billModel->processRefundOrder($orderId);
         $this->json(['success' => $success]);
     }
+
+    public function dispatchDelivery() {
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $billId = !empty($_POST['bill_id']) ? (int)$_POST['bill_id'] : null;
+        $customerMobile = trim($_POST['customer_mobile'] ?? '');
+
+        if ($orderId <= 0 || empty($customerMobile)) {
+            $this->json(['success' => false, 'error' => 'Order ID and Customer Mobile number are required.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+
+        // Check if delivery already exists for this order
+        $existing = $deliveryModel->getDeliveryByOrderId($orderId);
+        if ($existing && in_array($existing['status'], ['pending_pickup', 'out_for_delivery'])) {
+            $this->json(['success' => false, 'error' => 'This order is already assigned for delivery.']);
+            return;
+        }
+
+        $paymentType = ($_POST['payment_type'] ?? 'paid') === 'cod' ? 'cod' : 'paid';
+        $codAmount = (float)($_POST['cod_amount'] ?? 0);
+
+        $id = $deliveryModel->createDelivery([
+            'order_id' => $orderId,
+            'bill_id' => $billId,
+            'customer_name' => trim($_POST['customer_name'] ?? ''),
+            'customer_mobile' => $customerMobile,
+            'customer_address' => trim($_POST['customer_address'] ?? ''),
+            'google_maps_link' => trim($_POST['google_maps_link'] ?? ''),
+            'delivery_notes' => trim($_POST['delivery_notes'] ?? ''),
+            'payment_type' => $paymentType,
+            'cod_amount' => $codAmount
+        ]);
+
+        if ($id) {
+            $this->json(['success' => true, 'delivery_id' => $id]);
+        } else {
+            $this->json(['success' => false, 'error' => 'Failed to dispatch delivery.']);
+        }
+    }
+
+    public function pendingCodHandovers() {
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $drivers = $deliveryModel->getCodPendingHandoverSummary();
+        $this->json(['success' => true, 'drivers' => $drivers]);
+    }
+
+    public function confirmCodHandover() {
+        $driverId = (int)($_POST['driver_id'] ?? 0);
+        if ($driverId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid driver ID.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        require_once __DIR__ . '/../models/CounterSession.php';
+
+        $counterSessionModel = new CounterSession();
+        $activeSession = $counterSessionModel->getActiveSession($_SESSION['user_id'] ?? 0);
+        $sessionId = $activeSession ? (int)$activeSession['id'] : null;
+
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->handoverCodCash($driverId, $sessionId, $_SESSION['user_id'] ?? null);
+        $this->json($res);
+    }
+
+    public function deliverySummaryReport() {
+        $startDate = !empty($_GET['start']) ? trim($_GET['start']) : null;
+        $endDate = !empty($_GET['end']) ? trim($_GET['end']) : null;
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $report = $deliveryModel->getDriversPerformanceSummary($startDate, $endDate);
+        $this->json(['success' => true, 'report' => $report]);
+    }
+
+    public function payoutDriverCommission() {
+        $driverId = (int)($_POST['driver_id'] ?? 0);
+        $amount = (float)($_POST['amount'] ?? 0);
+        $notes = trim($_POST['notes'] ?? '');
+
+        if ($driverId <= 0 || $amount <= 0) {
+            $this->json(['success' => false, 'error' => 'Driver ID and a valid payout amount are required.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->payoutDriverCommission($driverId, $amount, $notes, $_SESSION['user_id'] ?? null);
+        $this->json($res);
+    }
 }

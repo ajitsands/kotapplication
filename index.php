@@ -201,6 +201,24 @@ $router->add('GET', '/counter/refunds/pending', 'CounterController@pendingRefund
 $router->add('GET', '/counter/refunds/completed', 'CounterController@completedRefunds');
 $router->add('POST', '/counter/refunds/pay/:id', 'CounterController@processRefund');
 $router->add('POST', '/counter/refunds/pay-order/:id', 'CounterController@processOrderRefund');
+
+// Delivery Driver App Routes
+$router->add('GET', '/delivery', 'DeliveryController@index');
+$router->add('GET', '/delivery/login', 'DeliveryController@loginView');
+$router->add('POST', '/delivery/login', 'DeliveryController@loginSubmit');
+$router->add('GET', '/delivery/logout', 'DeliveryController@logout');
+$router->add('GET', '/delivery/api/dashboard', 'DeliveryController@dashboardData');
+$router->add('POST', '/delivery/api/claim/:id', 'DeliveryController@claimDelivery');
+$router->add('POST', '/delivery/api/deliver/:id', 'DeliveryController@markDelivered');
+$router->add('GET', '/delivery/api/history', 'DeliveryController@historyData');
+$router->add('GET', '/delivery/api/ledger', 'DeliveryController@ledgerData');
+
+// Delivery Counter Operations
+$router->add('POST', '/counter/delivery/dispatch', 'CounterController@dispatchDelivery');
+$router->add('GET', '/counter/delivery/pending-handovers', 'CounterController@pendingCodHandovers');
+$router->add('POST', '/counter/delivery/confirm-handover', 'CounterController@confirmCodHandover');
+$router->add('GET', '/counter/delivery/summary', 'CounterController@deliverySummaryReport');
+$router->add('POST', '/counter/delivery/payout', 'CounterController@payoutDriverCommission');
 // Waiter App & Customer API Routes
 $router->add('POST', '/api/login', 'ApiController@login');
 $router->add('POST', '/api/logout', 'ApiController@logout');

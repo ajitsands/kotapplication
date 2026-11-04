@@ -1,0 +1,484 @@
+<?php
+
+class Delivery extends Model {
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS `deliveries` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `order_id` INT NOT NULL,
+                `bill_id` INT NULL,
+                `driver_id` INT NULL,
+                `customer_name` VARCHAR(150) NULL,
+                `customer_mobile` VARCHAR(50) NOT NULL,
+                `customer_address` TEXT NULL,
+                `google_maps_link` VARCHAR(500) NULL,
+                `delivery_notes` TEXT NULL,
+                `payment_type` ENUM('paid', 'cod') DEFAULT 'paid',
+                `cod_amount` DECIMAL(10,3) DEFAULT 0.000,
+                `cod_collected` TINYINT(1) DEFAULT 0,
+                `cod_handed_over` TINYINT(1) DEFAULT 0,
+                `handover_session_id` INT NULL,
+                `status` ENUM('pending_pickup', 'out_for_delivery', 'delivered', 'cancelled') DEFAULT 'pending_pickup',
+                `commission_rate` DECIMAL(5,2) DEFAULT 0.00,
+                `commission_amount` DECIMAL(10,3) DEFAULT 0.000,
+                `commission_settled` TINYINT(1) DEFAULT 0,
+                `created_by` INT NULL,
+                `accepted_at` DATETIME NULL,
+                `delivered_at` DATETIME NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX (`status`),
+                INDEX (`driver_id`),
+                INDEX (`order_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            $this->db->exec("CREATE TABLE IF NOT EXISTS `driver_wallet_ledger` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `driver_id` INT NOT NULL,
+                `entry_type` ENUM('commission_credit', 'commission_payout', 'cod_collected', 'cod_handover') NOT NULL,
+                `amount` DECIMAL(10,3) NOT NULL,
+                `delivery_id` INT NULL,
+                `session_id` INT NULL,
+                `notes` VARCHAR(255) NULL,
+                `created_by` INT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX (`driver_id`),
+                INDEX (`entry_type`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } catch (Exception $e) {
+            error_log("Delivery ensureSchema error: " . $e->getMessage());
+        }
+    }
+
+    public function createDelivery($data) {
+        $stmtSetting = $this->db->query("SELECT delivery_commission_percent FROM settings LIMIT 1");
+        $rate = 5.00;
+        if ($stmtSetting) {
+            $set = $stmtSetting->fetch();
+            if (isset($set['delivery_commission_percent'])) {
+                $rate = (float)$set['delivery_commission_percent'];
+            }
+        }
+
+        $sql = "INSERT INTO deliveries 
+                (order_id, bill_id, customer_name, customer_mobile, customer_address, 
+                 google_maps_link, delivery_notes, payment_type, cod_amount, 
+                 commission_rate, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_pickup', ?)";
+
+        $stmt = $this->db->prepare($sql);
+        $res = $stmt->execute([
+            (int)$data['order_id'],
+            !empty($data['bill_id']) ? (int)$data['bill_id'] : null,
+            trim($data['customer_name'] ?? ''),
+            trim($data['customer_mobile'] ?? ''),
+            trim($data['customer_address'] ?? ''),
+            trim($data['google_maps_link'] ?? ''),
+            trim($data['delivery_notes'] ?? ''),
+            ($data['payment_type'] ?? 'paid') === 'cod' ? 'cod' : 'paid',
+            (float)($data['cod_amount'] ?? 0),
+            $rate,
+            !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null
+        ]);
+
+        if ($res) {
+            return $this->db->lastInsertId();
+        }
+        return false;
+    }
+
+    public function getDeliveryById($id) {
+        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total, 
+                       u.name as driver_name, u.username as driver_username
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                LEFT JOIN users u ON d.driver_id = u.id
+                WHERE d.id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$id]);
+        $delivery = $stmt->fetch();
+        if ($delivery) {
+            $delivery['items'] = $this->getOrderItems($delivery['order_id']);
+        }
+        return $delivery;
+    }
+
+    public function getDeliveryByOrderId($orderId) {
+        $sql = "SELECT d.*, u.name as driver_name 
+                FROM deliveries d
+                LEFT JOIN users u ON d.driver_id = u.id
+                WHERE d.order_id = ? 
+                ORDER BY d.id DESC LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$orderId]);
+        return $stmt->fetch();
+    }
+
+    public function getAvailableDeliveries() {
+        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                WHERE d.status = 'pending_pickup'
+                ORDER BY d.id ASC";
+        $stmt = $this->db->query($sql);
+        $deliveries = $stmt->fetchAll();
+
+        foreach ($deliveries as &$d) {
+            $d['items'] = $this->getOrderItems($d['order_id']);
+        }
+        return $deliveries;
+    }
+
+    public function getActiveDeliveryForDriver($driverId) {
+        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                WHERE d.driver_id = ? AND d.status = 'out_for_delivery'
+                ORDER BY d.id DESC LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$driverId]);
+        $delivery = $stmt->fetch();
+        if ($delivery) {
+            $delivery['items'] = $this->getOrderItems($delivery['order_id']);
+        }
+        return $delivery;
+    }
+
+    public function claimDelivery($deliveryId, $driverId) {
+        // Enforce 1-at-a-time rule: Driver must not have an existing active delivery
+        $active = $this->getActiveDeliveryForDriver($driverId);
+        if ($active) {
+            return [
+                'success' => false,
+                'error' => "You already have an active delivery (Token #{$active['token_number']}). Please complete it before accepting another."
+            ];
+        }
+
+        // Atomic lock: Only claim if status is currently 'pending_pickup'
+        $stmt = $this->db->prepare("UPDATE deliveries 
+                                    SET driver_id = ?, status = 'out_for_delivery', accepted_at = NOW() 
+                                    WHERE id = ? AND status = 'pending_pickup'");
+        $stmt->execute([(int)$driverId, (int)$deliveryId]);
+
+        if ($stmt->rowCount() > 0) {
+            return ['success' => true];
+        } else {
+            return [
+                'success' => false,
+                'error' => 'This delivery has already been accepted by another driver or is no longer available.'
+            ];
+        }
+    }
+
+    public function markDelivered($deliveryId, $driverId, $notes = '') {
+        $sql = "SELECT d.*, o.total_amount as order_total 
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                WHERE d.id = ? AND d.driver_id = ? AND d.status = 'out_for_delivery'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$deliveryId, (int)$driverId]);
+        $d = $stmt->fetch();
+
+        if (!$d) {
+            return ['success' => false, 'error' => 'Delivery not found or not currently active for you.'];
+        }
+
+        // Calculate commission
+        $baseAmount = (float)$d['order_total'];
+        $commissionRate = (float)$d['commission_rate'];
+        $commissionAmount = round(($baseAmount * ($commissionRate / 100)), 3);
+
+        $isCod = ($d['payment_type'] === 'cod');
+        $codAmount = (float)$d['cod_amount'];
+
+        $this->db->beginTransaction();
+        try {
+            // Update delivery record
+            $stmtUp = $this->db->prepare("UPDATE deliveries 
+                                          SET status = 'delivered', 
+                                              delivered_at = NOW(),
+                                              cod_collected = ?,
+                                              commission_amount = ?,
+                                              delivery_notes = CASE WHEN ? != '' THEN CONCAT(IFNULL(delivery_notes, ''), ' | Note: ', ?) ELSE delivery_notes END
+                                          WHERE id = ?");
+            $stmtUp->execute([
+                $isCod ? 1 : 0,
+                $commissionAmount,
+                trim($notes),
+                trim($notes),
+                (int)$deliveryId
+            ]);
+
+            // Ledger 1: COD Cash Collected (Debit to driver's cash-in-hand liability)
+            if ($isCod && $codAmount > 0) {
+                $stmtLedgerCod = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                                     (driver_id, entry_type, amount, delivery_id, notes) 
+                                                     VALUES (?, 'cod_collected', ?, ?, ?)");
+                $stmtLedgerCod->execute([
+                    (int)$driverId,
+                    $codAmount,
+                    (int)$deliveryId,
+                    "COD cash collected for Token #{$d['order_id']}"
+                ]);
+            }
+
+            // Ledger 2: Commission Earned (Credit to driver's earning wallet)
+            if ($commissionAmount > 0) {
+                $stmtLedgerComm = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                                      (driver_id, entry_type, amount, delivery_id, notes) 
+                                                      VALUES (?, 'commission_credit', ?, ?, ?)");
+                $stmtLedgerComm->execute([
+                    (int)$driverId,
+                    $commissionAmount,
+                    (int)$deliveryId,
+                    "Delivery commission ({$commissionRate}%)"
+                ]);
+            }
+
+            // Also mark the order status as completed/delivered
+            $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
+            $stmtOrder->execute([(int)$d['order_id']]);
+
+            $this->db->commit();
+            return ['success' => true, 'commission_earned' => $commissionAmount];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function getDriverStats($driverId) {
+        $today = date('Y-m-d');
+        
+        // Today completed deliveries count
+        $stmtCount = $this->db->prepare("SELECT COUNT(*) FROM deliveries 
+                                         WHERE driver_id = ? AND status = 'delivered' AND DATE(delivered_at) = ?");
+        $stmtCount->execute([(int)$driverId, $today]);
+        $todayCompleted = (int)$stmtCount->fetchColumn();
+
+        // Cash In Hand = (Total cod_collected) - (Total cod_handover)
+        $stmtCash = $this->db->prepare("SELECT 
+            SUM(CASE WHEN entry_type = 'cod_collected' THEN amount ELSE 0 END) -
+            SUM(CASE WHEN entry_type = 'cod_handover' THEN amount ELSE 0 END) as cash_in_hand
+            FROM driver_wallet_ledger WHERE driver_id = ?");
+        $stmtCash->execute([(int)$driverId]);
+        $cashInHand = max(0, (float)$stmtCash->fetchColumn());
+
+        // Commission Wallet = (Total commission_credit) - (Total commission_payout)
+        $stmtComm = $this->db->prepare("SELECT 
+            SUM(CASE WHEN entry_type = 'commission_credit' THEN amount ELSE 0 END) -
+            SUM(CASE WHEN entry_type = 'commission_payout' THEN amount ELSE 0 END) as commission_balance
+            FROM driver_wallet_ledger WHERE driver_id = ?");
+        $stmtComm->execute([(int)$driverId]);
+        $commissionBalance = max(0, (float)$stmtComm->fetchColumn());
+
+        return [
+            'today_completed' => $todayCompleted,
+            'cash_in_hand' => $cashInHand,
+            'commission_balance' => $commissionBalance
+        ];
+    }
+
+    public function getDriverDeliveriesHistory($driverId, $limit = 30) {
+        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                WHERE d.driver_id = ? AND d.status = 'delivered'
+                ORDER BY d.delivered_at DESC LIMIT ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(1, (int)$driverId, PDO::PARAM_INT);
+        $stmt->bindValue(2, (int)$limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $deliveries = $stmt->fetchAll();
+
+        foreach ($deliveries as &$d) {
+            $d['items'] = $this->getOrderItems($d['order_id']);
+        }
+        return $deliveries;
+    }
+
+    public function getCodPendingHandoverSummary() {
+        $sql = "SELECT d.driver_id, u.name as driver_name, u.username as driver_username,
+                       COUNT(d.id) as orders_count,
+                       SUM(d.cod_amount) as total_cash
+                FROM deliveries d
+                JOIN users u ON d.driver_id = u.id
+                WHERE d.payment_type = 'cod' AND d.cod_collected = 1 AND d.cod_handed_over = 0
+                GROUP BY d.driver_id, u.name, u.username
+                HAVING total_cash > 0
+                ORDER BY total_cash DESC";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
+
+    public function getCodPendingDeliveriesForDriver($driverId) {
+        $sql = "SELECT d.*, o.token_number
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                WHERE d.driver_id = ? AND d.payment_type = 'cod' AND d.cod_collected = 1 AND d.cod_handed_over = 0
+                ORDER BY d.delivered_at ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$driverId]);
+        return $stmt->fetchAll();
+    }
+
+    public function handoverCodCash($driverId, $sessionId = null, $adminUserId = null) {
+        $pending = $this->getCodPendingDeliveriesForDriver($driverId);
+        if (empty($pending)) {
+            return ['success' => false, 'error' => 'No pending cash handover for this driver.'];
+        }
+
+        $totalCash = 0;
+        $deliveryIds = [];
+        foreach ($pending as $p) {
+            $totalCash += (float)$p['cod_amount'];
+            $deliveryIds[] = (int)$p['id'];
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // Update deliveries as handed over
+            $inClause = implode(',', $deliveryIds);
+            $this->db->exec("UPDATE deliveries 
+                             SET cod_handed_over = 1, handover_session_id = " . ($sessionId ? (int)$sessionId : "NULL") . " 
+                             WHERE id IN ($inClause)");
+
+            // Record in ledger
+            $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                              (driver_id, entry_type, amount, session_id, notes, created_by) 
+                                              VALUES (?, 'cod_handover', ?, ?, ?, ?)");
+            $stmtLedger->execute([
+                (int)$driverId,
+                $totalCash,
+                $sessionId ? (int)$sessionId : null,
+                "Handover of $totalCash to Counter (Session #$sessionId)",
+                $adminUserId ? (int)$adminUserId : null
+            ]);
+
+            $this->db->commit();
+            return ['success' => true, 'total_cash' => $totalCash, 'orders_count' => count($deliveryIds)];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function payoutDriverCommission($driverId, $amount, $notes = '', $adminUserId = null) {
+        $amount = (float)$amount;
+        if ($amount <= 0) {
+            return ['success' => false, 'error' => 'Invalid payout amount.'];
+        }
+
+        $stats = $this->getDriverStats($driverId);
+        if ($amount > $stats['commission_balance']) {
+            return ['success' => false, 'error' => "Payout amount exceeds available commission balance of {$stats['commission_balance']}."];
+        }
+
+        $stmt = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                    (driver_id, entry_type, amount, notes, created_by) 
+                                    VALUES (?, 'commission_payout', ?, ?, ?)");
+        $res = $stmt->execute([
+            (int)$driverId,
+            $amount,
+            trim($notes) ?: "Commission payout to driver",
+            $adminUserId ? (int)$adminUserId : null
+        ]);
+
+        return ['success' => (bool)$res];
+    }
+
+    public function getDriverLedger($driverId, $startDate = null, $endDate = null) {
+        $sql = "SELECT l.*, d.order_id, o.token_number, u.name as created_by_name
+                FROM driver_wallet_ledger l
+                LEFT JOIN deliveries d ON l.delivery_id = d.id
+                LEFT JOIN orders o ON d.order_id = o.id
+                LEFT JOIN users u ON l.created_by = u.id
+                WHERE l.driver_id = ?";
+        $params = [(int)$driverId];
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(l.created_at) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+        }
+        $sql .= " ORDER BY l.id DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function getDeliveryReport($startDate = null, $endDate = null, $driverId = null) {
+        $sql = "SELECT d.*, o.token_number, o.total_amount as order_total, 
+                       u.name as driver_name, u.username as driver_username
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                LEFT JOIN users u ON d.driver_id = u.id
+                WHERE 1=1";
+        $params = [];
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(d.created_at) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+        }
+
+        if (!empty($driverId)) {
+            $sql .= " AND d.driver_id = ?";
+            $params[] = (int)$driverId;
+        }
+
+        $sql .= " ORDER BY d.id DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function getDriversPerformanceSummary($startDate = null, $endDate = null) {
+        $sql = "SELECT u.id as driver_id, u.name as driver_name, u.username as driver_username,
+                       COUNT(d.id) as total_deliveries,
+                       SUM(CASE WHEN d.status = 'delivered' THEN 1 ELSE 0 END) as completed_deliveries,
+                       SUM(CASE WHEN d.status = 'delivered' THEN o.total_amount ELSE 0 END) as total_delivered_sales,
+                       SUM(CASE WHEN d.status = 'delivered' AND d.payment_type = 'cod' THEN d.cod_amount ELSE 0 END) as total_cod_collected,
+                       SUM(CASE WHEN d.status = 'delivered' THEN d.commission_amount ELSE 0 END) as total_commission_earned
+                FROM users u
+                LEFT JOIN deliveries d ON d.driver_id = u.id";
+        
+        $params = [];
+        if (!empty($startDate) && !empty($endDate)) {
+            $sql .= " AND DATE(d.created_at) BETWEEN ? AND ?";
+            $params = [$startDate, $endDate];
+        }
+        $sql .= " LEFT JOIN orders o ON d.order_id = o.id
+                  WHERE u.role = 'delivery'
+                  GROUP BY u.id, u.name, u.username
+                  ORDER BY completed_deliveries DESC, u.name ASC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+
+        // Also fetch current live wallet balances for each driver
+        foreach ($rows as &$r) {
+            $stats = $this->getDriverStats($r['driver_id']);
+            $r['cash_in_hand'] = $stats['cash_in_hand'];
+            $r['commission_balance'] = $stats['commission_balance'];
+        }
+        return $rows;
+    }
+
+    private function getOrderItems($orderId) {
+        $sql = "SELECT ki.quantity, ki.status, p.name as product_name, p.price as unit_price
+                FROM kot_items ki
+                JOIN products p ON ki.product_id = p.id
+                JOIN kots k ON ki.kot_id = k.id
+                WHERE k.order_id = ? AND ki.status != 'cancelled'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$orderId]);
+        return $stmt->fetchAll();
+    }
+}

@@ -110,6 +110,9 @@ class HomeController extends Controller {
                     case 'waiter':
                         $this->redirect('/waiter-app');
                         return;
+                    case 'delivery':
+                        $this->redirect('/delivery');
+                        return;
                 }
             } else {
                 // Clear session so user can log in as superadmin
@@ -197,6 +200,9 @@ class HomeController extends Controller {
                     break;
                 case 'waiter':
                     $this->redirect('/waiter-app');
+                    break;
+                case 'delivery':
+                    $this->redirect('/delivery');
                     break;
                 default:
                     $this->redirect('/admin');
