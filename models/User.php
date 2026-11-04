@@ -28,6 +28,7 @@ class User extends Model {
     }
 
     public function add($username, $password, $name, $role) {
+        $this->ensureSchema();
         $hash = password_hash($password, PASSWORD_BCRYPT);
         $stmt = $this->db->prepare("INSERT INTO users (username, password, name, role, is_active) VALUES (?, ?, ?, ?, 1)");
         return $stmt->execute([$username, $hash, $name, $role]);
@@ -64,6 +65,10 @@ class User extends Model {
 
     private function ensureSchema() {
         try {
+            $roleCol = $this->db->query("SHOW COLUMNS FROM users LIKE 'role'")->fetch(PDO::FETCH_ASSOC);
+            if ($roleCol && strpos(strtolower($roleCol['Type'] ?? ''), 'enum') !== false) {
+                $this->db->exec("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'waiter'");
+            }
             $cols = $this->db->query("SHOW COLUMNS FROM users LIKE 'is_logged_in'")->fetchAll();
             if (empty($cols)) {
                 $this->db->exec("ALTER TABLE users ADD COLUMN is_logged_in TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active");
