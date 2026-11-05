@@ -960,9 +960,10 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
-                            const successMsg = (commissionEnabled && data.commission_earned > 0)
-                                ? `Commission earned: <strong>${data.commission_earned} ${currencyCode}</strong><br>Added to your wallet.`
-                                : `Order marked as successfully delivered.`;
+                            const earned = parseFloat(data.commission_earned || 0);
+                            const successMsg = (commissionEnabled && earned > 0)
+                                ? `Commission earned: <strong>${earned.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong><br>Added to your wallet.`
+                                : `Order delivered and completed successfully! 👍`;
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Delivered Successfully! 🎉',
