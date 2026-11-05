@@ -559,7 +559,7 @@
     </header>
 
     <!-- Top Stats -->
-    <div class="stats-grid">
+    <div class="stats-grid" style="<?= empty($commission_enabled) ? 'grid-template-columns: 1fr 1fr;' : '' ?>">
         <div class="stat-card">
             <div class="stat-value" id="stat-completed" style="color:var(--accent-green);">0</div>
             <div class="stat-label">Delivered Today</div>
@@ -568,10 +568,12 @@
             <div class="stat-value" id="stat-cash" style="color:var(--accent-orange);">0.000</div>
             <div class="stat-label">Cash In Hand</div>
         </div>
-        <div class="stat-card">
+        <?php if (!empty($commission_enabled)): ?>
+        <div class="stat-card" id="stat-card-commission">
             <div class="stat-value" id="stat-wallet" style="color:var(--accent-cyan);">0.000</div>
             <div class="stat-label">Commission Earned</div>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- MAIN VIEW CONTAINER -->
@@ -684,15 +686,18 @@
             <span class="tab-icon">📜</span>
             <span>History</span>
         </button>
+        <?php if (!empty($commission_enabled)): ?>
         <button class="nav-tab" id="btn-tab-wallet" onclick="switchTab('wallet')">
             <span class="tab-icon">💰</span>
             <span>Wallet</span>
         </button>
+        <?php endif; ?>
     </nav>
 
     <script>
         const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
+        const commissionEnabled = <?= !empty($commission_enabled) ? 'true' : 'false' ?>;
         let currentTab = 'deliveries';
         let pollTimer = null;
         let lastAvailableCount = 0;
@@ -745,10 +750,10 @@
                     if (!data.success) return;
 
                     // Update Top Stats
-                    document.getElementById('stat-completed').innerText = data.stats.today_completed || 0;
-                    document.getElementById('stat-cash').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3);
-                    document.getElementById('stat-wallet').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3);
-                    document.getElementById('wallet-cash-total').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3) + ' ' + currencyCode;
+                    if (document.getElementById('stat-completed')) document.getElementById('stat-completed').innerText = data.stats.today_completed || 0;
+                    if (document.getElementById('stat-cash')) document.getElementById('stat-cash').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3);
+                    if (document.getElementById('stat-wallet')) document.getElementById('stat-wallet').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3);
+                    if (document.getElementById('wallet-cash-total')) document.getElementById('wallet-cash-total').innerText = parseFloat(data.stats.cash_in_hand || 0).toFixed(3) + ' ' + currencyCode;
                     if (document.getElementById('wallet-commission-total')) {
                         document.getElementById('wallet-commission-total').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3) + ' ' + currencyCode;
                     }
@@ -955,10 +960,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            const successMsg = (commissionEnabled && data.commission_earned > 0)
+                                ? `Commission earned: <strong>${data.commission_earned} ${currencyCode}</strong><br>Added to your wallet.`
+                                : `Order marked as successfully delivered.`;
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Delivered Successfully! 🎉',
-                                html: `Commission earned: <strong>${data.commission_earned} ${currencyCode}</strong><br>Added to your wallet.`,
+                                html: successMsg,
                                 confirmButtonColor: '#10b981'
                             });
                             fetchDashboardData();
@@ -1037,7 +1045,7 @@
                                 <div style="font-size:13px; color:var(--text-color); margin-bottom:4px;">👤 ${escapeHtml(d.customer_name || 'Guest')} (${escapeHtml(d.customer_mobile)})</div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px;">
                                     <span class="ledger-badge ${d.payment_type === 'cod' ? 'ledger-cod' : 'ledger-credit'}">${d.payment_type === 'cod' ? 'COD: ' + parseFloat(d.cod_amount).toFixed(3) : 'PAID'}</span>
-                                    <span style="font-weight:700; color:var(--accent-green);">+${parseFloat(d.commission_amount).toFixed(3)} ${currencyCode} Comm.</span>
+                                    ${commissionEnabled ? `<span style="font-weight:700; color:var(--accent-green);">+${parseFloat(d.commission_amount).toFixed(3)} ${currencyCode} Comm.</span>` : ''}
                                 </div>
                             </div>
                         `;

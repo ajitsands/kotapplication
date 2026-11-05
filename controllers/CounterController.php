@@ -1194,4 +1194,176 @@ class CounterController extends Controller {
         $res = $deliveryModel->payoutDriverCommission($driverId, $amount, $notes, $_SESSION['user_id'] ?? null);
         $this->json($res);
     }
+
+    public function createDeliveryRequest() {
+        require_once __DIR__ . '/../models/Kot.php';
+        require_once __DIR__ . '/../models/Delivery.php';
+        require_once __DIR__ . '/../models/Product.php';
+
+        $data = $this->getJsonInput();
+        $customerName = trim($data['customer_name'] ?? '');
+        $customerMobile = trim($data['customer_mobile'] ?? '');
+        $paymentType = ($data['payment_type'] ?? 'cod') === 'paid' ? 'paid' : 'cod';
+        $items = $data['items'] ?? [];
+
+        if (empty($customerMobile)) {
+            $this->json(['success' => false, 'error' => 'Customer Mobile number is required to send confirmation.'], 400);
+            return;
+        }
+
+        if (empty($items)) {
+            $this->json(['success' => false, 'error' => 'Cart is empty. Please select products.'], 400);
+            return;
+        }
+
+        $cashierId = $_SESSION['user_id'] ?? null;
+        $productModel = new Product();
+        $subtotal = 0;
+        $itemsList = [];
+
+        foreach ($items as &$item) {
+            $prod = $productModel->getProductById($item['product_id']);
+            $price = (float)($item['price'] ?? $prod['price'] ?? 0.0);
+            $qty = (int)($item['quantity'] ?? 1);
+            $item['price'] = $price;
+            $subtotal += ($price * $qty);
+            $itemsList[] = [
+                'name' => $prod['name'] ?? 'Item',
+                'quantity' => $qty,
+                'price' => $price
+            ];
+        }
+        unset($item);
+
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $taxType = $settings['tax_type'] ?? 'VAT';
+        $taxPercent = ($taxType === 'VAT') ? (float)($settings['vat_percent'] ?? 10.0) : ((float)($settings['cgst_percent'] ?? 2.5) + (float)($settings['sgst_percent'] ?? 2.5));
+        $taxAmount = round($subtotal * ($taxPercent / 100), 3);
+        $grandTotal = $subtotal + $taxAmount;
+        $currency = $settings['currency_code'] ?? 'BHD';
+
+        // Create order in pending_confirmation state
+        $orderModel = new Order();
+        $orderId = $orderModel->createOrder(0, $cashierId, 'take_away', $customerName ?: null, $customerMobile);
+        if (!$orderId) {
+            $this->json(['success' => false, 'error' => 'Failed to initialize delivery order.'], 500);
+            return;
+        }
+
+        $db = Database::getInstance()->getConnection();
+        $stmtUpOrder = $db->prepare("UPDATE orders SET status = 'pending_confirmation' WHERE id = ?");
+        $stmtUpOrder->execute([$orderId]);
+
+        // Get Token Number
+        $stmtTok = $db->prepare("SELECT token_number FROM orders WHERE id = ?");
+        $stmtTok->execute([$orderId]);
+        $tokenNumber = $stmtTok->fetchColumn() ?: $orderId;
+
+        // Create KOT in pending_confirmation state (not shown in kitchen yet)
+        $kotModel = new Kot();
+        $kotId = $kotModel->createKot($orderId, $cashierId, $items);
+        if ($kotId) {
+            $stmtUpKot = $db->prepare("UPDATE kots SET status = 'pending_confirmation' WHERE id = ?");
+            $stmtUpKot->execute([$kotId]);
+
+            $stmtUpItems = $db->prepare("UPDATE kot_items SET status = 'pending_confirmation' WHERE kot_id = ?");
+            $stmtUpItems->execute([$kotId]);
+        }
+
+        // Generate confirmation token & delivery record
+        $confirmToken = bin2hex(random_bytes(16));
+        $deliveryModel = new Delivery();
+        $deliveryId = $deliveryModel->createDelivery([
+            'order_id' => $orderId,
+            'customer_name' => $customerName,
+            'customer_mobile' => $customerMobile,
+            'payment_type' => $paymentType,
+            'cod_amount' => ($paymentType === 'cod') ? $grandTotal : 0,
+            'status' => 'pending_confirmation',
+            'confirm_token' => $confirmToken
+        ]);
+
+        // Build URLs
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $rootPath = dirname($_SERVER['SCRIPT_NAME'] ?? '');
+        $rootPath = ($rootPath === '/' || $rootPath === '\\') ? '' : rtrim($rootPath, '/\\');
+        $confirmUrl = $protocol . $host . $rootPath . '/delivery/confirm/' . $confirmToken;
+
+        // Format WhatsApp message
+        $cleanPhone = preg_replace('/[^0-9]/', '', $customerMobile);
+        $msg = "Hello " . ($customerName ?: 'Customer') . "! 👋
+";
+        $msg .= "Thank you for your order with " . ($settings['restaurant_name'] ?? 'us') . "!
+
+";
+        $msg .= "🛍️ *Order #" . $tokenNumber . "*
+";
+        foreach ($itemsList as $it) {
+            $msg .= "• " . $it['quantity'] . "x " . $it['name'] . " (" . number_format($it['price'] * $it['quantity'], 3) . " " . $currency . ")
+";
+        }
+        $msg .= "
+💰 *Total: " . number_format($grandTotal, 3) . " " . $currency . "*
+";
+        $msg .= "💵 Payment: " . ($paymentType === 'cod' ? 'Cash on Delivery (COD)' : 'Already Paid') . "
+
+";
+        $msg .= "📍 *Please tap the link below to confirm your order and send your delivery location:*
+";
+        $msg .= $confirmUrl . "
+
+Thank you!";
+
+        $waUrl = "https://api.whatsapp.com/send?phone=" . urlencode($cleanPhone) . "&text=" . urlencode($msg);
+
+        $this->json([
+            'success' => true,
+            'order_id' => $orderId,
+            'token_number' => $tokenNumber,
+            'delivery_id' => $deliveryId,
+            'confirm_token' => $confirmToken,
+            'confirm_url' => $confirmUrl,
+            'whatsapp_url' => $waUrl,
+            'message_text' => $msg
+        ]);
+    }
+
+    public function getDeliveryRequests() {
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $requests = $deliveryModel->getDeliveryRequests();
+        $this->json(['success' => true, 'requests' => $requests]);
+    }
+
+    public function sendDeliveryRequestToKot() {
+        $deliveryId = (int)($_POST['delivery_id'] ?? 0);
+        if ($deliveryId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid delivery ID.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->sendDeliveryRequestToKot($deliveryId, $_SESSION['user_id'] ?? null);
+        $this->json($res);
+    }
+
+    public function manualUpdateDeliveryLocation() {
+        $deliveryId = (int)($_POST['delivery_id'] ?? 0);
+        $googleMapsLink = trim($_POST['google_maps_link'] ?? '');
+        $address = trim($_POST['customer_address'] ?? '');
+        $notes = trim($_POST['delivery_notes'] ?? '');
+
+        if ($deliveryId <= 0) {
+            $this->json(['success' => false, 'error' => 'Invalid delivery ID.']);
+            return;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->manualUpdateDeliveryLocation($deliveryId, $googleMapsLink, $address, $notes);
+        $this->json($res);
+    }
 }

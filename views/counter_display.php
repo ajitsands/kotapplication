@@ -1164,6 +1164,10 @@
                 <button id="tab-btn-refunded-list" onclick="switchTakeawayTab('refunded-list')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
                     ✅ Refunded List
                 </button>
+                <button id="tab-btn-delivery-requests" onclick="switchTakeawayTab('delivery-requests')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
+                    📍 Delivery Requests
+                    <span id="deliv-req-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #0284c7; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.4);">0</span>
+                </button>
                 <button id="tab-btn-transactions" onclick="switchTakeawayTab('transactions')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
                     🗂️ All Transactions
                 </button>
@@ -1180,18 +1184,13 @@
 
             <script>
                 function switchTakeawayTab(tab) {
-                    document.getElementById('tab-btn-live').classList.remove('active-tab');
-                    document.getElementById('tab-btn-online-active').classList.remove('active-tab');
-                    document.getElementById('tab-btn-completed').classList.remove('active-tab');
-                    document.getElementById('tab-btn-refunds').classList.remove('active-tab');
-                    document.getElementById('tab-btn-refunded-list').classList.remove('active-tab');
-                    document.getElementById('tab-btn-transactions').classList.remove('active-tab');
-                    document.getElementById('tab-btn-live').style.color = 'var(--text-muted)';
-                    document.getElementById('tab-btn-online-active').style.color = 'var(--text-muted)';
-                    document.getElementById('tab-btn-completed').style.color = 'var(--text-muted)';
-                    document.getElementById('tab-btn-refunds').style.color = 'var(--text-muted)';
-                    document.getElementById('tab-btn-refunded-list').style.color = 'var(--text-muted)';
-                    document.getElementById('tab-btn-transactions').style.color = 'var(--text-muted)';
+                    ['live', 'online-active', 'completed', 'refunds', 'refunded-list', 'transactions', 'delivery-requests'].forEach(t => {
+                        const btn = document.getElementById('tab-btn-' + t);
+                        if (btn) {
+                            btn.classList.remove('active-tab');
+                            btn.style.color = 'var(--text-muted)';
+                        }
+                    });
                     
                     document.getElementById('takeaway-live-section').style.display = 'none';
                     document.getElementById('online-active-section').style.display = 'none';
@@ -1199,13 +1198,21 @@
                     document.getElementById('takeaway-refunds-section').style.display = 'none';
                     document.getElementById('takeaway-refunded-list-section').style.display = 'none';
                     document.getElementById('takeaway-transactions-section').style.display = 'none';
+                    const delivReqSec = document.getElementById('takeaway-delivery-requests-section');
+                    if (delivReqSec) delivReqSec.style.display = 'none';
 
-                    document.getElementById('tab-btn-' + tab).classList.add('active-tab');
-                    document.getElementById('tab-btn-' + tab).style.color = 'var(--primary-light)';
+                    const activeBtn = document.getElementById('tab-btn-' + tab);
+                    if (activeBtn) {
+                        activeBtn.classList.add('active-tab');
+                        activeBtn.style.color = 'var(--primary-light)';
+                    }
 
                     if (tab === 'live') {
                         document.getElementById('takeaway-live-section').style.display = 'block';
                         fetchTakeawayDeliveryQueue(false);
+                    } else if (tab === 'delivery-requests') {
+                        if (delivReqSec) delivReqSec.style.display = 'block';
+                        fetchDeliveryRequests(false);
                     } else if (tab === 'online-active') {
                         document.getElementById('online-active-section').style.display = 'block';
                         fetchActiveOnlineOrders();
@@ -1224,6 +1231,34 @@
                     }
                 }
             </script>
+
+            <!-- Delivery Requests Section -->
+            <div id="takeaway-delivery-requests-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h2 class="panel-title" style="margin: 0;">📍 Delivery Confirmation & Location Requests</h2>
+                        <span style="font-size: 12px; color: var(--text-muted);">Orders awaiting customer WhatsApp location or ready to dispatch to Kitchen KOT</span>
+                    </div>
+                    <button onclick="fetchDeliveryRequests(true)" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; cursor: pointer;">🔄 Refresh</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="delivery-requests-table" class="display" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <th style="text-align: left; padding: 12px 10px;">Token</th>
+                                <th style="text-align: left; padding: 12px 10px;">Time</th>
+                                <th style="text-align: left; padding: 12px 10px;">Customer</th>
+                                <th style="text-align: left; padding: 12px 10px;">Amount & Items</th>
+                                <th style="text-align: left; padding: 12px 10px;">Location Status</th>
+                                <th style="text-align: right; padding: 12px 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="delivery-requests-body">
+                            <tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Loading delivery requests...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div id="takeaway-live-section" class="panel-card" style="margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
@@ -2928,12 +2963,14 @@
         fetchCustomers();
         fetchCounterItems();
         fetchTakeawayDeliveryQueue();
+        fetchDeliveryRequests();
         fetchActiveOnlineOrders();
         fetchCompletedTakeaways();
         
         setInterval(fetchBills, 4000);
         setInterval(fetchEngagedTables, 4000);
         setInterval(() => fetchTakeawayDeliveryQueue(true), 4000);
+        setInterval(fetchDeliveryRequests, 5000);
         setInterval(fetchActiveOnlineOrders, 4000);
         setInterval(fetchCompletedTakeaways, 8000);
         setInterval(() => fetchPendingRefunds(true), 5000);
@@ -3250,6 +3287,238 @@
             if (startInput) startInput.value = '';
             if (endInput) endInput.value = '';
             fetchTakeawayDeliveryQueue(false);
+        }
+
+        let deliveryRequestsTable = null;
+
+        function fetchDeliveryRequests(isManual = false) {
+            fetch(basePath + '/delivery/requests?_=' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    const requests = data.requests || [];
+                    
+                    // Update badge count
+                    const badge = document.getElementById('deliv-req-badge');
+                    if (badge) {
+                        const pendingOrLoc = requests.filter(r => r.status === 'location_received' || r.status === 'pending_confirmation');
+                        if (pendingOrLoc.length > 0) {
+                            badge.style.display = 'inline-block';
+                            badge.innerText = pendingOrLoc.length;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+
+                    if ($.fn.DataTable.isDataTable('#delivery-requests-table')) {
+                        $('#delivery-requests-table').DataTable().destroy();
+                    }
+
+                    const tbody = document.getElementById('delivery-requests-body');
+                    if (!tbody) return;
+
+                    if (requests.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:25px; color:var(--text-muted);">No active delivery requests at this moment.</td></tr>`;
+                        return;
+                    }
+
+                    let html = '';
+                    requests.forEach(r => {
+                        const timeStr = r.order_created_at ? new Date(r.order_created_at.replace(' ', 'T')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', month:'short', day:'numeric'}) : '-';
+                        const itemsSummary = (r.items || []).map(i => `${i.quantity}x ${escapeHtml(i.product_name)}`).join(', ') || 'Items';
+                        const payBadge = r.payment_type === 'cod' 
+                            ? `<span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:11px;">💵 COD: ${parseFloat(r.cod_amount || r.order_total).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</span>`
+                            : `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:11px;">✅ PAID</span>`;
+
+                        let statusCol = '';
+                        let actionCol = '';
+
+                        if (r.status === 'pending_confirmation') {
+                            statusCol = `
+                                <div>
+                                    <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">⏳ Awaiting Customer Location</span>
+                                    <div style="margin-top:6px; display:flex; gap:6px;">
+                                        <button onclick="resendDeliveryWhatsApp('${escapeHtml(r.customer_mobile)}', '${escapeHtml(r.customer_name || '')}', '${escapeHtml(r.token_number || r.order_id)}', '${r.confirm_token}', ${parseFloat(r.order_total).toFixed(3)}, '${r.payment_type}')" style="background:rgba(37,211,102,0.15); border:1px solid #25D366; color:#25D366; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;" title="Re-open WhatsApp Message">📲 WhatsApp</button>
+                                        <button onclick="openManualAddressModal(${r.id}, '${escapeHtml(r.customer_address || '')}', '${escapeHtml(r.google_maps_link || '')}')" style="background:rgba(255,255,255,0.06); border:1px solid var(--card-border); color:var(--text-main); padding:3px 8px; border-radius:6px; font-size:11px; cursor:pointer;">✏️ Enter Location</button>
+                                    </div>
+                                </div>
+                            `;
+                            actionCol = `
+                                <button onclick="sendDeliveryRequestToKot(${r.id}, '${escapeHtml(r.token_number || r.order_id)}')" style="background:rgba(255,255,255,0.08); border:1px solid var(--card-border); color:var(--text-muted); padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;" title="Force send to Kitchen before location confirmed">🍳 Send to KOT</button>
+                            `;
+                        } else if (r.status === 'location_received') {
+                            statusCol = `
+                                <div>
+                                    <span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">📍 Location Received!</span>
+                                    ${r.google_maps_link ? `<div style="margin-top:4px;"><a href="${escapeHtml(r.google_maps_link)}" target="_blank" style="color:#38bdf8; font-size:12px; font-weight:700; text-decoration:underline;">🗺️ View on Google Maps</a></div>` : ''}
+                                    ${r.customer_address ? `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">🏠 ${escapeHtml(r.customer_address)}</div>` : ''}
+                                </div>
+                            `;
+                            actionCol = `
+                                <button onclick="sendDeliveryRequestToKot(${r.id}, '${escapeHtml(r.token_number || r.order_id)}')" style="background:linear-gradient(135deg, #0284c7, #06b6d4); color:white; border:none; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(2,132,199,0.35); transition:all 0.2s;">
+                                    🍳 Send to KOT
+                                </button>
+                            `;
+                        } else if (r.status === 'preparing_in_kitchen') {
+                            statusCol = `
+                                <div>
+                                    <span class="badge" style="background:rgba(2,132,199,0.15); color:#38bdf8; border:1px solid rgba(2,132,199,0.3); padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">🍳 Cooking in Kitchen</span>
+                                    ${r.google_maps_link ? `<div style="margin-top:4px;"><a href="${escapeHtml(r.google_maps_link)}" target="_blank" style="color:#38bdf8; font-size:12px; font-weight:600; text-decoration:underline;">🗺️ Map Link</a></div>` : ''}
+                                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">KOT #${r.kot_id || '-'}</div>
+                                </div>
+                            `;
+                            actionCol = `
+                                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">Awaiting Kitchen Ready...</span>
+                            `;
+                        }
+
+                        html += `
+                            <tr style="border-bottom: 1px solid var(--card-border); background: ${r.status === 'location_received' ? 'rgba(16, 185, 129, 0.05)' : 'transparent'};">
+                                <td style="padding: 12px 10px; font-weight:800; font-size:15px; color:#38bdf8;">Token #${escapeHtml(r.token_number || r.order_id)}</td>
+                                <td style="padding: 12px 10px; font-size: 12px; color: var(--text-muted);">${timeStr}</td>
+                                <td style="padding: 12px 10px;">
+                                    <div style="font-weight:700;">${escapeHtml(r.customer_name || 'Guest')}</div>
+                                    <a href="tel:${escapeHtml(r.customer_mobile)}" style="color:#38bdf8; font-size:12px; text-decoration:none;">📱 ${escapeHtml(r.customer_mobile)}</a>
+                                </td>
+                                <td style="padding: 12px 10px;">
+                                    <div style="margin-bottom:4px;">${payBadge}</div>
+                                    <div style="font-size:12px; color:var(--text-muted); max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${itemsSummary}">${itemsSummary}</div>
+                                </td>
+                                <td style="padding: 12px 10px;">${statusCol}</td>
+                                <td style="padding: 12px 10px; text-align:right;">${actionCol}</td>
+                            </tr>
+                        `;
+                    });
+
+                    tbody.innerHTML = html;
+
+                    $('#delivery-requests-table').DataTable({
+                        destroy: true,
+                        pageLength: 10,
+                        order: [[1, "desc"]],
+                        language: { search: "", searchPlaceholder: "Search requests..." }
+                    });
+
+                    if (isManual) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Refreshed', showConfirmButton: false, timer: 1000 });
+                    }
+                })
+                .catch(err => console.error('Error fetching delivery requests:', err));
+        }
+
+        function sendDeliveryRequestToKot(deliveryId, tokenNumber) {
+            Swal.fire({
+                title: 'Send to Kitchen KOT?',
+                text: `Dispatch Order #${tokenNumber} to the Kitchen? Once prepared and marked Ready by the kitchen, it will become available on the Delivery Drivers Terminal.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '🍳 Yes, Send to Kitchen',
+                confirmButtonColor: '#0284c7',
+                cancelButtonColor: '#64748b'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('delivery_id', deliveryId);
+
+                    fetch(basePath + '/delivery/send-request-kot', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Dispatched to Kitchen! 🍳',
+                                text: `Order #${tokenNumber} sent to KOT. The chef will mark it ready.`,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            fetchDeliveryRequests();
+                            if (typeof fetchTakeawayDeliveryQueue === 'function') fetchTakeawayDeliveryQueue();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to dispatch to KOT.', 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+                }
+            });
+        }
+
+        function resendDeliveryWhatsApp(mobile, name, token, confirmToken, total, payType) {
+            const cleanPhone = mobile.replace(/[^0-9]/g, '');
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const rootPath = window.location.pathname.replace(/\/counter(\/.*)?$/, '');
+            const confirmUrl = `${protocol}//${host}${rootPath}/delivery/confirm/${confirmToken}`;
+            
+            const msg = `Hello ${name || 'Customer'}! 👋
+Thank you for ordering with us!
+
+🛍️ *Order #${token}*
+💰 *Total: ${total} ${currencyCode}*
+💵 Payment: ${payType === 'cod' ? 'Cash on Delivery (COD)' : 'Already Paid'}
+
+📍 *Please confirm your order and send your delivery location:*
+${confirmUrl}
+
+Thank you!`;
+            const waUrl = `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(msg)}`;
+            window.open(waUrl, '_blank');
+        }
+
+        function openManualAddressModal(deliveryId, currentAddress, currentMapsLink) {
+            Swal.fire({
+                title: '✏️ Enter Delivery Location',
+                html: `
+                    <div style="text-align:left; font-size:13px;">
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px;">Delivery Address</label>
+                            <textarea id="manual-deliv-address" class="swal2-textarea" style="width:100%; height:60px; margin:0; box-sizing:border-box;" placeholder="Building, Road, Block, Area...">${escapeHtml(currentAddress || '')}</textarea>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px;">Google Maps Link (Optional)</label>
+                            <input type="text" id="manual-deliv-maps" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box;" value="${escapeHtml(currentMapsLink || '')}" placeholder="https://maps.google.com/...">
+                        </div>
+                        <div>
+                            <label style="font-weight:700; display:block; margin-bottom:4px;">Delivery Notes (Optional)</label>
+                            <input type="text" id="manual-deliv-notes" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box;" placeholder="e.g. Call before arrival">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Save Location',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b',
+                preConfirm: () => {
+                    return {
+                        address: document.getElementById('manual-deliv-address').value.trim(),
+                        maps: document.getElementById('manual-deliv-maps').value.trim(),
+                        notes: document.getElementById('manual-deliv-notes').value.trim()
+                    };
+                }
+            }).then(result => {
+                if (result.isConfirmed && result.value) {
+                    const formData = new FormData();
+                    formData.append('delivery_id', deliveryId);
+                    formData.append('customer_address', result.value.address);
+                    formData.append('google_maps_link', result.value.maps);
+                    formData.append('delivery_notes', result.value.notes);
+
+                    fetch(basePath + '/delivery/manual-location', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Saved!', 'Delivery location updated.', 'success');
+                            fetchDeliveryRequests();
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to update location.', 'error');
+                        }
+                    });
+                }
+            });
         }
 
         function fetchTakeawayDeliveryQueue(isBackgroundPoll = false) {

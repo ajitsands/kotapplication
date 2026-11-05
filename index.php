@@ -212,6 +212,8 @@ $router->add('POST', '/delivery/api/claim/:id', 'DeliveryController@claimDeliver
 $router->add('POST', '/delivery/api/deliver/:id', 'DeliveryController@markDelivered');
 $router->add('GET', '/delivery/api/history', 'DeliveryController@historyData');
 $router->add('GET', '/delivery/api/ledger', 'DeliveryController@ledgerData');
+$router->add('GET', '/delivery/confirm/:token', 'DeliveryController@customerConfirmView');
+$router->add('POST', '/delivery/confirm/:token', 'DeliveryController@customerConfirmSubmit');
 
 // Delivery Counter Operations
 $router->add('POST', '/counter/delivery/dispatch', 'CounterController@dispatchDelivery');
@@ -222,6 +224,10 @@ $router->add('POST', '/counter/delivery/confirm-order-handover', 'CounterControl
 $router->add('POST', '/admin/delivery/confirm-order-handover', 'CounterController@confirmOrderCodHandover');
 $router->add('GET', '/counter/delivery/summary', 'CounterController@deliverySummaryReport');
 $router->add('POST', '/counter/delivery/payout', 'CounterController@payoutDriverCommission');
+$router->add('POST', '/counter/order/create-delivery-request', 'CounterController@createDeliveryRequest');
+$router->add('GET', '/counter/delivery/requests', 'CounterController@getDeliveryRequests');
+$router->add('POST', '/counter/delivery/send-request-kot', 'CounterController@sendDeliveryRequestToKot');
+$router->add('POST', '/counter/delivery/manual-location', 'CounterController@manualUpdateDeliveryLocation');
 // Waiter App & Customer API Routes
 $router->add('POST', '/api/login', 'ApiController@login');
 $router->add('POST', '/api/logout', 'ApiController@logout');

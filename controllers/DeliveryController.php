@@ -22,10 +22,15 @@ class DeliveryController extends Controller {
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
 
+        $commRate = (float)($settings['delivery_commission_percent'] ?? 0);
+        $commissionEnabled = ($commRate > 0);
+
         $this->render('delivery_app', [
             'settings' => $settings,
             'driver_id' => $driverId,
-            'driver_name' => $_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Driver'
+            'driver_name' => $_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Driver',
+            'commission_enabled' => $commissionEnabled,
+            'commission_rate' => $commRate
         ]);
     }
 
@@ -108,6 +113,11 @@ class DeliveryController extends Controller {
             $availableDeliveries = $deliveryModel->getAvailableDeliveries();
         }
 
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $commRate = (float)($settings['delivery_commission_percent'] ?? 0);
+        $commissionEnabled = ($commRate > 0);
+
         $this->json([
             'success' => true,
             'driver' => [
@@ -115,6 +125,8 @@ class DeliveryController extends Controller {
                 'name' => $_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Driver',
                 'username' => $_SESSION['username'] ?? ''
             ],
+            'commission_enabled' => $commissionEnabled,
+            'commission_rate' => $commRate,
             'stats' => $stats,
             'active_delivery' => $activeDelivery,
             'available_deliveries' => $availableDeliveries
@@ -204,6 +216,51 @@ class DeliveryController extends Controller {
             'start' => $startDate,
             'end' => $endDate
         ]);
+    }
+
+    public function customerConfirmView($params) {
+        $token = trim($params['token'] ?? '');
+        if (empty($token)) {
+            echo "<h1>Invalid Delivery Link</h1>";
+            exit;
+        }
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $delivery = $deliveryModel->getDeliveryByConfirmToken($token);
+
+        if (!$delivery) {
+            echo "<div style='font-family:sans-serif; text-align:center; padding:50px 20px;'>
+                    <h2>⚠️ Order Not Found</h2>
+                    <p>This confirmation link is invalid or has expired.</p>
+                  </div>";
+            exit;
+        }
+
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+
+        $this->render('customer_delivery_confirm', [
+            'delivery' => $delivery,
+            'settings' => $settings
+        ]);
+    }
+
+    public function customerConfirmSubmit($params) {
+        $token = trim($params['token'] ?? '');
+        if (empty($token)) {
+            $this->json(['success' => false, 'error' => 'Missing confirmation token.'], 400);
+            return;
+        }
+
+        $googleMapsLink = trim($_POST['google_maps_link'] ?? '');
+        $address = trim($_POST['customer_address'] ?? '');
+        $notes = trim($_POST['delivery_notes'] ?? '');
+
+        require_once __DIR__ . '/../models/Delivery.php';
+        $deliveryModel = new Delivery();
+        $res = $deliveryModel->customerConfirmLocation($token, $googleMapsLink, $address, $notes);
+        $this->json($res);
     }
 }
 

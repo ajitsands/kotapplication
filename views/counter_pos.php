@@ -1121,6 +1121,9 @@
                 <button type="button" class="btn-checkout-pay" onclick="submitPosOrder(true)">
                     <span>💳 Send to KOT & Pay Now</span>
                 </button>
+                <button type="button" onclick="submitPosDeliveryRequest()" style="width: 100%; background: linear-gradient(135deg, #0284c7, #06b6d4); color: white; border: none; padding: 13px; border-radius: 12px; font-weight: 800; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); transition: all 0.2s;">
+                    <span>🚴 Delivery (WhatsApp Location Confirmation)</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1479,6 +1482,141 @@
         }
 
         // Submit POS Order
+        function submitPosDeliveryRequest() {
+            if (currentCart.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cart is Empty',
+                    text: 'Please select items to create a delivery order.',
+                    confirmButtonColor: '#6366f1'
+                });
+                return;
+            }
+
+            const custMobileInput = document.getElementById('pos-customer-mobile');
+            const custNameInput = document.getElementById('pos-customer-name');
+            let custMobile = custMobileInput ? custMobileInput.value.trim() : '';
+            let custName = custNameInput ? custNameInput.value.trim() : '';
+
+            Swal.fire({
+                title: '🚴 Delivery Order (WhatsApp)',
+                html: `
+                    <div style="text-align:left; font-size:13px;">
+                        <p style="color:var(--text-muted); margin-bottom:12px;">
+                            We will generate a WhatsApp confirmation link with order items and request the customer's current GPS location.
+                        </p>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px;">Customer Mobile <span style="color:#ef4444;">* (Required)</span></label>
+                            <input type="text" id="swal-cust-mobile" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box;" value="${escapeHtml(custMobile)}" placeholder="e.g. 33123456" autofocus>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px;">Customer Name (Optional)</label>
+                            <input type="text" id="swal-cust-name" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box;" value="${escapeHtml(custName)}" placeholder="Customer name">
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:6px;">Payment Method</label>
+                            <div style="display:flex; gap:16px;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="radio" name="swal-deliv-pay" value="cod" checked>
+                                    <span>Cash on Delivery (COD)</span>
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="radio" name="swal-deliv-pay" value="paid">
+                                    <span>Already Paid</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '📲 Send WhatsApp Request',
+                confirmButtonColor: '#0284c7',
+                cancelButtonColor: '#64748b',
+                background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6',
+                preConfirm: () => {
+                    const mobile = document.getElementById('swal-cust-mobile').value.trim();
+                    if (!mobile) {
+                        Swal.showValidationMessage('Customer Mobile number is required!');
+                        return false;
+                    }
+                    const name = document.getElementById('swal-cust-name').value.trim();
+                    const pay = document.querySelector('input[name="swal-deliv-pay"]:checked').value;
+                    return { mobile: mobile, name: name, payment_type: pay };
+                }
+            }).then(result => {
+                if (result.isConfirmed && result.value) {
+                    const payload = {
+                        customer_name: result.value.name,
+                        customer_mobile: result.value.mobile,
+                        payment_type: result.value.payment_type,
+                        items: currentCart.map(i => ({
+                            product_id: i.id,
+                            quantity: i.quantity,
+                            price: i.price,
+                            notes: i.notes || ''
+                        }))
+                    };
+
+                    Swal.fire({
+                        title: 'Generating WhatsApp Request...',
+                        text: 'Please wait...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch('/counter/order/create-delivery-request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Open WhatsApp
+                            window.open(data.whatsapp_url, '_blank');
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: `Order #${data.token_number} Created! 🚴`,
+                                html: `
+                                    <div style="font-size:13px; text-align:left; margin-top:10px;">
+                                        <div style="background:rgba(2,132,199,0.1); border:1px solid rgba(2,132,199,0.25); border-radius:10px; padding:10px; margin-bottom:12px;">
+                                            <div>WhatsApp confirmation link sent to <strong>${escapeHtml(result.value.mobile)}</strong>.</div>
+                                            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                                                Once the customer confirms and shares location, this order will appear in the <strong>Delivery Requests</strong> tab on the Billing Counter.
+                                            </div>
+                                        </div>
+                                        <div style="word-break:break-all; font-size:11px; color:var(--text-muted); margin-bottom:8px;">
+                                            Link: <a href="${data.confirm_url}" target="_blank" style="color:#38bdf8;">${data.confirm_url}</a>
+                                        </div>
+                                    </div>
+                                `,
+                                showCancelButton: true,
+                                confirmButtonText: '📲 Re-open WhatsApp',
+                                cancelButtonText: 'Done / Next Order',
+                                confirmButtonColor: '#25D366',
+                                cancelButtonColor: '#0284c7'
+                            }).then(choice => {
+                                if (choice.isConfirmed) {
+                                    window.open(data.whatsapp_url, '_blank');
+                                }
+                            });
+
+                            // Clear cart
+                            currentCart = [];
+                            renderCart();
+                            if (custMobileInput) custMobileInput.value = '';
+                            if (custNameInput) custNameInput.value = '';
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to create delivery request.', 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+                }
+            });
+        }
+
         function submitPosOrder(payNow) {
             if (cart.length === 0) {
                 Swal.fire({

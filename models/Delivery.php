@@ -49,6 +49,20 @@ class Delivery extends Model {
                 INDEX (`driver_id`),
                 INDEX (`entry_type`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // Migration: Alter status to VARCHAR(50) to support workflow stages
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'pending_pickup'");
+            } catch (Exception $e) {}
+
+            // Migration: Add confirm_token and confirmed_at for customer WhatsApp location confirmation
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `confirm_token` VARCHAR(64) NULL AFTER `status`, ADD INDEX (`confirm_token`)");
+            } catch (Exception $e) {}
+
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `confirmed_at` DATETIME NULL AFTER `confirm_token`");
+            } catch (Exception $e) {}
         } catch (Exception $e) {
             error_log("Delivery ensureSchema error: " . $e->getMessage());
         }
@@ -64,11 +78,14 @@ class Delivery extends Model {
             }
         }
 
+        $status = $data['status'] ?? 'pending_pickup';
+        $confirmToken = $data['confirm_token'] ?? null;
+
         $sql = "INSERT INTO deliveries 
                 (order_id, bill_id, customer_name, customer_mobile, customer_address, 
                  google_maps_link, delivery_notes, payment_type, cod_amount, 
-                 commission_rate, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_pickup', ?)";
+                 commission_rate, status, confirm_token, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $this->db->prepare($sql);
         $res = $stmt->execute([
@@ -82,6 +99,8 @@ class Delivery extends Model {
             ($data['payment_type'] ?? 'paid') === 'cod' ? 'cod' : 'paid',
             (float)($data['cod_amount'] ?? 0),
             $rate,
+            $status,
+            $confirmToken,
             !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null
         ]);
 
@@ -598,5 +617,155 @@ class Delivery extends Model {
         $stmt->execute([(int)$orderId]);
         return $stmt->fetchAll();
     }
-}
 
+    public function getDeliveryByConfirmToken($token) {
+        $sql = "SELECT d.*, o.token_number, o.created_at as order_created_at,
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
+                WHERE d.confirm_token = ? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([trim($token)]);
+        $delivery = $stmt->fetch();
+
+        if ($delivery) {
+            $delivery['items'] = $this->getOrderItems($delivery['order_id']);
+        }
+        return $delivery;
+    }
+
+    public function customerConfirmLocation($token, $googleMapsLink, $address, $notes = '') {
+        $d = $this->getDeliveryByConfirmToken($token);
+        if (!$d) {
+            return ['success' => false, 'error' => 'Invalid or expired confirmation link.'];
+        }
+
+        $stmt = $this->db->prepare("UPDATE deliveries 
+                                    SET google_maps_link = ?,
+                                        customer_address = CASE WHEN ? != '' THEN ? ELSE customer_address END,
+                                        delivery_notes = CASE WHEN ? != '' THEN ? ELSE delivery_notes END,
+                                        confirmed_at = NOW(),
+                                        status = 'location_received'
+                                    WHERE confirm_token = ?");
+        $stmt->execute([
+            trim($googleMapsLink),
+            trim($address),
+            trim($address),
+            trim($notes),
+            trim($notes),
+            trim($token)
+        ]);
+
+        return ['success' => true, 'delivery_id' => $d['id'], 'order_id' => $d['order_id']];
+    }
+
+    public function manualUpdateDeliveryLocation($deliveryId, $googleMapsLink, $address, $notes = '') {
+        $stmt = $this->db->prepare("UPDATE deliveries 
+                                    SET google_maps_link = ?,
+                                        customer_address = ?,
+                                        delivery_notes = ?,
+                                        confirmed_at = COALESCE(confirmed_at, NOW()),
+                                        status = 'location_received'
+                                    WHERE id = ?");
+        $stmt->execute([
+            trim($googleMapsLink),
+            trim($address),
+            trim($notes),
+            (int)$deliveryId
+        ]);
+        return ['success' => true];
+    }
+
+    public function getDeliveryRequests() {
+        // Fetch orders in confirmation stages or preparing in kitchen
+        $sql = "SELECT d.*, o.token_number, o.created_at as order_created_at,
+                       COALESCE(b.grand_total, d.cod_amount, 0) as order_total,
+                       k.id as kot_id, k.status as kot_status
+                FROM deliveries d
+                JOIN orders o ON d.order_id = o.id
+                LEFT JOIN bills b ON d.bill_id = b.id
+                LEFT JOIN kots k ON k.order_id = o.id
+                WHERE d.status IN ('pending_confirmation', 'location_received', 'preparing_in_kitchen')
+                ORDER BY d.id DESC";
+        $stmt = $this->db->query($sql);
+        $requests = $stmt->fetchAll();
+
+        foreach ($requests as &$r) {
+            $r['items'] = $this->getOrderItems($r['order_id']);
+        }
+        return $requests;
+    }
+
+    public function sendDeliveryRequestToKot($deliveryId, $cashierId = null) {
+        $d = $this->getDeliveryById($deliveryId);
+        if (!$d) {
+            return ['success' => false, 'error' => 'Delivery request not found.'];
+        }
+
+        $orderId = (int)$d['order_id'];
+
+        $this->db->beginTransaction();
+        try {
+            // 1. Activate KOT tickets
+            $stmtKot = $this->db->prepare("UPDATE kots SET status = 'pending' WHERE order_id = ?");
+            $stmtKot->execute([$orderId]);
+
+            $stmtItems = $this->db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.status = 'pending' WHERE k.order_id = ?");
+            $stmtItems->execute([$orderId]);
+
+            // 2. Ensure bill exists
+            $stmtBillCheck = $this->db->prepare("SELECT id FROM bills WHERE order_id = ? LIMIT 1");
+            $stmtBillCheck->execute([$orderId]);
+            $billId = $stmtBillCheck->fetchColumn();
+
+            if (!$billId) {
+                // Compute totals from items
+                $stmtTot = $this->db->prepare("SELECT SUM(ki.price * ki.quantity) FROM kot_items ki JOIN kots k ON ki.kot_id = k.id WHERE k.order_id = ? AND ki.status != 'cancelled'");
+                $stmtTot->execute([$orderId]);
+                $subtotal = (float)$stmtTot->fetchColumn();
+
+                $stmtSetting = $this->db->query("SELECT vat_percent, tax_type, cgst_percent, sgst_percent FROM settings LIMIT 1");
+                $set = $stmtSetting->fetch();
+                $taxRate = (float)($set['vat_percent'] ?? 10.0);
+                $taxAmount = round($subtotal * ($taxRate / 100), 3);
+                $grandTotal = $subtotal + $taxAmount;
+
+                $stmtInsertBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, tax_amount, grand_total, payment_method, status, cashier_id) 
+                                                     VALUES (?, ?, ?, ?, ?, 'pending', ?)");
+                $stmtInsertBill->execute([
+                    $orderId,
+                    $subtotal,
+                    $taxAmount,
+                    $grandTotal,
+                    $d['payment_type'] === 'cod' ? 'cash' : 'card',
+                    $cashierId ? (int)$cashierId : null
+                ]);
+                $billId = $this->db->lastInsertId();
+            }
+
+            // 3. Update delivery status to preparing_in_kitchen
+            $stmtDeliv = $this->db->prepare("UPDATE deliveries 
+                                             SET status = 'preparing_in_kitchen',
+                                                 bill_id = ?
+                                             WHERE id = ?");
+            $stmtDeliv->execute([(int)$billId, (int)$deliveryId]);
+
+            // 4. Update order status to closed
+            $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'closed' WHERE id = ?");
+            $stmtOrder->execute([$orderId]);
+
+            $this->db->commit();
+            return [
+                'success' => true,
+                'delivery_id' => $deliveryId,
+                'order_id' => $orderId,
+                'bill_id' => $billId,
+                'token_number' => $d['token_number']
+            ];
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+}

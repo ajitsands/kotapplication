@@ -107,11 +107,11 @@ class Kot extends Model {
                                   JOIN orders o ON k.order_id = o.id 
                                   LEFT JOIN online_platforms p ON o.platform_id = p.id
                                   LEFT JOIN users u ON k.waiter_id = u.id 
-                                  WHERE k.status NOT IN ('dispatched', 'cancelled')
+                                  WHERE k.status NOT IN ('dispatched', 'cancelled', 'pending_confirmation')
                                   AND (
                                       (o.order_type = 'dine_in' AND o.status != 'cancelled') 
                                       OR 
-                                      (o.order_type = 'take_away' AND o.status != 'completed' AND (EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid') OR k.waiter_id IS NOT NULL))
+                                      (o.order_type = 'take_away' AND o.status != 'completed' AND (EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid') OR k.waiter_id IS NOT NULL OR EXISTS (SELECT 1 FROM deliveries del WHERE del.order_id = o.id AND del.status IN ('preparing_in_kitchen', 'pending_pickup'))))
                                       OR
                                       (o.order_type = 'online' AND o.status != 'cancelled')
                                   )
@@ -166,6 +166,16 @@ class Kot extends Model {
                 // Mark KOT as ready
                 $stmtUpdateKot = $this->db->prepare("UPDATE kots SET status = 'ready' WHERE id = ?");
                 $stmtUpdateKot->execute([$kotId]);
+
+                $stmtOrder = $this->db->prepare("SELECT order_id FROM kots WHERE id = ?");
+                $stmtOrder->execute([$kotId]);
+                $orderId = $stmtOrder->fetchColumn();
+                if ($orderId) {
+                    $stmtDeliv = $this->db->prepare("UPDATE deliveries 
+                                                     SET status = 'pending_pickup' 
+                                                     WHERE order_id = ? AND status IN ('preparing_in_kitchen', 'location_received', 'pending_confirmation')");
+                    $stmtDeliv->execute([$orderId]);
+                }
             }
 
             $this->db->commit();
@@ -194,6 +204,17 @@ class Kot extends Model {
 
             foreach ($pendingItems as $itemId) {
                 $this->deductInventoryForKotItem($itemId, $chefId);
+            }
+
+            // If order has an active delivery in preparing_in_kitchen, transition to pending_pickup (Ready for Driver)
+            $stmtOrder = $this->db->prepare("SELECT order_id FROM kots WHERE id = ?");
+            $stmtOrder->execute([$kotId]);
+            $orderId = $stmtOrder->fetchColumn();
+            if ($orderId) {
+                $stmtDeliv = $this->db->prepare("UPDATE deliveries 
+                                                 SET status = 'pending_pickup' 
+                                                 WHERE order_id = ? AND status IN ('preparing_in_kitchen', 'location_received', 'pending_confirmation')");
+                $stmtDeliv->execute([$orderId]);
             }
 
             $this->db->commit();
