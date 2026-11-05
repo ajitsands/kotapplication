@@ -162,11 +162,31 @@ class DeliveryController extends Controller {
 
         $deliveryId = (int)($params['id'] ?? $_POST['delivery_id'] ?? 0);
         $notes = trim($_POST['notes'] ?? '');
+
+        // Handle optional payment proof photo upload
+        $paymentProofPath = null;
+        if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../uploads/';
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0755, true);
+            }
+            $ext = strtolower(pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'])) {
+                $ext = 'jpg';
+            }
+            $fileName = 'proof_' . $deliveryId . '_' . time() . '.' . $ext;
+            $destination = $uploadDir . $fileName;
+            if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $destination)) {
+                $paymentProofPath = 'uploads/' . $fileName;
+            }
+        }
+
         $paymentData = [
             'collection_method' => $_POST['collection_method'] ?? 'cash',
             'cash_amount' => (float)($_POST['cash_amount'] ?? 0),
             'qr_amount' => (float)($_POST['qr_amount'] ?? 0),
             'card_amount' => (float)($_POST['card_amount'] ?? 0),
+            'payment_proof' => $paymentProofPath
         ];
 
         if ($deliveryId <= 0) {

@@ -1088,6 +1088,20 @@
                             <label style="font-weight:700; display:block; margin-bottom:4px; font-size:12px;">Delivery Notes (Optional)</label>
                             <input type="text" id="swal_deliv_note" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box; height:38px; font-size:13px;" placeholder="e.g. Handed to security, left at door...">
                         </div>
+
+                        <div style="margin-top:12px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px; font-size:12px; color:var(--text-color);">📸 Payment Screen Photo (Optional)</label>
+                            <div style="border:1.5px dashed var(--card-border); background:rgba(255,255,255,0.03); border-radius:10px; padding:10px; text-align:center;">
+                                <input type="file" id="swal_pay_proof" accept="image/*" capture="environment" style="display:none;" onchange="previewSwalProof(this)">
+                                <button type="button" onclick="document.getElementById('swal_pay_proof').click()" style="background:rgba(2,132,199,0.15); border:1px solid #0284c7; color:#38bdf8; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+                                    📷 Take Photo / Upload Screenshot
+                                </button>
+                                <div id="swal_proof_name" style="font-size:11px; color:var(--text-muted); margin-top:4px;">Not mandatory — upload if needed</div>
+                                <div id="swal_proof_preview_wrap" style="display:none; margin-top:8px;">
+                                    <img id="swal_proof_img" src="" style="max-height:90px; border-radius:6px; border:1px solid var(--card-border); object-fit:contain;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
@@ -1097,6 +1111,8 @@
                 preConfirm: () => {
                     const method = document.querySelector('input[name="swal_pay_method"]:checked').value;
                     const notes = document.getElementById('swal_deliv_note').value.trim();
+                    const proofEl = document.getElementById('swal_pay_proof');
+                    const proofFile = (proofEl && proofEl.files && proofEl.files.length > 0) ? proofEl.files[0] : null;
                     let cash = 0, qr = 0, card = 0;
 
                     if (method === 'cash') {
@@ -1121,13 +1137,41 @@
                         cash_amount: cash,
                         qr_amount: qr,
                         card_amount: card,
-                        notes: notes
+                        notes: notes,
+                        payment_proof: proofFile
                     };
                 }
             }).then(result => {
                 if (result.isConfirmed && result.value) {
                     submitDeliveryComplete(deliveryId, result.value);
                 }
+            });
+        }
+
+        function previewSwalProof(input) {
+            const nameEl = document.getElementById('swal_proof_name');
+            const wrapEl = document.getElementById('swal_proof_preview_wrap');
+            const imgEl = document.getElementById('swal_proof_img');
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (nameEl) nameEl.innerText = 'Selected: ' + file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (imgEl) imgEl.src = e.target.result;
+                    if (wrapEl) wrapEl.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function viewPaymentProof(url) {
+            Swal.fire({
+                title: 'Customer Payment Screenshot',
+                imageUrl: url,
+                imageAlt: 'Payment Screen Proof',
+                imageWidth: 320,
+                confirmButtonColor: '#0284c7',
+                confirmButtonText: 'Close'
             });
         }
 
@@ -1138,6 +1182,9 @@
             formData.append('cash_amount', payload.cash_amount || 0);
             formData.append('qr_amount', payload.qr_amount || 0);
             formData.append('card_amount', payload.card_amount || 0);
+            if (payload.payment_proof) {
+                formData.append('payment_proof', payload.payment_proof);
+            }
 
             fetch(basePath + '/api/deliver/' + deliveryId, {
                 method: 'POST',
@@ -1248,6 +1295,8 @@
                             methodBadge = `<span class="ledger-badge ledger-credit">✅ PREPAID</span>`;
                         }
 
+                        const proofBtn = d.payment_proof ? `<button type="button" onclick="viewPaymentProof('/${escapeHtml(d.payment_proof)}')" style="background:rgba(2,132,199,0.15); border:1px solid #0284c7; color:#38bdf8; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">📷 Proof</button>` : '';
+
                         html += `
                             <div class="history-card">
                                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
@@ -1255,8 +1304,11 @@
                                     <span style="font-size:12px; color:var(--text-muted);">${deliveredDate}</span>
                                 </div>
                                 <div style="font-size:13px; color:var(--text-color); margin-bottom:4px;">👤 ${escapeHtml(d.customer_name || 'Guest')} (${escapeHtml(d.customer_mobile)})</div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px;">
-                                    ${methodBadge}
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        ${methodBadge}
+                                        ${proofBtn}
+                                    </div>
                                     ${commissionEnabled ? `<span style="font-weight:700; color:var(--accent-green);">+${parseFloat(d.commission_amount).toFixed(3)} ${currencyCode} Comm.</span>` : ''}
                                 </div>
                             </div>

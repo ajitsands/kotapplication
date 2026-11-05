@@ -421,6 +421,7 @@ class Order extends Model {
                        d.cash_collected_amount as delivery_cash_collected_amount,
                        d.qr_collected_amount as delivery_qr_collected_amount,
                        d.card_collected_amount as delivery_card_collected_amount,
+                       d.payment_proof as delivery_payment_proof,
                        d.cod_amount as delivery_cod_amount,
                        d.cod_collected as delivery_cod_collected,
                        d.cod_handed_over as delivery_cod_handed_over,
@@ -463,6 +464,7 @@ class Order extends Model {
                        d.cash_collected_amount as delivery_cash_collected_amount,
                        d.qr_collected_amount as delivery_qr_collected_amount,
                        d.card_collected_amount as delivery_card_collected_amount,
+                       d.payment_proof as delivery_payment_proof,
                        d.cod_amount as delivery_cod_amount,
                        d.cod_collected as delivery_cod_collected,
                        d.cod_handed_over as delivery_cod_handed_over

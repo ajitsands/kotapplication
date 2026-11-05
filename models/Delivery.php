@@ -77,6 +77,9 @@ class Delivery extends Model {
             try {
                 $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `card_collected_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `qr_collected_amount`");
             } catch (Exception $e) {}
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `payment_proof` VARCHAR(255) NULL AFTER `card_collected_amount`");
+            } catch (Exception $e) {}
         } catch (Exception $e) {
             error_log("Delivery ensureSchema error: " . $e->getMessage());
         }
@@ -267,6 +270,8 @@ class Delivery extends Model {
 
         $this->db->beginTransaction();
         try {
+            $paymentProof = !empty($paymentData['payment_proof']) ? $paymentData['payment_proof'] : null;
+
             // Update delivery record
             $stmtUp = $this->db->prepare("UPDATE deliveries 
                                           SET status = 'delivered', 
@@ -277,6 +282,7 @@ class Delivery extends Model {
                                               cash_collected_amount = ?,
                                               qr_collected_amount = ?,
                                               card_collected_amount = ?,
+                                              payment_proof = COALESCE(?, payment_proof),
                                               commission_amount = ?,
                                               delivery_notes = CASE WHEN ? != '' THEN CONCAT(IFNULL(delivery_notes, ''), ' | Note: ', ?) ELSE delivery_notes END
                                           WHERE id = ?");
@@ -287,6 +293,7 @@ class Delivery extends Model {
                 $cashCollected,
                 $qrCollected,
                 $cardCollected,
+                $paymentProof,
                 $commissionAmount,
                 trim($notes),
                 trim($notes),

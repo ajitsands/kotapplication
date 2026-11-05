@@ -282,23 +282,6 @@
                 </div>
             </div>
 
-            <?php if ($delivery['payment_type'] === 'cod' && !empty($settings['benefit_pay_qr'])): ?>
-                <div class="card" style="text-align: center; background: rgba(16, 185, 129, 0.06); border: 1.5px dashed rgba(16, 185, 129, 0.35);">
-                    <div style="font-weight: 800; color: #10b981; font-size: 14px; margin-bottom: 4px;">
-                        📱 Pay via BenefitPay QR
-                    </div>
-                    <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px;">
-                        You can also pay via BenefitPay upon delivery by scanning this QR:
-                    </div>
-                    <div style="background: white; padding: 8px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                        <img src="/<?= ltrim($settings['benefit_pay_qr'], '/') ?>" alt="BenefitPay QR" style="width: 150px; height: 150px; object-fit: contain; display: block;">
-                    </div>
-                    <div style="margin-top: 6px; font-weight: 700; color: #10b981; font-size: 13.5px;">
-                        Amount: <?= number_format((float)($delivery['cod_amount'] ?? $delivery['order_total']), 3) ?> <?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <!-- Location & Address Form -->
             <form id="confirm-form" onsubmit="submitConfirmation(event)">
                 <div class="card">

@@ -5431,15 +5431,19 @@ Thank you!`;
                 const cashAmt = isSplit ? parseFloat(d.delivery_cash_collected_amount || 0).toFixed(window.PRICE_DECIMALS || 3) : codAmt;
                 const hasCash = parseFloat(cashAmt) > 0;
 
+                const proofBtn = d.delivery_payment_proof 
+                    ? `<button type="button" onclick="viewPaymentProof('/${escapeHtml(d.delivery_payment_proof)}')" class="btn-action" style="background: rgba(2, 132, 199, 0.2); border: 1px solid #0284c7; color: #38bdf8; margin-right: 4px; padding: 5px 8px; font-size: 11px; border-radius: 8px; font-weight: 700; cursor: pointer;" title="View Customer Payment Screenshot">📷 Proof</button>` 
+                    : '';
+
                 if (isCod && !isHandedOver && hasCash) {
                     const btnLabel = isSplit ? `💵 Confirm Cash (${cashAmt})` : `💵 Confirm COD (${cashAmt})`;
-                    return `<button onclick="confirmSingleDeliveryHandover(${d.delivery_id}, ${orderId}, '${driverName}', '${cashAmt}')" class="btn-action" style="background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #eab308; margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);" title="Driver collected cash. Click to confirm cash handover to Counter!">${btnLabel}</button>`;
+                    return proofBtn + `<button onclick="confirmSingleDeliveryHandover(${d.delivery_id}, ${orderId}, '${driverName}', '${cashAmt}')" class="btn-action" style="background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #eab308; margin-right: 4px; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);" title="Driver collected cash. Click to confirm cash handover to Counter!">${btnLabel}</button>`;
                 } else if (method === 'qr_pay') {
-                    return `<span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;">✅ Delivered (BenefitPay QR)</span>`;
+                    return proofBtn + `<span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;">✅ Delivered (BenefitPay QR)</span>`;
                 } else if (method === 'card') {
-                    return `<span class="badge" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;">✅ Delivered (Card)</span>`;
+                    return proofBtn + `<span class="badge" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;">✅ Delivered (Card)</span>`;
                 } else {
-                    return `<span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;" title="Delivered successfully${isCod ? ' • Settled' : ''}">✅ Delivered</span>`;
+                    return proofBtn + `<span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 5px 10px; font-size: 11px; border-radius: 8px; font-weight: 700; display: inline-block; margin-right: 4px;" title="Delivered successfully${isCod ? ' • Settled' : ''}">✅ Delivered</span>`;
                 }
             }
 
@@ -5497,6 +5501,17 @@ Thank you!`;
                     })
                     .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
                 }
+            });
+        }
+
+        function viewPaymentProof(url) {
+            Swal.fire({
+                title: 'Customer Payment Screenshot',
+                imageUrl: url,
+                imageAlt: 'Payment Screen Proof',
+                imageWidth: 350,
+                confirmButtonColor: '#0284c7',
+                confirmButtonText: 'Close'
             });
         }
 
