@@ -157,6 +157,12 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes pulseGreen {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
         .header-dropdown.open .header-dropdown-content {
             display: block;
         }
@@ -931,6 +937,11 @@
             <a href="/counter/pos" class="nav-link active" style="background: var(--primary-grad); color: white !important; font-weight: 700; border-radius: 10px; padding: 7px 15px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35); display: inline-flex; align-items: center; gap: 6px;">🛒 New Order (POS)</a>
             <a href="/counter" class="nav-link">💳 Billing Counter</a>
             
+            <!-- Delivery Location Received Badge -->
+            <button id="pos-deliv-badge-btn" type="button" onclick="openPendingDeliveryRequestsModal()" style="display:none; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-weight: 800; font-size: 13px; cursor: pointer; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16,185,129,0.4); animation: pulseGreen 2s infinite;">
+                📍 <span id="pos-deliv-badge-count">0</span> Location Received
+            </button>
+            
             <!-- QR & Other Sub Menu -->
             <div class="header-dropdown" id="qr-tools-dropdown">
                 <button type="button" class="header-dropdown-btn" onclick="toggleQrDropdown(event)">
@@ -1179,6 +1190,84 @@
             <button type="button" onclick="closePosPayModal()" style="width: 100%; background: none; border: none; color: var(--text-muted); padding: 10px; margin-top: 8px; cursor: pointer; font-size: 13px;">
                 Cancel
             </button>
+        </div>
+    </div>
+
+    <!-- Delivery Confirmed Order Detail Modal -->
+    <div id="pos-delivery-order-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 520px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">📍</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 18px;" id="deliv-modal-token">Order #---</h3>
+                        <span style="font-size: 12px; color: #10b981; font-weight: 700;">Customer Location Received</span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeDeliveryOrderModal()" style="background: none; border: none; font-size: 22px; color: var(--text-muted); cursor: pointer; padding: 0 4px;">&times;</button>
+            </div>
+            
+            <div style="flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- Customer Details Card -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px;">
+                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.5px;">Customer</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 15px;" id="deliv-modal-cust-name">-</div>
+                            <div style="font-size: 13px; color: #38bdf8; margin-top: 2px;" id="deliv-modal-cust-phone">-</div>
+                        </div>
+                        <div id="deliv-modal-phone-actions" style="display: flex; gap: 6px;"></div>
+                    </div>
+                </div>
+
+                <!-- Delivery Address & GPS -->
+                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #10b981; letter-spacing: 0.5px;">Delivery Destination</span>
+                        <div id="deliv-modal-map-link"></div>
+                    </div>
+                    <div style="font-size: 13.5px; line-height: 1.4; color: var(--text-color);" id="deliv-modal-cust-addr">-</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px; display: none;" id="deliv-modal-notes-wrap">
+                        <strong>Notes:</strong> <span id="deliv-modal-notes"></span>
+                    </div>
+                </div>
+
+                <!-- Order Items & Total -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: var(--text-muted); letter-spacing: 0.5px;">Items Ordered</span>
+                        <span id="deliv-modal-pay-badge"></span>
+                    </div>
+                    <div id="deliv-modal-items-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto;">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--card-border); padding-top: 10px; margin-top: 10px; font-weight: 800; font-size: 16px;">
+                        <span>Total Amount:</span>
+                        <span id="deliv-modal-total" style="color: var(--accent-green);">0.000 BHD</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--card-border); padding-top: 14px; margin-top: 14px; display: flex; gap: 10px;">
+                <button type="button" onclick="closeDeliveryOrderModal()" style="flex: 1; background: rgba(255,255,255,0.08); border: 1px solid var(--card-border); color: var(--text-muted); padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer;">
+                    Close
+                </button>
+                <button type="button" id="deliv-modal-send-btn" onclick="sendActiveDeliveryOrderToKot()" style="flex: 2; background: linear-gradient(135deg, #0284c7, #06b6d4); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>🍳 Send to KOT (Kitchen)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Pending Delivery Orders List Modal -->
+    <div id="pos-delivery-requests-list-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 14px;">
+                <h3 style="margin: 0; font-size: 18px;">📍 Pending Customer Delivery Requests</h3>
+                <button type="button" onclick="closePendingDeliveryRequestsModal()" style="background: none; border: none; font-size: 22px; color: var(--text-muted); cursor: pointer; padding: 0 4px;">&times;</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto;" id="pos-deliv-requests-list-container">
+                <!-- Dynamically populated -->
+            </div>
         </div>
     </div>
 
@@ -2129,6 +2218,324 @@
                 platSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
+
+        /* Real-Time Customer Location & Delivery Order Notifications */
+        let activeDeliveryModalOrder = null;
+        let lastNotifiedDeliveryIds = new Set();
+        let allPendingDeliveryRequests = [];
+        let deliveryOrdersById = {};
+        let isInitialDeliveryPoll = true;
+
+        function playNotificationChime() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                const ctx = new AudioContextClass();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                const now = ctx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);       // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.24); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.36);// C6
+                
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+                
+                osc.start(now);
+                osc.stop(now + 0.75);
+            } catch (e) {
+                // audio might be blocked if no user interaction yet
+            }
+        }
+
+        function pollDeliveryRequests() {
+            fetch('/counter/delivery/requests?_=' + Date.now(), { cache: 'no-store' })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.success) return;
+                    const requests = data.requests || [];
+                    allPendingDeliveryRequests = requests;
+                    
+                    // Index by id
+                    requests.forEach(r => {
+                        deliveryOrdersById[r.id] = r;
+                    });
+                    
+                    // Filter for requests that have location received and not yet cooking in kitchen
+                    const locationReceivedList = requests.filter(r => r.status === 'location_received');
+                    
+                    // Update Header Badge
+                    const badgeBtn = document.getElementById('pos-deliv-badge-btn');
+                    const badgeCount = document.getElementById('pos-deliv-badge-count');
+                    if (badgeBtn && badgeCount) {
+                        if (locationReceivedList.length > 0) {
+                            badgeCount.innerText = locationReceivedList.length;
+                            badgeBtn.style.display = 'inline-flex';
+                        } else {
+                            badgeBtn.style.display = 'none';
+                        }
+                    }
+
+                    // Detect newly confirmed orders
+                    let newlyConfirmed = [];
+                    locationReceivedList.forEach(order => {
+                        if (!lastNotifiedDeliveryIds.has(order.id)) {
+                            newlyConfirmed.push(order);
+                        }
+                    });
+
+                    // If it's the very first poll, populate the set with existing orders so we don't spam popups on initial page load
+                    if (isInitialDeliveryPoll) {
+                        isInitialDeliveryPoll = false;
+                        locationReceivedList.forEach(order => lastNotifiedDeliveryIds.add(order.id));
+                        return;
+                    }
+
+                    // If new location confirmation detected!
+                    if (newlyConfirmed.length > 0) {
+                        newlyConfirmed.forEach(order => lastNotifiedDeliveryIds.add(order.id));
+                        playNotificationChime();
+                        
+                        const latestOrder = newlyConfirmed[0];
+                        const custName = latestOrder.customer_name || 'Customer';
+                        const token = latestOrder.token_number || latestOrder.order_id;
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: `📍 Order Confirmed by Customer!`,
+                            html: `
+                                <div style="font-size:14px; text-align:center; padding:6px 0;">
+                                    <div style="font-size:22px; font-weight:800; color:#38bdf8; margin-bottom:6px;">Token #${escapeHtml(token)}</div>
+                                    <div style="font-weight:700; font-size:15px; margin-bottom:4px;">${escapeHtml(custName)} (${escapeHtml(latestOrder.customer_mobile)})</div>
+                                    <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:12px;">Customer has confirmed the order & shared delivery location.</div>
+                                    <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:10px; text-align:left; font-size:12.5px; line-height:1.4;">
+                                        <strong>📍 Address:</strong> ${escapeHtml(latestOrder.customer_address || 'GPS Coordinates received')}
+                                    </div>
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            confirmButtonText: '👀 View Order & Send to KOT',
+                            cancelButtonText: 'Later',
+                            confirmButtonColor: '#0284c7',
+                            cancelButtonColor: '#64748b',
+                            backdrop: `rgba(0,0,0,0.65)`
+                        }).then(result => {
+                            if (result.isConfirmed) {
+                                openDeliveryOrderModal(latestOrder);
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.error('Delivery poll error:', err));
+        }
+
+        function openDeliveryOrderModalById(id) {
+            const order = deliveryOrdersById[id];
+            if (order) openDeliveryOrderModal(order);
+        }
+
+        function openDeliveryOrderModal(order) {
+            activeDeliveryModalOrder = order;
+            const token = order.token_number || order.order_id;
+            document.getElementById('deliv-modal-token').innerText = 'Order #' + token;
+            document.getElementById('deliv-modal-cust-name').innerText = order.customer_name || 'Guest Customer';
+            document.getElementById('deliv-modal-cust-phone').innerText = '📱 ' + (order.customer_mobile || '-');
+            
+            // Phone actions (call & WhatsApp)
+            let cleanPhone = (order.customer_mobile || '').replace(/[^0-9]/g, '');
+            let waPhone = cleanPhone.length === 8 ? '973' + cleanPhone : cleanPhone;
+            document.getElementById('deliv-modal-phone-actions').innerHTML = `
+                <a href="tel:${escapeHtml(order.customer_mobile)}" style="background:rgba(2,132,199,0.15); border:1px solid #0284c7; color:#38bdf8; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">📞 Call</a>
+                <a href="https://wa.me/${waPhone}" target="_blank" style="background:rgba(37,211,102,0.15); border:1px solid #25D366; color:#25D366; padding:5px 10px; border-radius:8px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">💬 WhatsApp</a>
+            `;
+
+            // Map link
+            if (order.google_maps_link) {
+                document.getElementById('deliv-modal-map-link').innerHTML = `
+                    <a href="${escapeHtml(order.google_maps_link)}" target="_blank" style="background:linear-gradient(135deg, #0284c7, #06b6d4); color:white; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:4px; box-shadow:0 2px 8px rgba(2,132,199,0.3);">🗺️ Google Maps</a>
+                `;
+            } else {
+                document.getElementById('deliv-modal-map-link').innerHTML = '';
+            }
+
+            // Address
+            document.getElementById('deliv-modal-cust-addr').innerText = order.customer_address || 'No text address entered (GPS Pin received)';
+            
+            // Notes
+            const notesWrap = document.getElementById('deliv-modal-notes-wrap');
+            if (order.delivery_notes) {
+                notesWrap.style.display = 'block';
+                document.getElementById('deliv-modal-notes').innerText = order.delivery_notes;
+            } else {
+                notesWrap.style.display = 'none';
+            }
+
+            // Payment badge
+            const payBadge = document.getElementById('deliv-modal-pay-badge');
+            const totalAmount = parseFloat(order.order_total || order.cod_amount || 0).toFixed(window.PRICE_DECIMALS || 3);
+            if (order.payment_type === 'cod') {
+                payBadge.innerHTML = `<span style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800;">💵 Cash on Delivery</span>`;
+            } else {
+                payBadge.innerHTML = `<span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800;">✅ Already Paid</span>`;
+            }
+            document.getElementById('deliv-modal-total').innerText = `${totalAmount} ${currencyCode}`;
+
+            // Items list
+            const itemsList = document.getElementById('deliv-modal-items-list');
+            let itemsHtml = '';
+            (order.items || []).forEach(it => {
+                const itemTotal = (parseFloat(it.price || 0) * parseInt(it.quantity || 1)).toFixed(window.PRICE_DECIMALS || 3);
+                itemsHtml += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:13px;">
+                        <div>
+                            <span style="font-weight:700; color:#38bdf8;">${it.quantity}x</span> 
+                            <span>${escapeHtml(it.product_name)}</span>
+                            ${it.notes ? `<div style="font-size:11px; color:var(--text-muted); padding-left:18px;">↳ ${escapeHtml(it.notes)}</div>` : ''}
+                        </div>
+                        <div style="font-weight:600;">${itemTotal} ${currencyCode}</div>
+                    </div>
+                `;
+            });
+            itemsList.innerHTML = itemsHtml || '<div style="color:var(--text-muted); font-size:12px;">No item details</div>';
+
+            const sendBtn = document.getElementById('deliv-modal-send-btn');
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<span>🍳 Send to KOT (Kitchen)</span>';
+            }
+
+            // Show modal
+            document.getElementById('pos-delivery-order-modal').style.display = 'flex';
+        }
+
+        function closeDeliveryOrderModal() {
+            document.getElementById('pos-delivery-order-modal').style.display = 'none';
+            activeDeliveryModalOrder = null;
+        }
+
+        function sendActiveDeliveryOrderToKot() {
+            if (!activeDeliveryModalOrder) return;
+            const order = activeDeliveryModalOrder;
+            const btn = document.getElementById('deliv-modal-send-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Sending to KOT...</span>';
+
+            const formData = new FormData();
+            formData.append('delivery_id', order.id);
+
+            fetch('/counter/delivery/send-request-kot', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeDeliveryOrderModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Dispatched to Kitchen! 🍳',
+                        text: `Order #${order.token_number || order.order_id} sent to KOT. The kitchen will mark it ready.`,
+                        timer: 2200,
+                        showConfirmButton: false
+                    });
+                    pollDeliveryRequests();
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to dispatch to KOT.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>🍳 Send to KOT (Kitchen)</span>';
+                }
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Network request failed.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<span>🍳 Send to KOT (Kitchen)</span>';
+            });
+        }
+
+        function openPendingDeliveryRequestsModal() {
+            const container = document.getElementById('pos-deliv-requests-list-container');
+            const locOrders = allPendingDeliveryRequests.filter(r => r.status === 'location_received');
+
+            if (locOrders.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);">No pending customer location confirmations.</div>`;
+            } else {
+                let html = '<div style="display:flex; flex-direction:column; gap:12px;">';
+                locOrders.forEach(o => {
+                    const token = o.token_number || o.order_id;
+                    const items = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.product_name)}`).join(', ');
+                    const total = parseFloat(o.order_total || o.cod_amount || 0).toFixed(window.PRICE_DECIMALS || 3);
+                    
+                    html += `
+                        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:14px; padding:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:220px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                    <span style="font-size:16px; font-weight:800; color:#38bdf8;">Token #${escapeHtml(token)}</span>
+                                    <span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:2px 7px; border-radius:5px; font-size:11px; font-weight:700;">📍 Location Ready</span>
+                                </div>
+                                <div style="font-weight:700; font-size:13.5px;">${escapeHtml(o.customer_name || 'Customer')} - <a href="tel:${escapeHtml(o.customer_mobile)}" style="color:#38bdf8; text-decoration:none;">${escapeHtml(o.customer_mobile)}</a></div>
+                                <div style="font-size:12px; color:var(--text-muted); margin-top:3px; max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏠 ${escapeHtml(o.customer_address || 'GPS Coordinates')}</div>
+                                <div style="font-size:12px; color:var(--accent-green); font-weight:700; margin-top:2px;">${total} ${currencyCode} • ${items}</div>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" onclick="closePendingDeliveryRequestsModal(); openDeliveryOrderModalById(${o.id});" style="background:rgba(255,255,255,0.08); border:1px solid var(--card-border); color:var(--text-color); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+                                    Details
+                                </button>
+                                <button type="button" onclick="sendDeliveryKotDirect(${o.id}, '${escapeHtml(token)}')" style="background:linear-gradient(135deg, #0284c7, #06b6d4); color:white; border:none; padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(2,132,199,0.35);">
+                                    🍳 Send to KOT
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            document.getElementById('pos-delivery-requests-list-modal').style.display = 'flex';
+        }
+
+        function closePendingDeliveryRequestsModal() {
+            document.getElementById('pos-delivery-requests-list-modal').style.display = 'none';
+        }
+
+        function sendDeliveryKotDirect(deliveryId, tokenNumber) {
+            const formData = new FormData();
+            formData.append('delivery_id', deliveryId);
+
+            fetch('/counter/delivery/send-request-kot', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Dispatched to Kitchen! 🍳',
+                        text: `Order #${tokenNumber} sent to KOT.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    closePendingDeliveryRequestsModal();
+                    pollDeliveryRequests();
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to dispatch to KOT.', 'error');
+                }
+            })
+            .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+        }
+
+        // Start background delivery requests polling
+        pollDeliveryRequests();
+        setInterval(pollDeliveryRequests, 4000);
     </script>
 </body>
 </html>

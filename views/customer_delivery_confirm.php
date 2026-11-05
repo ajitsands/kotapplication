@@ -370,15 +370,34 @@
                     btn.disabled = false;
                     btn.innerHTML = '<span>📍</span> Tap to Share Current Location';
                     
-                    let msg = 'Could not detect your GPS location automatically. Please enter your address manually below.';
-                    if (err.code === 1) {
-                        msg = 'Location permission was denied. Please allow location access in your browser settings, or enter your address below.';
-                    }
+                    let isDenied = (err.code === 1);
+                    let htmlContent = `
+                        <div style="font-size: 13px; text-align: left; line-height: 1.5;">
+                            <p style="margin-bottom: 8px;">Location access is currently blocked in this phone's browser.</p>
+                            <div style="background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 12px;">
+                                <strong>How to enable GPS in your browser:</strong><br>
+                                1. Tap the 🔒 or ℹ️ icon next to the website address at the top.<br>
+                                2. Tap <strong>Permissions</strong> ➔ <strong>Location</strong> ➔ <strong>Allow</strong>.<br>
+                                3. Tap the GPS button again.
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-muted);">
+                                Alternatively, you can type your delivery address in the box below and tap <strong>Confirm & Send Location</strong>!
+                            </div>
+                        </div>
+                    `;
+
                     Swal.fire({
                         icon: 'info',
                         title: 'Location Notice',
-                        text: msg,
+                        html: isDenied ? htmlContent : 'Could not detect your GPS location automatically. Please enter your delivery address below.',
+                        confirmButtonText: '✏️ Enter Address Manually',
                         confirmButtonColor: '#0284c7'
+                    }).then(() => {
+                        const addrBox = document.getElementById('address-input');
+                        if (addrBox) {
+                            addrBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            addrBox.focus();
+                        }
                     });
                 },
                 { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }

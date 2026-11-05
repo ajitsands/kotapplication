@@ -3290,6 +3290,31 @@
         }
 
         let deliveryRequestsTable = null;
+        let lastNotifiedDisplayDelivIds = new Set();
+        let isInitialDisplayDelivPoll = true;
+
+        function playDisplayNotificationChime() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                const ctx = new AudioContextClass();
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                const now = ctx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);       // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.24); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.36);// C6
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+                osc.start(now);
+                osc.stop(now + 0.75);
+            } catch (e) {}
+        }
 
         function fetchDeliveryRequests(isManual = false) {
             fetch(basePath + '/delivery/requests?_=' + Date.now())
@@ -3307,6 +3332,52 @@
                         } else {
                             badge.style.display = 'none';
                         }
+                    }
+
+                    // Check for newly confirmed orders with location_received
+                    const locationReceivedList = requests.filter(r => r.status === 'location_received');
+                    let newlyConfirmed = [];
+                    locationReceivedList.forEach(order => {
+                        if (!lastNotifiedDisplayDelivIds.has(order.id)) {
+                            newlyConfirmed.push(order);
+                        }
+                    });
+
+                    if (isInitialDisplayDelivPoll) {
+                        isInitialDisplayDelivPoll = false;
+                        locationReceivedList.forEach(order => lastNotifiedDisplayDelivIds.add(order.id));
+                    } else if (newlyConfirmed.length > 0) {
+                        newlyConfirmed.forEach(order => lastNotifiedDisplayDelivIds.add(order.id));
+                        playDisplayNotificationChime();
+                        const latestOrder = newlyConfirmed[0];
+                        const custName = latestOrder.customer_name || 'Customer';
+                        const token = latestOrder.token_number || latestOrder.order_id;
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: `📍 Order Confirmed by Customer!`,
+                            html: `
+                                <div style="font-size:14px; text-align:center; padding:6px 0;">
+                                    <div style="font-size:22px; font-weight:800; color:#38bdf8; margin-bottom:6px;">Token #${escapeHtml(token)}</div>
+                                    <div style="font-weight:700; font-size:15px; margin-bottom:4px;">${escapeHtml(custName)} (${escapeHtml(latestOrder.customer_mobile)})</div>
+                                    <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:12px;">Customer has confirmed the order & shared delivery location.</div>
+                                    <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:10px; text-align:left; font-size:12.5px; line-height:1.4;">
+                                        <strong>📍 Address:</strong> ${escapeHtml(latestOrder.customer_address || 'GPS Coordinates received')}
+                                    </div>
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            confirmButtonText: '🍳 Send to KOT Now',
+                            cancelButtonText: 'View in Table',
+                            confirmButtonColor: '#0284c7',
+                            cancelButtonColor: '#64748b'
+                        }).then(res => {
+                            if (res.isConfirmed) {
+                                sendDeliveryRequestToKot(latestOrder.id, token);
+                            } else {
+                                switchTakeawayTab('delivery-requests');
+                            }
+                        });
                     }
 
                     if ($.fn.DataTable.isDataTable('#delivery-requests-table')) {
