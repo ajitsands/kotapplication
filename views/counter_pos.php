@@ -1483,7 +1483,7 @@
 
         // Submit POS Order
         function submitPosDeliveryRequest() {
-            if (currentCart.length === 0) {
+            if (cart.length === 0) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Cart is Empty',
@@ -1493,8 +1493,8 @@
                 return;
             }
 
-            const custMobileInput = document.getElementById('pos-customer-mobile');
-            const custNameInput = document.getElementById('pos-customer-name');
+            const custMobileInput = document.getElementById('pos-cust-mobile');
+            const custNameInput = document.getElementById('pos-cust-name');
             let custMobile = custMobileInput ? custMobileInput.value.trim() : '';
             let custName = custNameInput ? custNameInput.value.trim() : '';
 
@@ -1550,7 +1550,7 @@
                         customer_name: result.value.name,
                         customer_mobile: result.value.mobile,
                         payment_type: result.value.payment_type,
-                        items: currentCart.map(i => ({
+                        items: cart.map(i => ({
                             product_id: i.id,
                             quantity: i.quantity,
                             price: i.price,
@@ -1573,8 +1573,10 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            // Open WhatsApp
-                            window.open(data.whatsapp_url, '_blank');
+                            // Try to open WhatsApp directly
+                            try {
+                                window.open(data.whatsapp_url, '_blank');
+                            } catch (e) {}
 
                             Swal.fire({
                                 icon: 'success',
@@ -1593,7 +1595,7 @@
                                     </div>
                                 `,
                                 showCancelButton: true,
-                                confirmButtonText: '📲 Re-open WhatsApp',
+                                confirmButtonText: '📲 Open WhatsApp',
                                 cancelButtonText: 'Done / Next Order',
                                 confirmButtonColor: '#25D366',
                                 cancelButtonColor: '#0284c7'
@@ -1604,8 +1606,7 @@
                             });
 
                             // Clear cart
-                            currentCart = [];
-                            renderCart();
+                            clearCart();
                             if (custMobileInput) custMobileInput.value = '';
                             if (custNameInput) custNameInput.value = '';
                         } else {

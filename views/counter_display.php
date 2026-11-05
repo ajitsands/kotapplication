@@ -3445,7 +3445,10 @@
         }
 
         function resendDeliveryWhatsApp(mobile, name, token, confirmToken, total, payType) {
-            const cleanPhone = mobile.replace(/[^0-9]/g, '');
+            let cleanPhone = (mobile || '').replace(/[^0-9]/g, '');
+            if (cleanPhone.length === 8) {
+                cleanPhone = '973' + cleanPhone;
+            }
             const protocol = window.location.protocol;
             const host = window.location.host;
             const rootPath = window.location.pathname.replace(/\/counter(\/.*)?$/, '');

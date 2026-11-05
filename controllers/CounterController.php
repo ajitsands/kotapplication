@@ -1293,6 +1293,9 @@ class CounterController extends Controller {
 
         // Format WhatsApp message
         $cleanPhone = preg_replace('/[^0-9]/', '', $customerMobile);
+        if (strlen($cleanPhone) === 8) {
+            $cleanPhone = '973' . $cleanPhone;
+        }
         $msg = "Hello " . ($customerName ?: 'Customer') . "! 👋
 ";
         $msg .= "Thank you for your order with " . ($settings['restaurant_name'] ?? 'us') . "!
