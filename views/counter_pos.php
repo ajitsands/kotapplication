@@ -1570,7 +1570,13 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     })
-                    .then(r => r.json())
+                    .then(async r => {
+                        const data = await r.json().catch(() => null);
+                        if (!r.ok || !data) {
+                            throw new Error(data && data.error ? data.error : `Request failed (HTTP ${r.status})`);
+                        }
+                        return data;
+                    })
                     .then(data => {
                         if (data.success) {
                             // Try to open WhatsApp directly
@@ -1613,7 +1619,7 @@
                             Swal.fire('Error', data.error || 'Failed to create delivery request.', 'error');
                         }
                     })
-                    .catch(() => Swal.fire('Error', 'Network request failed.', 'error'));
+                    .catch(err => Swal.fire('Error', err.message || 'Network request failed.', 'error'));
                 }
             });
         }

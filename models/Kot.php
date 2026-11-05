@@ -107,11 +107,15 @@ class Kot extends Model {
                                   JOIN orders o ON k.order_id = o.id 
                                   LEFT JOIN online_platforms p ON o.platform_id = p.id
                                   LEFT JOIN users u ON k.waiter_id = u.id 
-                                  WHERE k.status NOT IN ('dispatched', 'cancelled', 'pending_confirmation')
+                                  WHERE k.status NOT IN ('dispatched', 'cancelled')
                                   AND (
                                       (o.order_type = 'dine_in' AND o.status != 'cancelled') 
                                       OR 
-                                      (o.order_type = 'take_away' AND o.status != 'completed' AND (EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid') OR k.waiter_id IS NOT NULL OR EXISTS (SELECT 1 FROM deliveries del WHERE del.order_id = o.id AND del.status IN ('preparing_in_kitchen', 'pending_pickup'))))
+                                      (o.order_type = 'take_away' AND o.status != 'completed' AND (
+                                          EXISTS (SELECT 1 FROM bills b WHERE b.order_id = o.id AND b.status = 'paid') 
+                                          OR (k.waiter_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM deliveries del WHERE del.order_id = o.id)) 
+                                          OR EXISTS (SELECT 1 FROM deliveries del WHERE del.order_id = o.id AND del.status IN ('preparing_in_kitchen', 'pending_pickup'))
+                                      ))
                                       OR
                                       (o.order_type = 'online' AND o.status != 'cancelled')
                                   )
