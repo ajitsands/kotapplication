@@ -30,7 +30,8 @@ class DeliveryController extends Controller {
             'driver_id' => $driverId,
             'driver_name' => $_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Driver',
             'commission_enabled' => $commissionEnabled,
-            'commission_rate' => $commRate
+            'commission_rate' => $commRate,
+            'benefit_pay_qr' => !empty($settings['benefit_pay_qr']) ? '/' . ltrim($settings['benefit_pay_qr'], '/') : null
         ]);
     }
 
@@ -127,6 +128,7 @@ class DeliveryController extends Controller {
             ],
             'commission_enabled' => $commissionEnabled,
             'commission_rate' => $commRate,
+            'benefit_pay_qr' => !empty($settings['benefit_pay_qr']) ? '/' . ltrim($settings['benefit_pay_qr'], '/') : null,
             'stats' => $stats,
             'active_delivery' => $activeDelivery,
             'available_deliveries' => $availableDeliveries
@@ -160,6 +162,12 @@ class DeliveryController extends Controller {
 
         $deliveryId = (int)($params['id'] ?? $_POST['delivery_id'] ?? 0);
         $notes = trim($_POST['notes'] ?? '');
+        $paymentData = [
+            'collection_method' => $_POST['collection_method'] ?? 'cash',
+            'cash_amount' => (float)($_POST['cash_amount'] ?? 0),
+            'qr_amount' => (float)($_POST['qr_amount'] ?? 0),
+            'card_amount' => (float)($_POST['card_amount'] ?? 0),
+        ];
 
         if ($deliveryId <= 0) {
             $this->json(['success' => false, 'error' => 'Invalid delivery ID.']);
@@ -167,7 +175,7 @@ class DeliveryController extends Controller {
         }
 
         $deliveryModel = new Delivery();
-        $res = $deliveryModel->markDelivered($deliveryId, $driverId, $notes);
+        $res = $deliveryModel->markDelivered($deliveryId, $driverId, $notes, $paymentData);
         $this->json($res);
     }
 

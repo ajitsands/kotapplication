@@ -1473,7 +1473,31 @@
                         <div class="form-group" style="max-width: 50%;">
                             <label class="form-label">Driver Commission Rate (%)</label>
                             <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_commission_percent" value="<?= htmlspecialchars($settings['delivery_commission_percent'] ?? '5.00') ?>" required>
-                            <small style="color: var(--text-muted); font-size: 11px;">Automatic commission credited to driver's wallet upon each completed delivery (e.g. 5%).</small>
+                            <small style="color: var(--text-muted); font-size: 11px;">Automatic commission credited to driver's wallet upon each completed delivery (e.g. 5%). Set to 0 to disable driver commissions and hide wallet.</small>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--card-border); margin-top: 25px; padding-top: 20px;">
+                        <h4 style="margin: 0 0 12px 0; color: #10b981; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">📱 BenefitPay QR Code</h4>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 15px 0;">
+                            Upload your restaurant's BenefitPay QR code. When delivery drivers deliver an order, this QR code will be displayed on their screen so customers can scan and pay directly via BenefitPay.
+                        </p>
+                        
+                        <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+                            <?php if (!empty($settings['benefit_pay_qr'])): ?>
+                                <div style="text-align: center; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px;">
+                                    <img src="/<?= ltrim($settings['benefit_pay_qr'], '/') ?>" alt="BenefitPay QR" style="max-width: 140px; max-height: 140px; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto 8px auto;">
+                                    <label style="font-size: 11.5px; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                        <input type="checkbox" name="remove_benefit_qr" value="1"> Remove QR Code
+                                    </label>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="form-group" style="flex: 1; min-width: 250px;">
+                                <label class="form-label"><?= !empty($settings['benefit_pay_qr']) ? 'Change BenefitPay QR Image' : 'Upload BenefitPay QR Image' ?></label>
+                                <input class="form-input" type="file" name="benefit_pay_qr" accept="image/*" style="padding: 8px;">
+                                <small style="color: var(--text-muted); font-size: 11px;">Supported formats: PNG, JPG, JPEG, WebP. Recommended: Square high-resolution image.</small>
+                            </div>
                         </div>
                     </div>
 

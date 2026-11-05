@@ -103,12 +103,15 @@ class Setting extends Model {
             if (!in_array('delivery_commission_type', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN delivery_commission_type ENUM('percent', 'fixed') NOT NULL DEFAULT 'percent'");
             }
+            if (!in_array('benefit_pay_qr', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN benefit_pay_qr VARCHAR(255) NULL AFTER logo_path");
+            }
         } catch (Exception $e) {
             // ignore if already present
         }
     }
 
-    public function updateSettings($data, $logoPath = null) {
+    public function updateSettings($data, $logoPath = null, $benefitPayQrPath = null) {
         $kotIp = trim($data['kot_printer_ip'] ?? '192.168.8.102');
         $kotPort = (int)($data['kot_printer_port'] ?? 9100);
         $billingIp = trim($data['billing_printer_ip'] ?? $data['printer_ip'] ?? '192.168.8.101');
@@ -166,6 +169,11 @@ class Setting extends Model {
         if ($logoPath !== null) {
             $sql .= ", logo_path = ?";
             $params[] = $logoPath;
+        }
+
+        if ($benefitPayQrPath !== null) {
+            $sql .= ", benefit_pay_qr = ?";
+            $params[] = ($benefitPayQrPath === '') ? null : $benefitPayQrPath;
         }
 
         // Only allow superadmin to update the software expiry date

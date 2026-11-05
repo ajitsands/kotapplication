@@ -59,7 +59,20 @@ class AdminController extends Controller {
             }
         }
 
-        $settingsModel->updateSettings($_POST, $logoPath);
+        $benefitPayQrPath = $currentSettings['benefit_pay_qr'] ?? null;
+        if (!empty($_POST['remove_benefit_qr'])) {
+            $benefitPayQrPath = '';
+        } elseif (isset($_FILES['benefit_pay_qr']) && $_FILES['benefit_pay_qr']['error'] === UPLOAD_ERR_OK) {
+            $ext = pathinfo($_FILES['benefit_pay_qr']['name'], PATHINFO_EXTENSION);
+            $fileName = 'benefit_qr_' . time() . '.' . $ext;
+            $uploadFile = 'uploads/' . $fileName;
+
+            if (move_uploaded_file($_FILES['benefit_pay_qr']['tmp_name'], $uploadFile)) {
+                $benefitPayQrPath = 'uploads/' . $fileName;
+            }
+        }
+
+        $settingsModel->updateSettings($_POST, $logoPath, $benefitPayQrPath);
         $this->redirect('/admin');
     }
 

@@ -63,6 +63,20 @@ class Delivery extends Model {
             try {
                 $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `confirmed_at` DATETIME NULL AFTER `confirm_token`");
             } catch (Exception $e) {}
+
+            // Migration: Add payment collection breakdown columns
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `collection_method` VARCHAR(30) NULL DEFAULT 'cash' AFTER `payment_type`");
+            } catch (Exception $e) {}
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `cash_collected_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `collection_method`");
+            } catch (Exception $e) {}
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `qr_collected_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `cash_collected_amount`");
+            } catch (Exception $e) {}
+            try {
+                $this->db->exec("ALTER TABLE `deliveries` ADD COLUMN `card_collected_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `qr_collected_amount`");
+            } catch (Exception $e) {}
         } catch (Exception $e) {
             error_log("Delivery ensureSchema error: " . $e->getMessage());
         }
@@ -199,7 +213,7 @@ class Delivery extends Model {
         }
     }
 
-    public function markDelivered($deliveryId, $driverId, $notes = '') {
+    public function markDelivered($deliveryId, $driverId, $notes = '', $paymentData = []) {
         $sql = "SELECT d.*, 
                        COALESCE(b.grand_total, d.cod_amount, 0) as order_total 
                 FROM deliveries d
@@ -222,6 +236,35 @@ class Delivery extends Model {
         $isCod = ($d['payment_type'] === 'cod');
         $codAmount = (float)$d['cod_amount'];
 
+        $method = $paymentData['collection_method'] ?? 'cash';
+        $cashCollected = 0.0;
+        $qrCollected = 0.0;
+        $cardCollected = 0.0;
+        $codHandedOver = 0;
+
+        if ($isCod) {
+            if ($method === 'qr_pay') {
+                $qrCollected = $codAmount;
+                $codHandedOver = 1; // Direct digital payment, driver owes no cash
+            } elseif ($method === 'card') {
+                $cardCollected = $codAmount;
+                $codHandedOver = 1; // Direct card payment, driver owes no cash
+            } elseif ($method === 'split') {
+                $cashCollected = max(0, (float)($paymentData['cash_amount'] ?? 0));
+                $qrCollected = max(0, (float)($paymentData['qr_amount'] ?? 0));
+                $cardCollected = max(0, (float)($paymentData['card_amount'] ?? 0));
+                if ($cashCollected <= 0) {
+                    $codHandedOver = 1;
+                }
+            } else {
+                $method = 'cash';
+                $cashCollected = $codAmount;
+            }
+        } else {
+            // Already prepaid
+            $codHandedOver = 1;
+        }
+
         $this->db->beginTransaction();
         try {
             // Update delivery record
@@ -229,11 +272,21 @@ class Delivery extends Model {
                                           SET status = 'delivered', 
                                               delivered_at = NOW(),
                                               cod_collected = ?,
+                                              cod_handed_over = ?,
+                                              collection_method = ?,
+                                              cash_collected_amount = ?,
+                                              qr_collected_amount = ?,
+                                              card_collected_amount = ?,
                                               commission_amount = ?,
                                               delivery_notes = CASE WHEN ? != '' THEN CONCAT(IFNULL(delivery_notes, ''), ' | Note: ', ?) ELSE delivery_notes END
                                           WHERE id = ?");
             $stmtUp->execute([
                 $isCod ? 1 : 0,
+                $codHandedOver,
+                $method,
+                $cashCollected,
+                $qrCollected,
+                $cardCollected,
                 $commissionAmount,
                 trim($notes),
                 trim($notes),
@@ -241,15 +294,16 @@ class Delivery extends Model {
             ]);
 
             // Ledger 1: COD Cash Collected (Debit to driver's cash-in-hand liability)
-            if ($isCod && $codAmount > 0) {
+            // Only the cash collected portion affects driver's wallet!
+            if ($isCod && $cashCollected > 0) {
                 $stmtLedgerCod = $this->db->prepare("INSERT INTO driver_wallet_ledger 
                                                      (driver_id, entry_type, amount, delivery_id, notes) 
                                                      VALUES (?, 'cod_collected', ?, ?, ?)");
                 $stmtLedgerCod->execute([
                     (int)$driverId,
-                    $codAmount,
+                    $cashCollected,
                     (int)$deliveryId,
-                    "COD cash collected for Token #{$d['order_id']}"
+                    "COD cash collected for Token #{$d['order_id']} (" . ucfirst($method) . ")"
                 ]);
             }
 
@@ -266,12 +320,33 @@ class Delivery extends Model {
                 ]);
             }
 
+            // Update bill if exists
+            if (!empty($d['bill_id']) && $isCod) {
+                if ($method === 'qr_pay') {
+                    $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = 'qr_pay', qr_amount = ?, cash_amount = 0, card_amount = 0, created_at = NOW() WHERE id = ?");
+                    $stmtBill->execute([$qrCollected, (int)$d['bill_id']]);
+                } elseif ($method === 'card') {
+                    $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = 'card', card_amount = ?, cash_amount = 0, qr_amount = 0, created_at = NOW() WHERE id = ?");
+                    $stmtBill->execute([$cardCollected, (int)$d['bill_id']]);
+                } elseif ($method === 'split') {
+                    $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = 'split', cash_amount = ?, qr_amount = ?, card_amount = ?, created_at = NOW() WHERE id = ?");
+                    $stmtBill->execute([$cashCollected, $qrCollected, $cardCollected, (int)$d['bill_id']]);
+                }
+            }
+
             // Also mark the order status as completed/delivered
             $stmtOrder = $this->db->prepare("UPDATE orders SET status = 'completed' WHERE id = ?");
             $stmtOrder->execute([(int)$d['order_id']]);
 
             $this->db->commit();
-            return ['success' => true, 'commission_earned' => $commissionAmount];
+            return [
+                'success' => true,
+                'commission_earned' => $commissionAmount,
+                'collection_method' => $method,
+                'cash_collected' => $cashCollected,
+                'qr_collected' => $qrCollected,
+                'card_collected' => $cardCollected
+            ];
         } catch (Exception $e) {
             $this->db->rollBack();
             return ['success' => false, 'error' => $e->getMessage()];
@@ -339,7 +414,7 @@ class Delivery extends Model {
     public function getCodPendingHandoverSummary() {
         $sql = "SELECT d.driver_id, u.name as driver_name, u.username as driver_username,
                        COUNT(d.id) as orders_count,
-                       SUM(d.cod_amount) as total_cash
+                       SUM(CASE WHEN d.collection_method = 'split' THEN d.cash_collected_amount WHEN d.collection_method IN ('qr_pay', 'card') THEN 0 ELSE d.cod_amount END) as total_cash
                 FROM deliveries d
                 JOIN users u ON d.driver_id = u.id
                 WHERE d.payment_type = 'cod' AND d.cod_collected = 1 AND d.cod_handed_over = 0
@@ -370,7 +445,8 @@ class Delivery extends Model {
         $totalCash = 0;
         $deliveryIds = [];
         foreach ($pending as $p) {
-            $totalCash += (float)$p['cod_amount'];
+            $cashAmt = ($p['collection_method'] === 'split') ? (float)$p['cash_collected_amount'] : ((!in_array($p['collection_method'], ['qr_pay', 'card'])) ? (float)$p['cod_amount'] : 0);
+            $totalCash += $cashAmt;
             $deliveryIds[] = (int)$p['id'];
         }
 
@@ -394,16 +470,18 @@ class Delivery extends Model {
                                AND status != 'paid'");
 
             // Record in ledger
-            $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
-                                              (driver_id, entry_type, amount, session_id, notes, created_by) 
-                                              VALUES (?, 'cod_handover', ?, ?, ?, ?)");
-            $stmtLedger->execute([
-                (int)$driverId,
-                $totalCash,
-                $sessionId ? (int)$sessionId : null,
-                "Handover of $totalCash to Counter (Session #$sessionId)",
-                $adminUserId ? (int)$adminUserId : null
-            ]);
+            if ($totalCash > 0) {
+                $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
+                                                  (driver_id, entry_type, amount, session_id, notes, created_by) 
+                                                  VALUES (?, 'cod_handover', ?, ?, ?, ?)");
+                $stmtLedger->execute([
+                    (int)$driverId,
+                    $totalCash,
+                    $sessionId ? (int)$sessionId : null,
+                    "Handover of $totalCash to Counter (Session #$sessionId)",
+                    $adminUserId ? (int)$adminUserId : null
+                ]);
+            }
 
             $this->db->commit();
             return ['success' => true, 'total_cash' => $totalCash, 'orders_count' => count($deliveryIds)];
@@ -436,7 +514,7 @@ class Delivery extends Model {
             return ['success' => false, 'error' => 'COD cash for this delivery has already been handed over.'];
         }
 
-        $codAmount = (float)$d['cod_amount'];
+        $cashAmount = ($d['collection_method'] === 'split') ? (float)$d['cash_collected_amount'] : ((!in_array($d['collection_method'], ['qr_pay', 'card'])) ? (float)$d['cod_amount'] : 0);
         $driverId = (int)$d['driver_id'];
 
         $this->db->beginTransaction();
@@ -453,13 +531,13 @@ class Delivery extends Model {
             ]);
 
             // 2. Log in driver wallet ledger (entry_type = 'cod_handover' -> reduces driver liability)
-            if ($driverId > 0 && $codAmount > 0) {
+            if ($driverId > 0 && $cashAmount > 0) {
                 $stmtLedger = $this->db->prepare("INSERT INTO driver_wallet_ledger 
                                                   (driver_id, entry_type, amount, delivery_id, session_id, notes, created_by) 
                                                   VALUES (?, 'cod_handover', ?, ?, ?, ?, ?)");
                 $stmtLedger->execute([
                     $driverId,
-                    $codAmount,
+                    $cashAmount,
                     (int)$deliveryId,
                     $sessionId ? (int)$sessionId : null,
                     "COD cash handover for Order #" . ($d['token_number'] ?: $d['order_id']) . " confirmed by Counter",
@@ -475,9 +553,9 @@ class Delivery extends Model {
                                                     cash_amount = ?, 
                                                     cashier_id = COALESCE(?, cashier_id), 
                                                     created_at = NOW() 
-                                                WHERE id = ?");
+                                                WHERE id = ? AND status != 'paid'");
                 $stmtBill->execute([
-                    $codAmount,
+                    $cashAmount,
                     $adminUserId ? (int)$adminUserId : null,
                     (int)$d['bill_id']
                 ]);

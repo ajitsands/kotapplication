@@ -698,6 +698,7 @@
         const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const commissionEnabled = <?= !empty($commission_enabled) ? 'true' : 'false' ?>;
+        let benefitPayQr = <?= json_encode(!empty($benefit_pay_qr) ? $benefit_pay_qr : null) ?>;
         let currentTab = 'deliveries';
         let pollTimer = null;
         let lastAvailableCount = 0;
@@ -757,6 +758,9 @@
                     if (document.getElementById('wallet-commission-total')) {
                         document.getElementById('wallet-commission-total').innerText = parseFloat(data.stats.commission_balance || 0).toFixed(3) + ' ' + currencyCode;
                     }
+                    if (data.benefit_pay_qr !== undefined) {
+                        benefitPayQr = data.benefit_pay_qr;
+                    }
 
                     // Active Delivery Section
                     renderActiveDelivery(data.active_delivery);
@@ -807,6 +811,26 @@
                 `;
             }
 
+            let qrBoxHtml = '';
+            if (isCod && benefitPayQr) {
+                qrBoxHtml = `
+                    <div style="margin: 15px 0 10px 0; background: rgba(16, 185, 129, 0.08); border: 1.5px dashed rgba(16, 185, 129, 0.45); border-radius: 14px; padding: 14px; text-align: center;">
+                        <div style="font-weight: 800; color: #10b981; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>📱</span> Pay via BenefitPay QR
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 10px 0;">
+                            Show this QR to the customer to scan with BenefitPay App
+                        </div>
+                        <div style="background: #ffffff; padding: 8px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                            <img src="${benefitPayQr}" alt="BenefitPay QR" style="width: 170px; height: 170px; object-fit: contain; display: block; border-radius: 6px;" onclick="window.open('${benefitPayQr}', '_blank')">
+                        </div>
+                        <div style="margin-top: 8px; font-weight: 800; color: #10b981; font-size: 15px;">
+                            Amount to Pay: ${codAmt} ${currencyCode}
+                        </div>
+                    </div>
+                `;
+            }
+
             container.innerHTML = `
                 <div class="active-card">
                     <div class="active-header">
@@ -831,6 +855,8 @@
                     </div>
 
                     ${itemsHtml}
+
+                    ${qrBoxHtml}
 
                     <button class="btn-deliver" onclick="confirmMarkDelivered(${active.id}, ${isCod}, '${codAmt}')">
                         <span>✅</span> Mark as Delivered
@@ -931,53 +957,223 @@
             });
         }
 
+        function toggleDeliveryPayMode(mode, total) {
+            const splitBox = document.getElementById('swal_split_container');
+            if (splitBox) {
+                splitBox.style.display = (mode === 'split') ? 'block' : 'none';
+            }
+        }
+
+        function recalcDeliverySplit(total) {
+            const cash = parseFloat(document.getElementById('swal_split_cash').value) || 0;
+            const qr = parseFloat(document.getElementById('swal_split_qr').value) || 0;
+            const card = parseFloat(document.getElementById('swal_split_card').value) || 0;
+            const sum = Math.round((cash + qr + card) * 1000) / 1000;
+
+            const totalValEl = document.getElementById('swal_split_total_val');
+            const statusEl = document.getElementById('swal_split_status');
+
+            if (totalValEl) totalValEl.innerText = sum.toFixed(3);
+            if (statusEl) {
+                if (Math.abs(sum - total) <= 0.005) {
+                    statusEl.style.color = '#10b981';
+                    statusEl.innerText = '✅ Match';
+                } else {
+                    const diff = Math.round((total - sum) * 1000) / 1000;
+                    statusEl.style.color = '#ef4444';
+                    statusEl.innerText = diff > 0 ? `⚠️ Need +${diff.toFixed(3)}` : `⚠️ Excess +${(-diff).toFixed(3)}`;
+                }
+            }
+        }
+
         function confirmMarkDelivered(deliveryId, isCod, codAmt) {
-            let confirmMsg = 'Confirm that customer received the order?';
-            if (isCod) {
-                confirmMsg = `Ensure you collected cash of ${codAmt} ${currencyCode} from customer!`;
+            if (!isCod) {
+                Swal.fire({
+                    title: 'Mark as Delivered?',
+                    text: 'Confirm that the customer received their order?',
+                    icon: 'question',
+                    input: 'text',
+                    inputPlaceholder: 'Optional delivery note (e.g. handed to security)...',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Yes, Order Delivered'
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        submitDeliveryComplete(deliveryId, {
+                            collection_method: 'cash',
+                            cash_amount: 0,
+                            qr_amount: 0,
+                            card_amount: 0,
+                            notes: result.value || ''
+                        });
+                    }
+                });
+                return;
             }
 
+            const totalNum = parseFloat(codAmt);
+            const totalStr = totalNum.toFixed(window.PRICE_DECIMALS || 3);
+
             Swal.fire({
-                title: 'Mark as Delivered?',
-                text: confirmMsg,
-                icon: isCod ? 'warning' : 'question',
-                input: 'text',
-                inputPlaceholder: 'Optional delivery note (e.g. handed to security)...',
+                title: '💵 Payment Collection',
+                html: `
+                    <div style="text-align:left; font-size:13px;">
+                        <div style="text-align:center; margin-bottom:14px; padding:10px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:10px;">
+                            <div style="font-size:12px; color:var(--text-muted);">Total Order Amount</div>
+                            <div style="font-size:22px; font-weight:800; color:#f59e0b;">${totalStr} ${currencyCode}</div>
+                        </div>
+
+                        <label style="font-weight:700; display:block; margin-bottom:8px;">How did the customer pay?</label>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+                            <label style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; cursor:pointer;">
+                                <input type="radio" name="swal_pay_method" value="cash" checked onchange="toggleDeliveryPayMode('cash', ${totalNum})">
+                                <div>
+                                    <div style="font-weight:700;">💵 Full Cash (${totalStr} ${currencyCode})</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">Collected in hand. Added to your wallet to hand over to counter.</div>
+                                </div>
+                            </label>
+
+                            <label style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; cursor:pointer;">
+                                <input type="radio" name="swal_pay_method" value="qr_pay" onchange="toggleDeliveryPayMode('qr_pay', ${totalNum})">
+                                <div>
+                                    <div style="font-weight:700; color:#10b981;">📱 Paid via BenefitPay QR (${totalStr} ${currencyCode})</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">Direct to restaurant account. <strong style="color:#10b981;">NOT added to your wallet!</strong></div>
+                                </div>
+                            </label>
+
+                            <label style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border); border-radius:8px; cursor:pointer;">
+                                <input type="radio" name="swal_pay_method" value="card" onchange="toggleDeliveryPayMode('card', ${totalNum})">
+                                <div>
+                                    <div style="font-weight:700;">💳 Card / POS Machine (${totalStr} ${currencyCode})</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">Direct card collection. NOT added to your wallet.</div>
+                                </div>
+                            </label>
+
+                            <label style="display:flex; align-items:center; gap:8px; padding:10px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:8px; cursor:pointer;">
+                                <input type="radio" name="swal_pay_method" value="split" onchange="toggleDeliveryPayMode('split', ${totalNum})">
+                                <div>
+                                    <div style="font-weight:700; color:#818cf8;">⚖️ Split Payment (Cash + Benefit/Card)</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">Customer paid part in Cash and part digitally.</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Split inputs container -->
+                        <div id="swal_split_container" style="display:none; background:rgba(0,0,0,0.15); padding:12px; border-radius:10px; margin-bottom:14px; border:1px solid var(--card-border);">
+                            <div style="font-weight:700; font-size:12px; margin-bottom:8px; color:#818cf8;">Specify Split Breakdown:</div>
+                            
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11.5px; font-weight:700; display:block; margin-bottom:3px;">💵 Cash Portion (Debited to your wallet)</label>
+                                <input type="number" step="0.001" min="0" max="${totalNum}" id="swal_split_cash" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box; height:38px; font-size:14px;" value="0.000" oninput="recalcDeliverySplit(${totalNum})">
+                            </div>
+
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11.5px; font-weight:700; display:block; margin-bottom:3px; color:#10b981;">📱 BenefitPay QR Portion (Direct to Counter)</label>
+                                <input type="number" step="0.001" min="0" max="${totalNum}" id="swal_split_qr" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box; height:38px; font-size:14px;" value="${totalStr}" oninput="recalcDeliverySplit(${totalNum})">
+                            </div>
+
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11.5px; font-weight:700; display:block; margin-bottom:3px;">💳 Card Portion (Optional)</label>
+                                <input type="number" step="0.001" min="0" max="${totalNum}" id="swal_split_card" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box; height:38px; font-size:14px;" value="0.000" oninput="recalcDeliverySplit(${totalNum})">
+                            </div>
+
+                            <div id="swal_split_summary" style="font-size:12px; font-weight:700; margin-top:8px; padding-top:6px; border-top:1px dashed var(--card-border); display:flex; justify-content:space-between;">
+                                <span>Split Total: <span id="swal_split_total_val">${totalStr}</span> / ${totalStr}</span>
+                                <span id="swal_split_status" style="color:#10b981;">✅ Match</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-weight:700; display:block; margin-bottom:4px; font-size:12px;">Delivery Notes (Optional)</label>
+                            <input type="text" id="swal_deliv_note" class="swal2-input" style="width:100%; margin:0; box-sizing:border-box; height:38px; font-size:13px;" placeholder="e.g. Handed to security, left at door...">
+                        </div>
+                    </div>
+                `,
                 showCancelButton: true,
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: isCod ? `Yes, Cash Collected & Delivered` : 'Yes, Order Delivered'
-            }).then(result => {
-                if (result.isConfirmed) {
-                    const notes = result.value || '';
-                    const formData = new FormData();
-                    formData.append('notes', notes);
+                confirmButtonText: 'Confirm & Complete Delivery',
+                preConfirm: () => {
+                    const method = document.querySelector('input[name="swal_pay_method"]:checked').value;
+                    const notes = document.getElementById('swal_deliv_note').value.trim();
+                    let cash = 0, qr = 0, card = 0;
 
-                    fetch(basePath + '/api/deliver/' + deliveryId, {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            const earned = parseFloat(data.commission_earned || 0);
-                            const successMsg = (commissionEnabled && earned > 0)
-                                ? `Commission earned: <strong>${earned.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong><br>Added to your wallet.`
-                                : `Order delivered and completed successfully! 👍`;
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Delivered Successfully! 🎉',
-                                html: successMsg,
-                                confirmButtonColor: '#10b981'
-                            });
-                            fetchDashboardData();
-                        } else {
-                            Swal.fire('Error', data.error || 'Failed to mark delivered.', 'error');
+                    if (method === 'cash') {
+                        cash = totalNum;
+                    } else if (method === 'qr_pay') {
+                        qr = totalNum;
+                    } else if (method === 'card') {
+                        card = totalNum;
+                    } else if (method === 'split') {
+                        cash = parseFloat(document.getElementById('swal_split_cash').value) || 0;
+                        qr = parseFloat(document.getElementById('swal_split_qr').value) || 0;
+                        card = parseFloat(document.getElementById('swal_split_card').value) || 0;
+                        const sum = Math.round((cash + qr + card) * 1000) / 1000;
+                        if (Math.abs(sum - totalNum) > 0.005) {
+                            Swal.showValidationMessage(`Split sum (${sum.toFixed(3)}) does not equal total (${totalStr})!`);
+                            return false;
                         }
-                    })
-                    .catch(() => Swal.fire('Error', 'Network error. Try again.', 'error'));
+                    }
+
+                    return {
+                        collection_method: method,
+                        cash_amount: cash,
+                        qr_amount: qr,
+                        card_amount: card,
+                        notes: notes
+                    };
+                }
+            }).then(result => {
+                if (result.isConfirmed && result.value) {
+                    submitDeliveryComplete(deliveryId, result.value);
                 }
             });
+        }
+
+        function submitDeliveryComplete(deliveryId, payload) {
+            const formData = new FormData();
+            formData.append('notes', payload.notes || '');
+            formData.append('collection_method', payload.collection_method || 'cash');
+            formData.append('cash_amount', payload.cash_amount || 0);
+            formData.append('qr_amount', payload.qr_amount || 0);
+            formData.append('card_amount', payload.card_amount || 0);
+
+            fetch(basePath + '/api/deliver/' + deliveryId, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const earned = parseFloat(data.commission_earned || 0);
+                    let infoMsg = '';
+                    if (payload.collection_method === 'qr_pay') {
+                        infoMsg = `<div style="font-size:12.5px; color:#10b981; margin-top:6px;">📱 Paid via BenefitPay QR (${parseFloat(data.qr_collected || 0).toFixed(3)} ${currencyCode})<br>Directly credited to Restaurant Counter!</div>`;
+                    } else if (payload.collection_method === 'split') {
+                        infoMsg = `<div style="font-size:12.5px; color:#818cf8; margin-top:6px;">⚖️ Split: Cash ${parseFloat(data.cash_collected || 0).toFixed(3)} + Digital ${parseFloat((data.qr_collected || 0) + (data.card_collected || 0)).toFixed(3)} ${currencyCode}<br>Only cash (${parseFloat(data.cash_collected || 0).toFixed(3)}) added to your wallet.</div>`;
+                    } else if (payload.collection_method === 'card') {
+                        infoMsg = `<div style="font-size:12.5px; color:#38bdf8; margin-top:6px;">💳 Paid by Card (${parseFloat(data.card_collected || 0).toFixed(3)} ${currencyCode})<br>No cash liability for driver.</div>`;
+                    } else if (parseFloat(data.cash_collected || 0) > 0) {
+                        infoMsg = `<div style="font-size:12.5px; color:#f59e0b; margin-top:6px;">💵 Cash Collected: ${parseFloat(data.cash_collected || 0).toFixed(3)} ${currencyCode}<br>Please hand over to the counter upon return.</div>`;
+                    }
+
+                    const commMsg = (commissionEnabled && earned > 0)
+                        ? `<div style="margin-top:6px;">Commission earned: <strong>${earned.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</strong><br>Added to your earning wallet.</div>`
+                        : '';
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Delivered Successfully! 🎉',
+                        html: `<div>${infoMsg}${commMsg}</div>`,
+                        confirmButtonColor: '#10b981'
+                    });
+                    fetchDashboardData();
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to mark delivered.', 'error');
+                }
+            })
+            .catch(() => Swal.fire('Error', 'Network error. Try again.', 'error'));
         }
 
         function getTodayDateString() {
@@ -1037,6 +1233,21 @@
                     let html = '';
                     data.deliveries.forEach(d => {
                         const deliveredDate = d.delivered_at ? new Date(d.delivered_at.replace(' ', 'T')).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'short', day:'numeric'}) : '-';
+                        let methodBadge = '';
+                        if (d.payment_type === 'cod') {
+                            if (d.collection_method === 'qr_pay') {
+                                methodBadge = `<span class="ledger-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">📱 BenefitPay QR: ${parseFloat(d.qr_collected_amount || d.cod_amount).toFixed(3)}</span>`;
+                            } else if (d.collection_method === 'split') {
+                                methodBadge = `<span class="ledger-badge" style="background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.3);">⚖️ Split: ${parseFloat(d.cash_collected_amount).toFixed(3)} Cash + ${parseFloat(d.qr_collected_amount).toFixed(3)} QR</span>`;
+                            } else if (d.collection_method === 'card') {
+                                methodBadge = `<span class="ledger-badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3);">💳 Card: ${parseFloat(d.card_collected_amount || d.cod_amount).toFixed(3)}</span>`;
+                            } else {
+                                methodBadge = `<span class="ledger-badge ledger-cod">💵 COD Cash: ${parseFloat(d.cod_amount).toFixed(3)}</span>`;
+                            }
+                        } else {
+                            methodBadge = `<span class="ledger-badge ledger-credit">✅ PREPAID</span>`;
+                        }
+
                         html += `
                             <div class="history-card">
                                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
@@ -1045,7 +1256,7 @@
                                 </div>
                                 <div style="font-size:13px; color:var(--text-color); margin-bottom:4px;">👤 ${escapeHtml(d.customer_name || 'Guest')} (${escapeHtml(d.customer_mobile)})</div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:8px;">
-                                    <span class="ledger-badge ${d.payment_type === 'cod' ? 'ledger-cod' : 'ledger-credit'}">${d.payment_type === 'cod' ? 'COD: ' + parseFloat(d.cod_amount).toFixed(3) : 'PAID'}</span>
+                                    ${methodBadge}
                                     ${commissionEnabled ? `<span style="font-weight:700; color:var(--accent-green);">+${parseFloat(d.commission_amount).toFixed(3)} ${currencyCode} Comm.</span>` : ''}
                                 </div>
                             </div>
