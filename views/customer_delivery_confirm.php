@@ -257,9 +257,13 @@
                 <div class="card-title">🛒 Order Summary</div>
                 <?php if (!empty($delivery['items'])): ?>
                     <?php foreach ($delivery['items'] as $it): ?>
+                        <?php 
+                            $unitPrice = (float)($it['price'] ?? $it['unit_price'] ?? 0);
+                            $qty = (int)($it['quantity'] ?? 1);
+                        ?>
                         <div class="item-row">
-                            <span><?= (int)$it['quantity'] ?>x <?= htmlspecialchars($it['product_name']) ?></span>
-                            <span style="font-weight:600;"><?= number_format((float)$it['price'] * (int)$it['quantity'], 3) ?> <?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                            <span><?= $qty ?>x <?= htmlspecialchars($it['product_name'] ?? 'Item') ?></span>
+                            <span style="font-weight:600;"><?= number_format($unitPrice * $qty, 3) ?> <?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>

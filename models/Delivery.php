@@ -608,7 +608,9 @@ class Delivery extends Model {
     }
 
     private function getOrderItems($orderId) {
-        $sql = "SELECT ki.quantity, ki.status, p.name as product_name, p.price as unit_price
+        $sql = "SELECT ki.quantity, ki.status, p.name as product_name,
+                       COALESCE(ki.price, p.price, 0) as price,
+                       COALESCE(ki.price, p.price, 0) as unit_price
                 FROM kot_items ki
                 JOIN products p ON ki.product_id = p.id
                 JOIN kots k ON ki.kot_id = k.id
