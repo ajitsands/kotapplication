@@ -183,7 +183,7 @@ class CounterController extends Controller {
 
         foreach ($items as &$item) {
             if (!isset($item['price']) || $item['price'] === null) {
-                $prod = $productModel->getProductById($item['product_id']);
+                $prod = $productModel->getById($item['product_id']);
                 $basePrice = (float)($prod['price'] ?? 0.0);
                 $item['price'] = ($markupPercent > 0) ? round($basePrice * (1 + $markupPercent / 100), 3) : $basePrice;
             } else {
@@ -1223,7 +1223,7 @@ class CounterController extends Controller {
             $itemsList = [];
 
             foreach ($items as &$item) {
-                $prod = $productModel->getProductById($item['product_id']);
+                $prod = $productModel->getById($item['product_id']);
                 $price = (float)($item['price'] ?? $prod['price'] ?? 0.0);
                 $qty = (int)($item['quantity'] ?? 1);
                 $item['price'] = $price;
@@ -1311,7 +1311,7 @@ class CounterController extends Controller {
                 'whatsapp_url' => $waUrl,
                 'message_text' => $msg
             ]);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

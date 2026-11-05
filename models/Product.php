@@ -99,6 +99,10 @@ class Product extends Model {
         return $stmt->fetch();
     }
 
+    public function getProductById($id) {
+        return $this->getById($id);
+    }
+
     public function save($data) {
         if (!empty($data['id'])) {
             // Update
