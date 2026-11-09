@@ -350,12 +350,9 @@ class CounterController extends Controller {
             $disc = (float)$ord['discount_amount'];
             $delFee = (float)$ord['delivery_fee'];
             $servFee = (float)$ord['service_fee'];
-            $taxable = max(0.0, $foodSub - $disc);
-            $tax = $taxable * 0.10;
-            $gross = (float)$ord['bill_grand_total'] > 0 ? (float)$ord['bill_grand_total'] : max(0.0, $taxable + $tax + $delFee);
-            $net = max(0.0, $gross - $servFee);
+            $gross = (float)$ord['bill_grand_total'] > 0 ? (float)$ord['bill_grand_total'] : max(0.0, ($foodSub - $disc) + $servFee + $delFee);
             $ord['gross_total'] = $gross;
-            $ord['net_total'] = $net;
+            $ord['net_total'] = $gross;
         }
         unset($ord);
 

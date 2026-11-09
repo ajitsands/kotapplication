@@ -1131,6 +1131,14 @@
                     <span>Subtotal:</span>
                     <span id="pos-subtotal">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
+                <div class="total-row" id="pos-row-service-fee" style="display: none; color: #a855f7;">
+                    <span>Service Fee:</span>
+                    <span id="pos-service-fee-amount">+0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
+                <div class="total-row" id="pos-row-delivery-fee" style="display: none; color: #38bdf8;">
+                    <span>Delivery Fee:</span>
+                    <span id="pos-delivery-fee-amount">+0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
                 <div class="total-row" id="pos-row-discount" style="display: none; color: #ef4444;">
                     <span>Discount:</span>
                     <span id="pos-discount-amount">-0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
@@ -1139,21 +1147,9 @@
                     <span id="pos-tax-label"><?= ($settings['tax_type'] ?? 'VAT') === 'GST' ? 'GST' : 'VAT (' . (float)($settings['vat_percent'] ?? 10) . '%)' ?>:</span>
                     <span id="pos-tax-amount" style="color: var(--accent-orange);">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
-                <div class="total-row" id="pos-row-delivery-fee" style="display: none; color: #38bdf8;">
-                    <span>Delivery Fee:</span>
-                    <span id="pos-delivery-fee-amount">+0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
-                </div>
                 <div class="total-row grand">
                     <span>Total Amount:</span>
                     <span id="pos-grand-total" style="color: var(--accent-green);">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
-                </div>
-                <div class="total-row" id="pos-row-service-fee" style="display: none; font-size: 11.5px; color: #f43f5e; border-top: 1px dashed var(--card-border); padding-top: 4px; margin-top: 4px;">
-                    <span>Service Fee (Deduction):</span>
-                    <span id="pos-service-fee-amount">-0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
-                </div>
-                <div class="total-row" id="pos-row-net-payout" style="display: none; font-size: 13px; font-weight: 700; color: #818cf8;">
-                    <span>Net Restaurant Payout:</span>
-                    <span id="pos-net-payout-amount">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
 
                 <button type="button" class="btn-checkout-kot" onclick="submitPosOrder(false)">
@@ -1605,19 +1601,56 @@
                 onlineDiscount = parseFloat(document.getElementById('pos-online-discount')?.value || 0) || 0;
             }
 
-            const taxableSubtotal = Math.max(0, subtotal - onlineDiscount);
-
-            // Calculate taxes
             let taxAmount = 0;
-            if (taxType === 'VAT') {
-                taxAmount = taxableSubtotal * (vatPercent / 100.0);
+            let grandTotal = 0;
+
+            if (currentOrderType === 'online') {
+                // Online platforms: prices already include VAT ("VAT (Incl.)")
+                // Formula: Grand Total = Subtotal + Service Fee + Delivery Fee - Discount
+                const netFood = Math.max(0, subtotal - onlineDiscount);
+                if (taxType === 'VAT') {
+                    taxAmount = netFood * (vatPercent / (100.0 + vatPercent));
+                } else {
+                    taxAmount = netFood * ((cgstPercent + sgstPercent) / (100.0 + cgstPercent + sgstPercent));
+                }
+                grandTotal = Math.max(0, subtotal + onlineServiceFee + onlineDeliveryFee - onlineDiscount);
+                const taxLabelElem = document.getElementById('pos-tax-label');
+                if (taxLabelElem) taxLabelElem.innerText = 'VAT (Incl.):';
             } else {
-                taxAmount = taxableSubtotal * ((cgstPercent + sgstPercent) / 100.0);
+                const taxableSubtotal = Math.max(0, subtotal - onlineDiscount);
+                if (taxType === 'VAT') {
+                    taxAmount = taxableSubtotal * (vatPercent / 100.0);
+                    const taxLabelElem = document.getElementById('pos-tax-label');
+                    if (taxLabelElem) taxLabelElem.innerText = 'VAT (' + vatPercent + '%):';
+                } else {
+                    taxAmount = taxableSubtotal * ((cgstPercent + sgstPercent) / 100.0);
+                    const taxLabelElem = document.getElementById('pos-tax-label');
+                    if (taxLabelElem) taxLabelElem.innerText = 'GST:';
+                }
+                grandTotal = Math.max(0, taxableSubtotal + taxAmount + onlineDeliveryFee + onlineServiceFee);
             }
-            const grandTotal = Math.max(0, taxableSubtotal + taxAmount + onlineDeliveryFee);
-            const netPayout = Math.max(0, grandTotal - onlineServiceFee);
 
             document.getElementById('pos-subtotal').innerText = subtotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            const servRow = document.getElementById('pos-row-service-fee');
+            if (servRow) {
+                if (onlineServiceFee > 0) {
+                    servRow.style.display = 'flex';
+                    document.getElementById('pos-service-fee-amount').innerText = '+' + onlineServiceFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                } else {
+                    servRow.style.display = 'none';
+                }
+            }
+
+            const delRow = document.getElementById('pos-row-delivery-fee');
+            if (delRow) {
+                if (onlineDeliveryFee > 0) {
+                    delRow.style.display = 'flex';
+                    document.getElementById('pos-delivery-fee-amount').innerText = '+' + onlineDeliveryFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                } else {
+                    delRow.style.display = 'none';
+                }
+            }
             
             const discRow = document.getElementById('pos-row-discount');
             if (discRow) {
@@ -1630,32 +1663,7 @@
             }
 
             document.getElementById('pos-tax-amount').innerText = taxAmount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-
-            const delRow = document.getElementById('pos-row-delivery-fee');
-            if (delRow) {
-                if (onlineDeliveryFee > 0) {
-                    delRow.style.display = 'flex';
-                    document.getElementById('pos-delivery-fee-amount').innerText = '+' + onlineDeliveryFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                } else {
-                    delRow.style.display = 'none';
-                }
-            }
-
             document.getElementById('pos-grand-total').innerText = grandTotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-
-            const servRow = document.getElementById('pos-row-service-fee');
-            const netRow = document.getElementById('pos-row-net-payout');
-            if (servRow && netRow) {
-                if (currentOrderType === 'online' && onlineServiceFee > 0) {
-                    servRow.style.display = 'flex';
-                    netRow.style.display = 'flex';
-                    document.getElementById('pos-service-fee-amount').innerText = '-' + onlineServiceFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                    document.getElementById('pos-net-payout-amount').innerText = netPayout.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                } else {
-                    servRow.style.display = 'none';
-                    netRow.style.display = 'none';
-                }
-            }
         }
 
         // Customer Phone Lookup

@@ -708,12 +708,15 @@ class Bill extends Model {
             $platName = $ord['platform_name'];
             $foodSub = (float)$ord['food_subtotal'];
             $discount = min((float)$ord['discount_amount'], $foodSub);
-            $taxable = max(0.0, $foodSub - $discount);
-            $tax = $taxable * ($taxPercent / 100.0);
             $deliveryFee = (float)$ord['delivery_fee'];
             $serviceFee = (float)$ord['service_fee'];
-            $gross = max(0.0, $taxable + $tax + $deliveryFee);
-            $net = max(0.0, $gross - $serviceFee);
+            
+            // Formula confirmed from platform invoice:
+            // Grand Total = Subtotal (Food) + Service Fee + Delivery Fee - Discount
+            // Tax is included in item prices ("VAT (Incl.)")
+            $tax = max(0.0, $foodSub - $discount) * ($taxPercent / (100.0 + $taxPercent));
+            $gross = max(0.0, ($foodSub - $discount) + $serviceFee + $deliveryFee);
+            $net = $gross;
 
             if (!isset($platformsMap[$platName])) {
                 $platformsMap[$platName] = [

@@ -941,14 +941,14 @@
                 </div>
             </div>
 
-            <!-- Online Orders & Deductions (This Shift) -->
+            <!-- Online Orders Summary (This Shift) -->
             <div id="close-online-summary-box" style="background: rgba(244,114,182,0.06); border: 1px dashed rgba(244,114,182,0.25); border-radius: 14px; padding: 12px 15px; margin-bottom: 20px;">
-                <div style="font-size: 11px; text-transform: uppercase; color: #f472b6; font-weight: 700; margin-bottom: 8px;">🌐 Online Orders & Deductions (This Shift)</div>
+                <div style="font-size: 11px; text-transform: uppercase; color: #f472b6; font-weight: 700; margin-bottom: 8px;">🌐 Online Orders Summary (This Shift)</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12.5px;">
                     <div>📦 Orders: <strong id="sys-online-orders" style="color:var(--text-color);">0</strong></div>
-                    <div>💵 Gross Sales: <strong id="sys-online-gross" style="color:var(--accent-green);">0.000</strong></div>
-                    <div>💼 Deductions: <strong id="sys-online-deductions" style="color:#ef4444;">0.000</strong></div>
-                    <div>✨ Net Sales: <strong id="sys-online-net" style="color:#818cf8;">0.000</strong></div>
+                    <div>🏷️ Discounts: <strong id="sys-online-discounts" style="color:#ef4444;">0.000</strong></div>
+                    <div>💼 Fees (Serv+Del): <strong id="sys-online-fees" style="color:#38bdf8;">0.000</strong></div>
+                    <div>💰 Total Sales: <strong id="sys-online-total" style="color:var(--accent-green);">0.000</strong></div>
                 </div>
             </div>
 
@@ -1125,11 +1125,11 @@
                                     <th style="text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Platform</th>
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Orders</th>
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Food Sales</th>
-                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Delivery Fee</th>
-                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Discount</th>
-                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Tax</th>
-                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #f43f5e;">Service Fee (Ded.)</th>
-                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--accent-green);">Net Revenue</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #a855f7;">Service Fee (+)</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #38bdf8;">Delivery Fee (+)</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #ef4444;">Discount (−)</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--accent-orange);">Tax (Incl.)</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--accent-green);">Total Sales</th>
                                 </tr>
                             </thead>
                             <tbody id="online-breakdown-table-body">
@@ -1673,6 +1673,14 @@
                     <span style="color: var(--text-muted); font-weight: 500;">Subtotal:</span>
                     <span id="view-modal-subtotal" class="price-text">0.000 BHD</span>
                 </div>
+                <div id="view-modal-service-row" style="display: none; justify-content: space-between; margin-bottom: 8px; color: #a855f7;">
+                    <span style="font-weight: 500;">Service Fee:</span>
+                    <span id="view-modal-service" class="price-text">+0.000 BHD</span>
+                </div>
+                <div id="view-modal-delivery-row" style="display: none; justify-content: space-between; margin-bottom: 8px; color: #38bdf8;">
+                    <span style="font-weight: 500;">Delivery Fee:</span>
+                    <span id="view-modal-delivery" class="price-text">+0.000 BHD</span>
+                </div>
                 <div id="view-modal-discount-row" style="display: none; justify-content: space-between; margin-bottom: 8px; color: #ef4444;">
                     <span style="font-weight: 500;">Discount:</span>
                     <span id="view-modal-discount" class="price-text">-0.000 BHD</span>
@@ -1681,21 +1689,9 @@
                     <span style="color: var(--text-muted); font-weight: 500;" id="view-modal-tax-type">Tax:</span>
                     <span id="view-modal-tax" class="price-text" style="color: var(--accent-orange);">0.000 BHD</span>
                 </div>
-                <div id="view-modal-delivery-row" style="display: none; justify-content: space-between; margin-bottom: 8px; color: #38bdf8;">
-                    <span style="font-weight: 500;">Delivery Fee:</span>
-                    <span id="view-modal-delivery" class="price-text">+0.000 BHD</span>
-                </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--card-border); font-size: 18px; font-weight: 800;">
                     <span>Grand Total:</span>
                     <span id="view-modal-grand-total" style="color: var(--accent-green);" class="price-text">0.000 BHD</span>
-                </div>
-                <div id="view-modal-service-row" style="display: none; justify-content: space-between; margin-top: 8px; font-size: 12.5px; color: #f43f5e;">
-                    <span>Platform Deductions (Service Fee):</span>
-                    <span id="view-modal-service" class="price-text">-0.000 BHD</span>
-                </div>
-                <div id="view-modal-net-row" style="display: none; justify-content: space-between; margin-top: 4px; font-size: 14px; font-weight: 700; color: #818cf8;">
-                    <span>Net Restaurant Payout:</span>
-                    <span id="view-modal-net" class="price-text">0.000 BHD</span>
                 </div>
             </div>
 
@@ -2032,8 +2028,28 @@
                     const delFee = parseFloat(order.delivery_fee || 0);
                     const servFee = parseFloat(order.service_fee || 0);
                     const disc = parseFloat(order.discount_amount || 0);
+                    const isOnline = (order.order_type === 'online');
                     const grand = parseFloat(order.grand_total || 0);
-                    const netPayout = Math.max(0, grand - servFee);
+
+                    const servRow = document.getElementById('view-modal-service-row');
+                    if (servRow) {
+                        if (servFee > 0) {
+                            servRow.style.display = 'flex';
+                            document.getElementById('view-modal-service').innerText = '+' + servFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                        } else {
+                            servRow.style.display = 'none';
+                        }
+                    }
+
+                    const delRow = document.getElementById('view-modal-delivery-row');
+                    if (delRow) {
+                        if (delFee > 0) {
+                            delRow.style.display = 'flex';
+                            document.getElementById('view-modal-delivery').innerText = '+' + delFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                        } else {
+                            delRow.style.display = 'none';
+                        }
+                    }
 
                     const discRow = document.getElementById('view-modal-discount-row');
                     if (discRow) {
@@ -2045,35 +2061,11 @@
                         }
                     }
 
-                    const taxLabel = order.tax_amount > 0 ? 'Tax Amount:' : 'Tax:';
+                    const taxLabel = isOnline ? 'VAT (Incl.):' : (order.tax_amount > 0 ? 'Tax Amount:' : 'Tax:');
                     document.getElementById('view-modal-tax-type').innerText = taxLabel;
                     document.getElementById('view-modal-tax').innerText = parseFloat(order.tax_amount || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-
-                    const delRow = document.getElementById('view-modal-delivery-row');
-                    if (delRow) {
-                        if (delFee > 0) {
-                            delRow.style.display = 'flex';
-                            document.getElementById('view-modal-delivery').innerText = '+' + delFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                        } else {
-                            delRow.style.display = 'none';
-                        }
-                    }
                     
                     document.getElementById('view-modal-grand-total').innerText = grand.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-
-                    const servRow = document.getElementById('view-modal-service-row');
-                    const netRow = document.getElementById('view-modal-net-row');
-                    if (servRow && netRow) {
-                        if (servFee > 0) {
-                            servRow.style.display = 'flex';
-                            netRow.style.display = 'flex';
-                            document.getElementById('view-modal-service').innerText = '-' + servFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                            document.getElementById('view-modal-net').innerText = netPayout.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
-                        } else {
-                            servRow.style.display = 'none';
-                            netRow.style.display = 'none';
-                        }
-                    }
 
                     // Action buttons in details modal
                     // Action buttons in details modal
@@ -2968,10 +2960,10 @@
                                     <td style="padding: 10px 10px; font-weight:600; text-align:left; color: #f472b6;">${escapeHtml(row.platform_name)}</td>
                                     <td style="padding: 10px 10px; text-align:right; font-weight:600;">${row.order_count}</td>
                                     <td style="padding: 10px 10px; text-align:right;" class="price-text">${foodSub.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
-                                    <td style="padding: 10px 10px; text-align:right; color:#38bdf8;" class="price-text">${delFee.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 10px 10px; text-align:right; color:#a855f7;" class="price-text">${servFee > 0 ? '+' + servFee.toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
+                                    <td style="padding: 10px 10px; text-align:right; color:#38bdf8;" class="price-text">${delFee > 0 ? '+' + delFee.toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 10px 10px; text-align:right; color:#ef4444;" class="price-text">${disc > 0 ? '-' + disc.toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 10px 10px; text-align:right; color:var(--accent-orange);" class="price-text">${tax.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
-                                    <td style="padding: 10px 10px; text-align:right; font-weight:700; color:#f43f5e;" class="price-text">${servFee > 0 ? '-' + servFee.toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 10px 10px; font-weight:700; text-align:right; color:var(--accent-green);" class="price-text">${netRev.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                 </tr>
                             `;
@@ -2985,10 +2977,10 @@
                                     <td style="padding: 12px 10px; text-align:left; font-weight:800; color:var(--text-color);">Total Online</td>
                                     <td style="padding: 12px 10px; text-align:right; font-weight:800;">${os.order_count}</td>
                                     <td style="padding: 12px 10px; text-align:right; font-weight:800;" class="price-text">${parseFloat(os.food_subtotal).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
-                                    <td style="padding: 12px 10px; text-align:right; font-weight:800; color:#38bdf8;" class="price-text">${parseFloat(os.delivery_fee).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 12px 10px; text-align:right; font-weight:800; color:#a855f7;" class="price-text">${parseFloat(os.service_fee) > 0 ? '+' + parseFloat(os.service_fee).toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
+                                    <td style="padding: 12px 10px; text-align:right; font-weight:800; color:#38bdf8;" class="price-text">${parseFloat(os.delivery_fee) > 0 ? '+' + parseFloat(os.delivery_fee).toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 12px 10px; text-align:right; font-weight:800; color:#ef4444;" class="price-text">${parseFloat(os.discount_amount) > 0 ? '-' + parseFloat(os.discount_amount).toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 12px 10px; text-align:right; font-weight:800; color:var(--accent-orange);" class="price-text">${parseFloat(os.tax_amount).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
-                                    <td style="padding: 12px 10px; text-align:right; font-weight:800; color:#f43f5e;" class="price-text">${parseFloat(os.service_fee) > 0 ? '-' + parseFloat(os.service_fee).toFixed(window.PRICE_DECIMALS || 3) : '0.000'} ${cur}</td>
                                     <td style="padding: 12px 10px; text-align:right; font-weight:800; color:var(--accent-green);" class="price-text">${parseFloat(os.net_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                 </tr>
                             `;
@@ -3347,17 +3339,15 @@
                                 }
 
                                 const gross = parseFloat(o.gross_total || 0);
-                                const servFee = parseFloat(o.service_fee || 0);
-                                const net = parseFloat(o.net_total || gross);
                                 let feeBadges = '';
+                                if (servFee > 0) {
+                                    feeBadges += `<span style="font-size:10px; color:#a855f7; display:inline-block; margin-right:4px;">+Serv: ${servFee.toFixed(3)}</span>`;
+                                }
                                 if (parseFloat(o.delivery_fee || 0) > 0) {
                                     feeBadges += `<span style="font-size:10px; color:#38bdf8; display:inline-block; margin-right:4px;">+Del: ${parseFloat(o.delivery_fee).toFixed(3)}</span>`;
                                 }
                                 if (parseFloat(o.discount_amount || 0) > 0) {
                                     feeBadges += `<span style="font-size:10px; color:#ef4444; display:inline-block; margin-right:4px;">-Disc: ${parseFloat(o.discount_amount).toFixed(3)}</span>`;
-                                }
-                                if (servFee > 0) {
-                                    feeBadges += `<span style="font-size:10px; color:#f43f5e; display:inline-block; margin-right:4px;">-Ded: ${servFee.toFixed(3)}</span>`;
                                 }
                                 
                                 tbody.innerHTML += `
@@ -3367,7 +3357,6 @@
                                         <td style="padding: 12px 10px; text-align: right;">
                                             <div style="font-weight: 700; color: var(--accent-green); font-size: 13.5px;">${gross.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</div>
                                             ${feeBadges ? `<div style="font-size: 10.5px; margin-top: 2px;">${feeBadges}</div>` : ''}
-                                            ${servFee > 0 ? `<div style="font-size: 10.5px; color: #818cf8; font-weight: 600;">Net: ${net.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</div>` : ''}
                                         </td>
                                         <td style="padding: 12px 10px;"><span style="background:${badgeColor}; color:white; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase;">${o.status === 'closed' ? 'CONFIRMED' : o.status}</span></td>
                                         <td style="padding: 12px 10px;">${kotText}</td>
@@ -3980,9 +3969,10 @@ Thank you!`;
                     if (data.online_summary) {
                         const os = data.online_summary;
                         document.getElementById('sys-online-orders').innerText = os.order_count || 0;
-                        document.getElementById('sys-online-gross').innerText = parseFloat(os.gross_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                        document.getElementById('sys-online-deductions').innerText = parseFloat(os.service_fee || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                        document.getElementById('sys-online-net').innerText = parseFloat(os.net_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        document.getElementById('sys-online-discounts').innerText = '-' + parseFloat(os.discount_amount || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        const feesTotal = (parseFloat(os.service_fee || 0) + parseFloat(os.delivery_fee || 0));
+                        document.getElementById('sys-online-fees').innerText = '+' + feesTotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        document.getElementById('sys-online-total').innerText = parseFloat(os.gross_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                         document.getElementById('close-online-summary-box').style.display = 'block';
                     }
                     
@@ -4035,9 +4025,10 @@ Thank you!`;
                     if (data.online_summary) {
                         const os = data.online_summary;
                         document.getElementById('sys-online-orders').innerText = os.order_count || 0;
-                        document.getElementById('sys-online-gross').innerText = parseFloat(os.gross_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                        document.getElementById('sys-online-deductions').innerText = parseFloat(os.service_fee || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                        document.getElementById('sys-online-net').innerText = parseFloat(os.net_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        document.getElementById('sys-online-discounts').innerText = '-' + parseFloat(os.discount_amount || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        const feesTotal = (parseFloat(os.service_fee || 0) + parseFloat(os.delivery_fee || 0));
+                        document.getElementById('sys-online-fees').innerText = '+' + feesTotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                        document.getElementById('sys-online-total').innerText = parseFloat(os.gross_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                         document.getElementById('close-online-summary-box').style.display = 'block';
                     }
                     

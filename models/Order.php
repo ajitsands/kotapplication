@@ -260,6 +260,11 @@ class Order extends Model {
             $stmtExistingBill->execute([$orderId]);
             $existingBill = $stmtExistingBill->fetch();
 
+            $isOnline = (($order['order_type'] ?? '') === 'online');
+            $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+            $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+            $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+
             if ($existingBill) {
                 $discountPercent = (float)($existingBill['discount_percent'] ?? 0.0);
                 $discountAmount = ($discountPercent > 0)
@@ -267,37 +272,43 @@ class Order extends Model {
                     : (float)(!empty($existingBill['discount_amount']) ? $existingBill['discount_amount'] : $orderDiscount);
                 $discountAmount = min($discountAmount, $subtotal);
 
-                $taxableAmount = max(0.0, $subtotal - $discountAmount);
-                if ($taxType === 'VAT') {
-                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
-                    $taxAmount = $taxableAmount * ($vatPercent / 100.0);
-                } else {
-                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
-                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
-                    $taxAmount = $taxableAmount * (($cgstPercent + $sgstPercent) / 100.0);
-                }
-
                 $deliveryFee = $orderDeliveryFee > 0 ? $orderDeliveryFee : (float)($existingBill['delivery_fee'] ?? 0.0);
                 $serviceFee = $orderServiceFee > 0 ? $orderServiceFee : (float)($existingBill['service_fee'] ?? 0.0);
-                $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee);
+
+                if ($isOnline) {
+                    // Online platforms: prices already include VAT ("VAT (Incl.)")
+                    // Formula: Grand Total = Subtotal + Service Fee + Delivery Fee - Discount
+                    $taxAmount = ($taxType === 'VAT')
+                        ? max(0.0, $subtotal - $discountAmount) * ($vatPercent / (100.0 + $vatPercent))
+                        : max(0.0, $subtotal - $discountAmount) * (($cgstPercent + $sgstPercent) / (100.0 + $cgstPercent + $sgstPercent));
+                    $grandTotal = max(0.0, ($subtotal - $discountAmount) + $serviceFee + $deliveryFee);
+                } else {
+                    $taxableAmount = max(0.0, $subtotal - $discountAmount);
+                    $taxAmount = ($taxType === 'VAT')
+                        ? ($taxableAmount * ($vatPercent / 100.0))
+                        : ($taxableAmount * (($cgstPercent + $sgstPercent) / 100.0));
+                    $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee + $serviceFee);
+                }
 
                 $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, delivery_fee = ?, service_fee = ?, grand_total = ? WHERE id = ?");
                 $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $deliveryFee, $serviceFee, $grandTotal, $existingBill['id']]);
             } else {
                 $discountAmount = min($orderDiscount, $subtotal);
-                $taxableAmount = max(0.0, $subtotal - $discountAmount);
-                if ($taxType === 'VAT') {
-                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
-                    $taxAmount = $taxableAmount * ($vatPercent / 100.0);
-                } else {
-                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
-                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
-                    $taxAmount = $taxableAmount * (($cgstPercent + $sgstPercent) / 100.0);
-                }
-
                 $deliveryFee = $orderDeliveryFee;
                 $serviceFee = $orderServiceFee;
-                $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee);
+
+                if ($isOnline) {
+                    $taxAmount = ($taxType === 'VAT')
+                        ? max(0.0, $subtotal - $discountAmount) * ($vatPercent / (100.0 + $vatPercent))
+                        : max(0.0, $subtotal - $discountAmount) * (($cgstPercent + $sgstPercent) / (100.0 + $cgstPercent + $sgstPercent));
+                    $grandTotal = max(0.0, ($subtotal - $discountAmount) + $serviceFee + $deliveryFee);
+                } else {
+                    $taxableAmount = max(0.0, $subtotal - $discountAmount);
+                    $taxAmount = ($taxType === 'VAT')
+                        ? ($taxableAmount * ($vatPercent / 100.0))
+                        : ($taxableAmount * (($cgstPercent + $sgstPercent) / 100.0));
+                    $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee + $serviceFee);
+                }
 
                 // Create Pending Bill
                 $stmtBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, discount_amount, tax_amount, delivery_fee, service_fee, grand_total, status) 
