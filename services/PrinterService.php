@@ -479,8 +479,14 @@ class PrinterService {
                     $amtStr = number_format((float)$bill['qr_amount'], $decimals) . " $cur";
                     $data .= self::formatRow("  - QR Pay:", $amtStr, $width, $marginCols);
                 }
+                if ((float)($bill['online_amount'] ?? 0) > 0) {
+                    $amtStr = number_format((float)$bill['online_amount'], $decimals) . " $cur";
+                    $data .= self::formatRow("  - Online:", $amtStr, $width, $marginCols);
+                }
             } else {
-                $payMethod = strtoupper(str_replace('_', ' ', $bill['payment_method']));
+                $payMethod = ($bill['payment_method'] === 'online')
+                    ? ('ONLINE' . (!empty($bill['platform_name']) ? ' (' . strtoupper($bill['platform_name']) . ')' : ''))
+                    : strtoupper(str_replace('_', ' ', $bill['payment_method']));
                 $payStatus = strtoupper($bill['status'] ?? 'PAID');
                 $data .= self::formatRow("Payment: $payMethod", "Status: $payStatus", $width, $marginCols);
             }

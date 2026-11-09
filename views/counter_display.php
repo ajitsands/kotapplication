@@ -468,7 +468,7 @@
 
         .payment-methods-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
             gap: 10px;
             margin: 20px 0;
         }
@@ -1020,7 +1020,7 @@
                 </div>
 
                 <!-- Stats Grid -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                     <!-- Cash Card -->
                     <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
                         <div style="font-size: 24px; background: rgba(16, 185, 129, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">💵</div>
@@ -1045,6 +1045,15 @@
                         <div>
                             <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">QR Pay</div>
                             <div id="summary-qr-total" style="font-size: 18px; font-weight: 800; color: var(--accent-orange); margin-top: 4px;">0.000 BHD</div>
+                        </div>
+                    </div>
+
+                    <!-- Online Payment Card -->
+                    <div style="background: rgba(236, 72, 153, 0.04); border: 1px solid rgba(236, 72, 153, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px; background: rgba(236, 72, 153, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">🌐</div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Online Payment</div>
+                            <div id="summary-online-received-total" style="font-size: 18px; font-weight: 800; color: #f472b6; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
 
@@ -1105,6 +1114,7 @@
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Cash Collected</th>
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Card Collected</th>
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">QR Collected</th>
+                                    <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: #f472b6;">Online Collected</th>
                                     <th style="text-align: right; padding: 8px 10px; font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Total Collected</th>
                                 </tr>
                             </thead>
@@ -1525,22 +1535,42 @@
             </div>
 
             <div class="payment-methods-grid">
-                <button class="pay-method-btn selected" onclick="selectPaymentMethod('cash', this)">
+                <button class="pay-method-btn selected" id="modal-pay-btn-cash" onclick="selectPaymentMethod('cash', this)">
                     <span style="font-size:20px;">💵</span>
                     Cash
                 </button>
-                <button class="pay-method-btn" onclick="selectPaymentMethod('card', this)">
+                <button class="pay-method-btn" id="modal-pay-btn-card" onclick="selectPaymentMethod('card', this)">
                     <span style="font-size:20px;">💳</span>
                     Card
                 </button>
-                <button class="pay-method-btn" onclick="selectPaymentMethod('qr_pay', this)">
+                <button class="pay-method-btn" id="modal-pay-btn-qr" onclick="selectPaymentMethod('qr_pay', this)">
                     <span style="font-size:20px;">📱</span>
                     QR Pay
                 </button>
-                <button class="pay-method-btn" onclick="selectPaymentMethod('split', this)">
+                <button class="pay-method-btn" id="modal-pay-btn-online" onclick="selectPaymentMethod('online', this)">
+                    <span style="font-size:20px;">🌐</span>
+                    Online
+                </button>
+                <button class="pay-method-btn" id="modal-pay-btn-split" onclick="selectPaymentMethod('split', this)">
                     <span style="font-size:20px;">🔀</span>
                     Split
                 </button>
+            </div>
+
+            <!-- Online Platform Selection Section -->
+            <div id="modal-online-provider-section" style="display:none; margin-top: 15px; text-align: left; background: rgba(99, 102, 241, 0.05); padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                <label style="font-size: 11px; font-weight: 700; color: #818cf8; display: block; margin-bottom: 5px; text-transform: uppercase;">🌐 Select Online Platform / Provider:</label>
+                <select id="modal-online-platform-select" class="discount-input" style="width: 100%; padding: 8px 12px; font-weight: 600;">
+                    <?php if (!empty($platforms)): ?>
+                        <?php foreach ($platforms as $plat): ?>
+                            <option value="<?= $plat['id'] ?>"><?= htmlspecialchars($plat['name']) ?></option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option value="1">Talabat</option>
+                        <option value="2">Jahez</option>
+                        <option value="3">Deliveroo</option>
+                    <?php endif; ?>
+                </select>
             </div>
 
             <!-- Split Payment Breakdown Section -->
@@ -1571,6 +1601,14 @@
                         <label style="font-size: 12px; font-weight: 600; width: 85px; display: flex; align-items: center; gap: 4px;">📱 QR Pay:</label>
                         <div style="flex: 1;">
                             <input type="number" step="0.001" min="0" id="modal-split-qr" class="discount-input" style="width: 100%; text-align: right; font-weight: 700; font-size: 14px; padding: 6px 10px;" value="0.000" oninput="onSplitAmountChanged()">
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted); width: 32px;"><?= htmlspecialchars($settings['currency_code']) ?></span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <label style="font-size: 12px; font-weight: 600; width: 85px; display: flex; align-items: center; gap: 4px;">🌐 Online:</label>
+                        <div style="flex: 1;">
+                            <input type="number" step="0.001" min="0" id="modal-split-online" class="discount-input" style="width: 100%; text-align: right; font-weight: 700; font-size: 14px; padding: 6px 10px;" value="0.000" oninput="onSplitAmountChanged()">
                         </div>
                         <span style="font-size: 11px; color: var(--text-muted); width: 32px;"><?= htmlspecialchars($settings['currency_code']) ?></span>
                     </div>
@@ -2510,8 +2548,6 @@
 
             // Reset button highlights
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
-            document.querySelector('.pay-method-btn').classList.add('selected');
-            selectedPaymentMethod = 'cash';
 
             // Reset split section
             const splitSection = document.getElementById('modal-split-section');
@@ -2521,6 +2557,19 @@
             if (document.getElementById('modal-split-cash')) document.getElementById('modal-split-cash').value = '0.000';
             if (document.getElementById('modal-split-card')) document.getElementById('modal-split-card').value = '0.000';
             if (document.getElementById('modal-split-qr')) document.getElementById('modal-split-qr').value = '0.000';
+            if (document.getElementById('modal-split-online')) document.getElementById('modal-split-online').value = '0.000';
+
+            // Provider and method selection
+            if (bill.order_type === 'online') {
+                const onlineBtn = document.getElementById('modal-pay-btn-online');
+                selectPaymentMethod('online', onlineBtn || document.querySelector('.pay-method-btn'));
+                if (bill.platform_id && document.getElementById('modal-online-platform-select')) {
+                    document.getElementById('modal-online-platform-select').value = bill.platform_id;
+                }
+            } else {
+                const cashBtn = document.getElementById('modal-pay-btn-cash');
+                selectPaymentMethod('cash', cashBtn || document.querySelector('.pay-method-btn'));
+            }
 
             document.getElementById('payment-modal').style.display = 'flex';
         }
@@ -2543,11 +2592,14 @@
             const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
             const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
             const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
+            const online = parseFloat(document.getElementById('modal-split-online')?.value || 0) || 0;
             
-            const remaining = Math.max(0, net - (cash + card + qr));
+            const remaining = Math.max(0, net - (cash + card + qr + online));
             if (remaining > 0) {
-                if (cash === 0 && card === 0 && qr === 0) {
+                if (cash === 0 && card === 0 && qr === 0 && online === 0) {
                     document.getElementById('modal-split-cash').value = net.toFixed(decimals);
+                } else if (online === 0 && (cash > 0 || card > 0 || qr > 0)) {
+                    document.getElementById('modal-split-online').value = remaining.toFixed(decimals);
                 } else if (qr === 0 && (cash > 0 || card > 0)) {
                     document.getElementById('modal-split-qr').value = remaining.toFixed(decimals);
                 } else if (card === 0) {
@@ -2569,8 +2621,9 @@
             const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
             const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
             const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
+            const online = parseFloat(document.getElementById('modal-split-online')?.value || 0) || 0;
             
-            const entered = cash + card + qr;
+            const entered = cash + card + qr + online;
             const remaining = net - entered;
             
             const enteredLabel = document.getElementById('modal-split-entered-label');
@@ -2626,7 +2679,12 @@
         function selectPaymentMethod(method, element) {
             selectedPaymentMethod = method;
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
-            element.classList.add('selected');
+            if (element) element.classList.add('selected');
+
+            const onlineSec = document.getElementById('modal-online-provider-section');
+            if (onlineSec) {
+                onlineSec.style.display = (method === 'online') ? 'block' : 'none';
+            }
 
             const splitSection = document.getElementById('modal-split-section');
             if (splitSection) {
@@ -2646,13 +2704,16 @@
             const customerName = document.getElementById('modal-cust-name').value.trim();
             const customerMobile = document.getElementById('modal-cust-mobile').value.trim();
             const gender = document.getElementById('modal-cust-gender').value;
+            const platformId = (selectedPaymentMethod === 'online' || selectedPaymentMethod === 'split')
+                ? parseInt(document.getElementById('modal-online-platform-select')?.value || 0) : null;
 
             const payload = { 
                 payment_method: selectedPaymentMethod,
                 discount_percent: discountPercent,
                 customer_name: customerName,
                 customer_mobile: customerMobile,
-                gender: gender
+                gender: gender,
+                platform_id: platformId
             };
 
             if (selectedPaymentMethod === 'split') {
@@ -2660,7 +2721,8 @@
                 const cash = parseFloat(document.getElementById('modal-split-cash').value) || 0;
                 const card = parseFloat(document.getElementById('modal-split-card').value) || 0;
                 const qr = parseFloat(document.getElementById('modal-split-qr').value) || 0;
-                const totalEntered = cash + card + qr;
+                const online = parseFloat(document.getElementById('modal-split-online')?.value || 0) || 0;
+                const totalEntered = cash + card + qr + online;
                 const diff = Math.abs(net - totalEntered);
                 
                 if (diff > 0.005) {
@@ -2673,7 +2735,7 @@
                                 <p style="color: #ef4444; font-weight: 700; margin-top: 8px;">
                                     ${totalEntered < net ? `Remaining to collect: ${(net - totalEntered).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}` : `Overpaid by: ${(totalEntered - net).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}`}
                                 </p>
-                                <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Please adjust Cash, Card, or QR amounts so they match the total.</p>
+                                <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Please adjust Cash, Card, QR, or Online amounts so they match the total.</p>
                             </div>
                         `,
                         icon: 'warning'
@@ -2684,6 +2746,7 @@
                 payload.cash_amount = cash;
                 payload.card_amount = card;
                 payload.qr_amount = qr;
+                payload.online_amount = online;
             }
 
             fetch(basePath + '/pay/' + selectedBillId, {
@@ -2890,6 +2953,9 @@
                     document.getElementById('summary-cash-total').innerText = parseFloat(sum.cash_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    if (document.getElementById('summary-online-received-total')) {
+                        document.getElementById('summary-online-received-total').innerText = parseFloat(sum.online_received_total || sum.online_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    }
                     document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
@@ -2916,10 +2982,11 @@
                             data.breakdown.forEach(row => {
                                 rows += `
                                     <tr style="border-bottom: 1px solid var(--card-border);">
-                                        <td style="padding: 12px 10px; font-weight:600; text-align:left;">${row.cashier_name}</td>
+                                        <td style="padding: 12px 10px; font-weight:600; text-align:left;">${escapeHtml(row.cashier_name)}</td>
                                         <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.cash_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                         <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.card_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                         <td style="padding: 12px 10px; text-align:right;" class="price-text">${parseFloat(row.qr_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                        <td style="padding: 12px 10px; text-align:right; color:#f472b6;" class="price-text">${parseFloat(row.online_total || 0).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                         <td style="padding: 12px 10px; text-align:right; font-weight:700; color:var(--accent-green);" class="price-text">${parseFloat(row.grand_total).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
                                     </tr>
                                 `;
@@ -2928,7 +2995,7 @@
                         } else {
                             tbody.innerHTML = `
                                 <tr>
-                                    <td colspan="5" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No cashier collections recorded for this date.</td>
+                                    <td colspan="6" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No cashier collections recorded for this date.</td>
                                 </tr>
                             `;
                         }
@@ -3849,7 +3916,7 @@ Thank you!`;
                 .then(res => res.json())
                 .then(data => {
                     const orders = data.orders || [];
-                    const summary = data.summary || { total_amount: 0, total_count: 0, qr_amount: 0, qr_count: 0, card_amount: 0, card_count: 0, cash_amount: 0, cash_count: 0 };
+                    const summary = data.summary || { total_amount: 0, total_count: 0, qr_amount: 0, qr_count: 0, card_amount: 0, card_count: 0, cash_amount: 0, cash_count: 0, online_amount: 0, online_count: 0 };
                     
                     if (document.getElementById('takeaway-summary-container')) {
                         document.getElementById('takeaway-summary-container').innerHTML = `
@@ -3857,6 +3924,7 @@ Thank you!`;
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💵 Cash:</strong> <span style="font-weight:600;">${parseFloat(summary.cash_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.cash_count})</span></div>
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">💳 Card:</strong> <span style="font-weight:600;">${parseFloat(summary.card_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.card_count})</span></div>
                             <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">📱 QR:</strong> <span style="font-weight:600;">${parseFloat(summary.qr_amount).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.qr_count})</span></div>
+                            <div style="border-left: 1px solid var(--card-border); padding-left: 15px;"><strong style="color:var(--text-muted);">🌐 Online:</strong> <span style="font-weight:600; color:#f472b6;">${parseFloat(summary.online_amount || 0).toFixed(window.PRICE_DECIMALS || 3)}</span> <span style="color:var(--text-muted); font-size:11px;">(${summary.online_count || 0})</span></div>
                         `;
                     }
                     
@@ -3881,7 +3949,7 @@ Thank you!`;
                                 <td style="padding: 12px 10px;">${escapeHtml(o.customer_mobile || '-')}</td>
                                 <td style="padding: 12px 10px; text-align:right; font-weight:700;" class="price-text">${parseFloat(o.grand_total || 0).toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</td>
                                 <td style="padding: 12px 10px; text-align:right;">
-                                    <span style="text-transform:capitalize; margin-right:4px;">${escapeHtml(o.payment_method || 'Cash')}</span>
+                                    <span style="text-transform:capitalize; margin-right:4px;">${o.payment_method === 'online' ? `🌐 Online (${escapeHtml(o.platform_name || 'Platform')})` : escapeHtml(o.payment_method || 'Cash')}</span>
                                     ${o.delivery_status ? getDeliveryActionHtml(o, o.id, o.bill_id || 0, o.customer_name, o.customer_mobile, o.grand_total || 0) : ''}
                                 </td>
                             </tr>
@@ -4991,14 +5059,16 @@ Thank you!`;
                     const pCash = parseFloat(row.cash_amount || 0);
                     const pCard = parseFloat(row.card_amount || 0);
                     const pQr = parseFloat(row.qr_amount || 0);
+                    const pOnline = parseFloat(row.online_amount || 0);
                     let parts = [];
                     if (pCash > 0) parts.push(`💵 ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
                     if (pCard > 0) parts.push(`💳 ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
                     if (pQr > 0) parts.push(`📱 ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pOnline > 0) parts.push(`🌐 ${pOnline.toFixed(window.PRICE_DECIMALS || 3)}`);
                     payMethodDisplay = `<span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size:11px;" title="${parts.join(' | ')}">🔀 Split</span><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${parts.join(', ')}</div>`;
                 } else if (row.payment_method && row.payment_method !== 'Pending') {
                     const m = (row.payment_method || '').toLowerCase();
-                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : '📱');
+                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : (m.includes('online') ? '🌐' : '📱'));
                     payMethodDisplay = `${icon} ${escapeHtml(row.payment_method)}`;
                 }
 

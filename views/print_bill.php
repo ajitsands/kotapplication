@@ -244,10 +244,13 @@
                             <?php if ((float)($bill['qr_amount'] ?? 0) > 0): ?>
                                 <div>• QR Pay: <b><?= format_price($bill['qr_amount']) ?></b></div>
                             <?php endif; ?>
+                            <?php if ((float)($bill['online_amount'] ?? 0) > 0): ?>
+                                <div>• Online: <b><?= format_price($bill['online_amount']) ?></b></div>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <div style="display:flex; justify-content:space-between;">
-                            <span>Pay: <b><?= strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b></span>
+                            <span>Pay: <b><?= $bill['payment_method'] === 'online' ? ('ONLINE' . (!empty($bill['platform_name']) ? ' (' . strtoupper($bill['platform_name']) . ')' : '')) : strtoupper(str_replace('_', ' ', $bill['payment_method'])) ?></b></span>
                             <span>Status: <b><?= strtoupper($bill['status'] ?? 'PAID') ?></b></span>
                         </div>
                     <?php endif; ?>

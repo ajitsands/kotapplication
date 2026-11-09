@@ -8,14 +8,24 @@ class Bill extends Model {
 
     private function ensureSchema() {
         try {
-            $cols = $this->db->query("SHOW COLUMNS FROM bills LIKE 'cash_amount'")->fetchAll();
-            if (empty($cols)) {
-                $this->db->exec("ALTER TABLE `bills` MODIFY COLUMN `payment_method` ENUM('cash', 'card', 'qr_pay', 'split') DEFAULT NULL");
+            $allCols = $this->db->query("SHOW COLUMNS FROM bills")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('cash_amount', $allCols)) {
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `cash_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `grand_total`");
+            }
+            if (!in_array('card_amount', $allCols)) {
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `card_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `cash_amount`");
+            }
+            if (!in_array('qr_amount', $allCols)) {
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `qr_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `card_amount`");
             }
-            $allCols = $this->db->query("SHOW COLUMNS FROM bills")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('online_amount', $allCols)) {
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `online_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `qr_amount`");
+            }
+            if (!in_array('platform_id', $allCols)) {
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `platform_id` INT NULL DEFAULT NULL AFTER `online_amount`");
+            }
+            // Ensure payment_method ENUM supports online
+            $this->db->exec("ALTER TABLE `bills` MODIFY COLUMN `payment_method` ENUM('cash', 'card', 'qr_pay', 'split', 'online') DEFAULT NULL");
             if (!in_array('delivery_fee', $allCols)) {
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `delivery_fee` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `discount_amount`");
             }
@@ -50,10 +60,14 @@ class Bill extends Model {
     }
 
     public function getBillDetails($billId) {
-        $stmt = $this->db->prepare("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, o.id as order_id
+        $stmt = $this->db->prepare("SELECT b.*, o.table_number, o.order_type, o.customer_name, o.customer_mobile, o.token_number, 
+                                           IF(u.name LIKE 'Waiter %', SUBSTRING(u.name, 8), u.name) as waiter_name, 
+                                           o.id as order_id,
+                                           op.name as platform_name
                                     FROM bills b
                                     JOIN orders o ON b.order_id = o.id
                                     LEFT JOIN users u ON o.waiter_id = u.id
+                                    LEFT JOIN online_platforms op ON COALESCE(b.platform_id, o.platform_id) = op.id
                                     WHERE b.id = ?");
         $stmt->execute([$billId]);
         $bill = $stmt->fetch();
@@ -109,7 +123,7 @@ class Bill extends Model {
         return $bill;
     }
 
-    public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '', $breakdown = []) {
+    public function payBill($billId, $paymentMethod, $discountPercent = 0.00, $cashierId = null, $customerName = '', $customerMobile = '', $gender = '', $breakdown = [], $platformId = null) {
         // Ensure pending bill totals are synced with active KOT items before processing payment
         $this->getBillDetails($billId);
 
@@ -164,28 +178,52 @@ class Bill extends Model {
             $newGrandTotal = $grandTotal - $discountAmount;
 
             // Handle payment method amounts
+            $onlineAmount = 0.000;
             if ($paymentMethod === 'split') {
-                $cashAmount = round((float)($breakdown['cash_amount'] ?? 0), 3);
-                $cardAmount = round((float)($breakdown['card_amount'] ?? 0), 3);
-                $qrAmount   = round((float)($breakdown['qr_amount'] ?? 0), 3);
+                $cashAmount   = round((float)($breakdown['cash_amount'] ?? 0), 3);
+                $cardAmount   = round((float)($breakdown['card_amount'] ?? 0), 3);
+                $qrAmount     = round((float)($breakdown['qr_amount'] ?? 0), 3);
+                $onlineAmount = round((float)($breakdown['online_amount'] ?? 0), 3);
             } else if ($paymentMethod === 'card') {
-                $cashAmount = 0.000;
-                $cardAmount = $newGrandTotal;
-                $qrAmount   = 0.000;
+                $cashAmount   = 0.000;
+                $cardAmount   = $newGrandTotal;
+                $qrAmount     = 0.000;
+                $onlineAmount = 0.000;
             } else if ($paymentMethod === 'qr_pay') {
-                $cashAmount = 0.000;
-                $cardAmount = 0.000;
-                $qrAmount   = $newGrandTotal;
+                $cashAmount   = 0.000;
+                $cardAmount   = 0.000;
+                $qrAmount     = $newGrandTotal;
+                $onlineAmount = 0.000;
+            } else if ($paymentMethod === 'online') {
+                $cashAmount   = 0.000;
+                $cardAmount   = 0.000;
+                $qrAmount     = 0.000;
+                $onlineAmount = $newGrandTotal;
             } else { // default 'cash'
                 $paymentMethod = 'cash';
-                $cashAmount = $newGrandTotal;
-                $cardAmount = 0.000;
-                $qrAmount   = 0.000;
+                $cashAmount   = $newGrandTotal;
+                $cardAmount   = 0.000;
+                $qrAmount     = 0.000;
+                $onlineAmount = 0.000;
             }
 
-            // Update bill status, payment method, breakdown amounts, discount, grand total, cashier_id, customer_id, and payment timestamp
-            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, cash_amount = ?, card_amount = ?, qr_amount = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ?, created_at = NOW() WHERE id = ?");
-            $stmtBill->execute([$paymentMethod, $cashAmount, $cardAmount, $qrAmount, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
+            // Determine effective platform_id
+            $effectivePlatformId = $platformId ? (int)$platformId : (!empty($bill['platform_id']) ? (int)$bill['platform_id'] : null);
+            if (!$effectivePlatformId) {
+                $stmtOrdPlat = $this->db->prepare("SELECT platform_id FROM orders WHERE id = ?");
+                $stmtOrdPlat->execute([$bill['order_id']]);
+                $ordPlat = $stmtOrdPlat->fetchColumn();
+                if ($ordPlat) {
+                    $effectivePlatformId = (int)$ordPlat;
+                }
+            } else {
+                $stmtUpdOrdPlat = $this->db->prepare("UPDATE orders SET platform_id = ? WHERE id = ? AND (platform_id IS NULL OR platform_id = 0)");
+                $stmtUpdOrdPlat->execute([$effectivePlatformId, $bill['order_id']]);
+            }
+
+            // Update bill status, payment method, breakdown amounts, platform_id, discount, grand total, cashier_id, customer_id, and payment timestamp
+            $stmtBill = $this->db->prepare("UPDATE bills SET status = 'paid', payment_method = ?, cash_amount = ?, card_amount = ?, qr_amount = ?, online_amount = ?, platform_id = ?, discount_percent = ?, discount_amount = ?, grand_total = ?, cashier_id = ?, customer_id = ?, created_at = NOW() WHERE id = ?");
+            $stmtBill->execute([$paymentMethod, $cashAmount, $cardAmount, $qrAmount, $onlineAmount, $effectivePlatformId, $discountPercent, $discountAmount, $newGrandTotal, $cashierId, $customerId, $billId]);
 
             // For Dine In orders, payment completes the order flow.
             // For Take Away orders, payment just pays the bill. The order remains 'closed' until it is delivered.
@@ -368,6 +406,7 @@ class Bill extends Model {
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.online_amount WHEN b.payment_method = 'online' THEN b.grand_total ELSE 0 END), 0) as online_received_total,
                     COALESCE(SUM(b.grand_total), 0) as grand_total,
                     COALESCE(SUM(CASE WHEN o.order_type = 'take_away' THEN b.grand_total ELSE 0 END), 0) as takeaway_total
                 FROM bills b
@@ -437,6 +476,7 @@ class Bill extends Model {
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.qr_amount WHEN b.payment_method = 'qr_pay' THEN b.grand_total ELSE 0 END), 0) as qr_total,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.online_amount WHEN b.payment_method = 'online' THEN b.grand_total ELSE 0 END), 0) as online_total,
                     COALESCE(SUM(b.grand_total), 0) as grand_total
                 FROM bills b
                 JOIN users u ON b.cashier_id = u.id
@@ -668,20 +708,24 @@ class Bill extends Model {
         // Group by order first to calculate precise totals per order
         $sql = "SELECT 
                     o.id as order_id,
-                    o.platform_id,
-                    COALESCE(op.name, 'Unknown Platform') as platform_name,
-                    COALESCE(o.delivery_fee, 0.0) as delivery_fee,
-                    COALESCE(o.service_fee, 0.0) as service_fee,
-                    COALESCE(o.discount_amount, 0.0) as discount_amount,
+                    COALESCE(b.platform_id, o.platform_id) as platform_id,
+                    COALESCE(op.name, 'Other Online') as platform_name,
+                    COALESCE(b.delivery_fee, o.delivery_fee, 0.0) as delivery_fee,
+                    COALESCE(b.service_fee, o.service_fee, 0.0) as service_fee,
+                    COALESCE(b.discount_amount, o.discount_amount, 0.0) as discount_amount,
+                    COALESCE(b.grand_total, 0.0) as bill_grand_total,
                     COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as food_subtotal
                 FROM orders o
-                LEFT JOIN online_platforms op ON o.platform_id = op.id
+                LEFT JOIN bills b ON b.order_id = o.id
+                LEFT JOIN online_platforms op ON COALESCE(b.platform_id, o.platform_id) = op.id
                 JOIN kots k ON k.order_id = o.id
                 JOIN kot_items ki ON ki.kot_id = k.id
                 JOIN products p ON ki.product_id = p.id
-                WHERE o.order_type = 'online' AND o.status = 'completed' AND ki.status != 'cancelled'
-                AND DATE(o.created_at) BETWEEN ? AND ?
-                GROUP BY o.id, o.platform_id, op.name, o.delivery_fee, o.service_fee, o.discount_amount";
+                WHERE (o.order_type = 'online' OR b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0) OR o.platform_id IS NOT NULL) 
+                  AND o.status IN ('closed', 'completed') 
+                  AND ki.status != 'cancelled'
+                  AND DATE(o.created_at) BETWEEN ? AND ?
+                GROUP BY o.id, COALESCE(b.platform_id, o.platform_id), op.name, b.delivery_fee, o.delivery_fee, b.service_fee, o.service_fee, b.discount_amount, o.discount_amount, b.grand_total";
                 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$startDate, $endDate]);
@@ -710,12 +754,13 @@ class Bill extends Model {
             $discount = min((float)$ord['discount_amount'], $foodSub);
             $deliveryFee = (float)$ord['delivery_fee'];
             $serviceFee = (float)$ord['service_fee'];
+            $billGrand = (float)$ord['bill_grand_total'];
             
             // Formula confirmed from platform invoice:
             // Grand Total = Subtotal (Food) + Service Fee + Delivery Fee - Discount
             // Tax is included in item prices ("VAT (Incl.)")
             $tax = max(0.0, $foodSub - $discount) * ($taxPercent / (100.0 + $taxPercent));
-            $gross = max(0.0, ($foodSub - $discount) + $serviceFee + $deliveryFee);
+            $gross = ($billGrand > 0) ? $billGrand : max(0.0, ($foodSub - $discount) + $serviceFee + $deliveryFee);
             $net = $gross;
 
             if (!isset($platformsMap[$platName])) {
@@ -760,5 +805,30 @@ class Bill extends Model {
             'summary_totals' => $summaryTotals,
             'breakdown'      => array_values($platformsMap)
         ];
+    }
+
+    public function getOnlineProviderCollections($startDate, $endDate = null) {
+        if ($endDate === null) {
+            $endDate = $startDate;
+        }
+        $sql = "SELECT 
+                    COALESCE(op.name, 'Other Online') as platform_name,
+                    COALESCE(op.id, 0) as platform_id,
+                    COUNT(b.id) as total_bills,
+                    COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.online_amount WHEN b.payment_method = 'online' THEN b.grand_total ELSE 0 END), 0) as total_collected,
+                    COALESCE(SUM(COALESCE(b.delivery_fee, 0.0)), 0) as total_delivery_fee,
+                    COALESCE(SUM(COALESCE(b.service_fee, 0.0)), 0) as total_service_fee,
+                    COALESCE(SUM(COALESCE(b.discount_amount, 0.0)), 0) as total_discount
+                FROM bills b
+                JOIN orders o ON b.order_id = o.id
+                LEFT JOIN online_platforms op ON COALESCE(b.platform_id, o.platform_id) = op.id
+                WHERE b.status = 'paid' 
+                  AND (b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0) OR o.order_type = 'online')
+                  AND DATE(b.created_at) BETWEEN ? AND ?
+                GROUP BY COALESCE(op.name, 'Other Online'), COALESCE(op.id, 0)
+                ORDER BY total_collected DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$startDate, $endDate]);
+        return $stmt->fetchAll();
     }
 }

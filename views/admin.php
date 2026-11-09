@@ -3167,14 +3167,16 @@
                     const pCash = parseFloat(row.cash_amount || 0);
                     const pCard = parseFloat(row.card_amount || 0);
                     const pQr = parseFloat(row.qr_amount || 0);
+                    const pOnline = parseFloat(row.online_amount || 0);
                     let parts = [];
                     if (pCash > 0) parts.push(`💵 ${pCash.toFixed(window.PRICE_DECIMALS || 3)}`);
                     if (pCard > 0) parts.push(`💳 ${pCard.toFixed(window.PRICE_DECIMALS || 3)}`);
                     if (pQr > 0) parts.push(`📱 ${pQr.toFixed(window.PRICE_DECIMALS || 3)}`);
+                    if (pOnline > 0) parts.push(`🌐 ${pOnline.toFixed(window.PRICE_DECIMALS || 3)}`);
                     payMethodDisplay = `<span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size:11px;" title="${parts.join(' | ')}">🔀 Split</span><div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${parts.join(', ')}</div>`;
                 } else if (row.payment_method && row.payment_method !== 'Pending') {
                     const m = (row.payment_method || '').toLowerCase();
-                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : '📱');
+                    const icon = m.includes('cash') ? '💵' : (m.includes('card') ? '💳' : (m.includes('online') ? '🌐' : '📱'));
                     payMethodDisplay = `${icon} ${escapeHtmlAdmin(row.payment_method)}`;
                 }
 

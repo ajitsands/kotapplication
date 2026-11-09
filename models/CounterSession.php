@@ -2,6 +2,23 @@
 
 class CounterSession extends Model {
 
+    public function __construct() {
+        parent::__construct();
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM counter_sessions")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('online_total', $cols)) {
+                $this->db->exec("ALTER TABLE `counter_sessions` ADD COLUMN `online_total` DECIMAL(10,3) DEFAULT 0.000 AFTER `qr_total`");
+            }
+            if (!in_array('collected_online', $cols)) {
+                $this->db->exec("ALTER TABLE `counter_sessions` ADD COLUMN `collected_online` DECIMAL(10,3) DEFAULT 0.000 AFTER `collected_qr`");
+            }
+        } catch (Exception $e) {}
+    }
+
     /**
      * Ensure at most one active ('open' or 'close_requested') session exists per cashier.
      * If duplicates exist, consolidate into the earliest session so all transactions remain unified.
@@ -134,6 +151,7 @@ class CounterSession extends Model {
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN cash_amount WHEN payment_method='cash' THEN grand_total ELSE 0 END), 0) AS cash_total,
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN card_amount WHEN payment_method='card' THEN grand_total ELSE 0 END), 0) AS card_total,
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN qr_amount WHEN payment_method='qr_pay' THEN grand_total ELSE 0 END), 0) AS qr_total,
+                COALESCE(SUM(CASE WHEN payment_method='split' THEN online_amount WHEN payment_method='online' THEN grand_total ELSE 0 END), 0) AS online_total,
                 COALESCE(SUM(grand_total), 0) AS system_total
              FROM bills
              WHERE cashier_id = ? AND status = 'paid' AND created_at BETWEEN ? AND ?"
@@ -143,20 +161,20 @@ class CounterSession extends Model {
 
         if ($persistWindow) {
             $upd = $this->db->prepare(
-                "UPDATE counter_sessions SET cash_total=?, card_total=?, qr_total=?, system_total=?, opened_at=?, close_requested_at=? WHERE id=?"
+                "UPDATE counter_sessions SET cash_total=?, card_total=?, qr_total=?, online_total=?, system_total=?, opened_at=?, close_requested_at=? WHERE id=?"
             );
             $upd->execute([
-                $totals['cash_total'], $totals['card_total'], $totals['qr_total'], $totals['system_total'],
+                $totals['cash_total'], $totals['card_total'], $totals['qr_total'], $totals['online_total'], $totals['system_total'],
                 $start, $end, $sessionId
             ]);
         } else {
             // Keep open session window open-ended (close_requested_at = NULL) so multi-location transactions are never cut off
             $keepCloseReqAt = ($session['status'] === 'open') ? null : $session['close_requested_at'];
             $upd = $this->db->prepare(
-                "UPDATE counter_sessions SET cash_total=?, card_total=?, qr_total=?, system_total=?, close_requested_at=? WHERE id=?"
+                "UPDATE counter_sessions SET cash_total=?, card_total=?, qr_total=?, online_total=?, system_total=?, close_requested_at=? WHERE id=?"
             );
             $upd->execute([
-                $totals['cash_total'], $totals['card_total'], $totals['qr_total'], $totals['system_total'],
+                $totals['cash_total'], $totals['card_total'], $totals['qr_total'], $totals['online_total'], $totals['system_total'],
                 $keepCloseReqAt, $sessionId
             ]);
         }
@@ -175,6 +193,7 @@ class CounterSession extends Model {
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN cash_amount WHEN payment_method='cash' THEN grand_total ELSE 0 END), 0) AS cash_total,
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN card_amount WHEN payment_method='card' THEN grand_total ELSE 0 END), 0) AS card_total,
                 COALESCE(SUM(CASE WHEN payment_method='split' THEN qr_amount WHEN payment_method='qr_pay' THEN grand_total ELSE 0 END), 0) AS qr_total,
+                COALESCE(SUM(CASE WHEN payment_method='split' THEN online_amount WHEN payment_method='online' THEN grand_total ELSE 0 END), 0) AS online_total,
                 COALESCE(SUM(grand_total), 0) AS day_total
              FROM bills
              WHERE cashier_id = ? AND status = 'paid' AND created_at BETWEEN ? AND ?
@@ -188,8 +207,8 @@ class CounterSession extends Model {
     /**
      * Request session close with cashier-declared collected amounts.
      */
-    public function requestClose($sessionId, $collectedCash, $collectedCard, $collectedQr, $notes, $endTime = null) {
-        $collectedTotal = $collectedCash + $collectedCard + $collectedQr;
+    public function requestClose($sessionId, $collectedCash, $collectedCard, $collectedQr, $notes, $endTime = null, $collectedOnline = 0.0) {
+        $collectedTotal = $collectedCash + $collectedCard + $collectedQr + $collectedOnline;
         $end = !empty($endTime) ? $endTime : date('Y-m-d H:i:s');
         $stmt = $this->db->prepare(
             "UPDATE counter_sessions 
@@ -198,11 +217,12 @@ class CounterSession extends Model {
                  collected_cash = ?,
                  collected_card = ?,
                  collected_qr = ?,
+                 collected_online = ?,
                  collected_total = ?,
                  cashier_notes = ?
              WHERE id = ? AND status = 'open'"
         );
-        $stmt->execute([$end, $collectedCash, $collectedCard, $collectedQr, $collectedTotal, $notes, $sessionId]);
+        $stmt->execute([$end, $collectedCash, $collectedCard, $collectedQr, $collectedOnline, $collectedTotal, $notes, $sessionId]);
         return $stmt->rowCount() > 0;
     }
 

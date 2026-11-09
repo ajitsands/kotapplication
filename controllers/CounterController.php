@@ -263,12 +263,14 @@ class CounterController extends Controller {
         if ($billId && ($payNow || ($orderType === 'take_away' && !empty($settings['auto_print_bill'])))) {
             if ($payNow) {
                 $breakdown = [
-                    'cash_amount' => (float)($data['cash_amount'] ?? 0),
-                    'card_amount' => (float)($data['card_amount'] ?? 0),
-                    'qr_amount'   => (float)($data['qr_amount'] ?? 0)
+                    'cash_amount'   => (float)($data['cash_amount'] ?? 0),
+                    'card_amount'   => (float)($data['card_amount'] ?? 0),
+                    'qr_amount'     => (float)($data['qr_amount'] ?? 0),
+                    'online_amount' => (float)($data['online_amount'] ?? 0)
                 ];
+                $payPlatformId = (int)($data['online_platform_id'] ?? $data['platform_id'] ?? $platformId);
                 $billModel = new Bill();
-                $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown);
+                $billModel->payBill($billId, $paymentMethod, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown, $payPlatformId);
             }
             
             try {
@@ -402,7 +404,9 @@ class CounterController extends Controller {
             'card_amount' => 0,
             'card_count' => 0,
             'qr_amount' => 0,
-            'qr_count' => 0
+            'qr_count' => 0,
+            'online_amount' => 0,
+            'online_count' => 0
         ];
         
         foreach ($orders as $o) {
@@ -418,6 +422,9 @@ class CounterController extends Controller {
             } elseif ($method === 'card') {
                 $summary['card_amount'] += $amt;
                 $summary['card_count']++;
+            } elseif ($method === 'online') {
+                $summary['online_amount'] += $amt;
+                $summary['online_count']++;
             } else {
                 $summary['qr_amount'] += $amt;
                 $summary['qr_count']++;
@@ -458,14 +465,16 @@ class CounterController extends Controller {
             }
         }
 
+        $platformId = !empty($data['platform_id']) ? (int)$data['platform_id'] : (!empty($data['online_platform_id']) ? (int)$data['online_platform_id'] : null);
         $breakdown = [
-            'cash_amount' => (float)($data['cash_amount'] ?? 0),
-            'card_amount' => (float)($data['card_amount'] ?? 0),
-            'qr_amount'   => (float)($data['qr_amount'] ?? 0)
+            'cash_amount'   => (float)($data['cash_amount'] ?? 0),
+            'card_amount'   => (float)($data['card_amount'] ?? 0),
+            'qr_amount'     => (float)($data['qr_amount'] ?? 0),
+            'online_amount' => (float)($data['online_amount'] ?? 0)
         ];
 
         $billModel = new Bill();
-        $success = $billModel->payBill($billId, $method, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown);
+        $success = $billModel->payBill($billId, $method, $discountPercent, $cashierId, $customerName, $customerMobile, $gender, $breakdown, $platformId);
         if ($success) {
             try {
                 require_once __DIR__ . '/../services/PrinterService.php';
@@ -661,6 +670,8 @@ class CounterController extends Controller {
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
             $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
+            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? $onlineData['total'] ?? 0.0);
+            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($startDate, $endDate);
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
@@ -682,6 +693,7 @@ class CounterController extends Controller {
                             'cash_total' => $activeSession['cash_total'],
                             'card_total' => $activeSession['card_total'],
                             'qr_total' => $activeSession['qr_total'],
+                            'online_total' => $activeSession['online_total'] ?? 0.000,
                             'system_total' => $activeSession['system_total']
                         ];
                     }
@@ -689,6 +701,7 @@ class CounterController extends Controller {
                         'cash_total' => $totals['cash_total'],
                         'card_total' => $totals['card_total'],
                         'qr_total' => $totals['qr_total'],
+                        'online_received_total' => $totals['online_total'] ?? 0.000,
                         'grand_total' => $totals['system_total'],
                         'takeaway_total' => 0.000
                     ];
@@ -697,6 +710,7 @@ class CounterController extends Controller {
                         'cash_total' => 0.000,
                         'card_total' => 0.000,
                         'qr_total' => 0.000,
+                        'online_received_total' => 0.000,
                         'grand_total' => 0.000,
                         'takeaway_total' => 0.000
                     ];
@@ -710,6 +724,8 @@ class CounterController extends Controller {
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
             $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
+            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? $onlineData['total'] ?? 0.0);
+            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($startDate, $endDate);
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);

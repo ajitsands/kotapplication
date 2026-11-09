@@ -817,7 +817,7 @@
 
         .pay-methods-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin: 15px 0;
         }
@@ -1176,18 +1176,37 @@
             </div>
 
             <div class="pay-methods-grid">
-                <button type="button" class="pay-btn-tile selected" onclick="selectPosPaymentMethod('cash', this)">
+                <button type="button" class="pay-btn-tile selected" id="pos-pay-tile-cash" onclick="selectPosPaymentMethod('cash', this)">
                     <span style="font-size: 22px;">💵</span>
                     <span>Cash</span>
                 </button>
-                <button type="button" class="pay-btn-tile" onclick="selectPosPaymentMethod('card', this)">
+                <button type="button" class="pay-btn-tile" id="pos-pay-tile-card" onclick="selectPosPaymentMethod('card', this)">
                     <span style="font-size: 22px;">💳</span>
                     <span>Card</span>
                 </button>
-                <button type="button" class="pay-btn-tile" onclick="selectPosPaymentMethod('qr_pay', this)">
+                <button type="button" class="pay-btn-tile" id="pos-pay-tile-qr" onclick="selectPosPaymentMethod('qr_pay', this)">
                     <span style="font-size: 22px;">📱</span>
                     <span>QR Pay</span>
                 </button>
+                <button type="button" class="pay-btn-tile" id="pos-pay-tile-online" onclick="selectPosPaymentMethod('online', this)">
+                    <span style="font-size: 22px;">🌐</span>
+                    <span>Online</span>
+                </button>
+            </div>
+
+            <div id="pos-pay-platform-container" style="display: none; margin-bottom: 15px; background: rgba(99, 102, 241, 0.05); padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.25); text-align: left;">
+                <label style="font-size: 11px; font-weight: 700; color: #818cf8; display: block; margin-bottom: 5px; text-transform: uppercase;">🌐 Select Platform / Provider:</label>
+                <select id="pos-pay-platform-select" class="meta-input" style="width: 100%;">
+                    <?php if (!empty($platforms)): ?>
+                        <?php foreach ($platforms as $plat): ?>
+                            <option value="<?= $plat['id'] ?>"><?= htmlspecialchars($plat['name']) ?></option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option value="1">Talabat</option>
+                        <option value="2">Jahez</option>
+                        <option value="3">Deliveroo</option>
+                    <?php endif; ?>
+                </select>
             </div>
 
             <div style="margin-bottom: 12px;">
@@ -1952,8 +1971,9 @@
             const payload = {
                 order_type: currentOrderType,
                 table_number: tableNum,
-                platform_id: platformId,
+                platform_id: platformId || options.onlinePlatformId || null,
                 platform_order_number: platformOrderNum,
+                online_platform_id: options.onlinePlatformId || null,
                 customer_name: custName,
                 customer_mobile: custMobile,
                 items: itemsPayload,
@@ -2081,6 +2101,20 @@
             const grandTotalStr = document.getElementById('pos-grand-total').innerText;
             document.getElementById('pos-modal-grand-label').innerText = grandTotalStr;
             document.getElementById('pos-discount-input').value = '0';
+
+            // Auto-select Online payment tile and current platform if order type is online
+            if (currentOrderType === 'online') {
+                const onlineTile = document.getElementById('pos-pay-tile-online');
+                selectPosPaymentMethod('online', onlineTile);
+                const currentPlat = document.getElementById('pos-platform-select')?.value;
+                if (currentPlat && document.getElementById('pos-pay-platform-select')) {
+                    document.getElementById('pos-pay-platform-select').value = currentPlat;
+                }
+            } else {
+                const cashTile = document.getElementById('pos-pay-tile-cash');
+                selectPosPaymentMethod('cash', cashTile);
+            }
+
             calculatePosDiscount();
             document.getElementById('pos-pay-modal').style.display = 'flex';
         }
@@ -2093,15 +2127,17 @@
             selectedPaymentMethod = method;
             document.querySelectorAll('.pay-btn-tile').forEach(b => b.classList.remove('selected'));
             if (btn) btn.classList.add('selected');
+
+            const platContainer = document.getElementById('pos-pay-platform-container');
+            if (platContainer) {
+                platContainer.style.display = (method === 'online') ? 'block' : 'none';
+            }
         }
 
         function calculatePosDiscount() {
             const discountPercent = parseFloat(document.getElementById('pos-discount-input').value) || 0;
-            
-            let subtotal = 0;
-            cart.forEach(i => subtotal += (i.price * i.quantity));
-            let tax = (taxType === 'VAT') ? subtotal * (vatPercent / 100.0) : subtotal * ((cgstPercent + sgstPercent) / 100.0);
-            let grand = subtotal + tax;
+            const grandStr = document.getElementById('pos-grand-total')?.innerText || '0';
+            const grand = parseFloat(grandStr) || 0;
 
             let discountAmount = grand * (discountPercent / 100.0);
             let net = Math.max(0, grand - discountAmount);
@@ -2112,12 +2148,14 @@
         function confirmPosPaymentAndSubmit() {
             const discountPercent = parseFloat(document.getElementById('pos-discount-input').value) || 0;
             const gender = document.getElementById('pos-cust-gender').value;
+            const onlinePlatformId = (selectedPaymentMethod === 'online') ? parseInt(document.getElementById('pos-pay-platform-select')?.value || 0) : null;
 
             executeOrderSubmission({
                 payNow: true,
                 paymentMethod: selectedPaymentMethod,
                 discountPercent: discountPercent,
-                gender: gender
+                gender: gender,
+                onlinePlatformId: onlinePlatformId
             });
         }
 
