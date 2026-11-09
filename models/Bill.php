@@ -15,6 +15,13 @@ class Bill extends Model {
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `card_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `cash_amount`");
                 $this->db->exec("ALTER TABLE `bills` ADD COLUMN `qr_amount` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `card_amount`");
             }
+            $allCols = $this->db->query("SHOW COLUMNS FROM bills")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('delivery_fee', $allCols)) {
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `delivery_fee` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `discount_amount`");
+            }
+            if (!in_array('service_fee', $allCols)) {
+                $this->db->exec("ALTER TABLE `bills` ADD COLUMN `service_fee` DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER `delivery_fee`");
+            }
         } catch (Exception $e) {}
     }
 
@@ -85,7 +92,8 @@ class Bill extends Model {
                     $discountAmount = ($discountPercent > 0)
                         ? ($liveSubtotal * ($discountPercent / 100.0))
                         : min((float)($bill['discount_amount'] ?? 0.0), $liveSubtotal);
-                    $grandTotal = max(0.0, ($liveSubtotal - $discountAmount) + $taxAmount);
+                    $deliveryFee = (float)($bill['delivery_fee'] ?? 0.0);
+                    $grandTotal = max(0.0, ($liveSubtotal - $discountAmount) + $taxAmount + $deliveryFee);
 
                     $stmtUpd = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
                     $stmtUpd->execute([$liveSubtotal, $discountAmount, $taxAmount, $grandTotal, $billId]);
@@ -657,10 +665,15 @@ class Bill extends Model {
             $endDate = $startDate;
         }
         
+        // Group by order first to calculate precise totals per order
         $sql = "SELECT 
+                    o.id as order_id,
+                    o.platform_id,
                     COALESCE(op.name, 'Unknown Platform') as platform_name,
-                    COUNT(DISTINCT o.id) as order_count,
-                    COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as subtotal
+                    COALESCE(o.delivery_fee, 0.0) as delivery_fee,
+                    COALESCE(o.service_fee, 0.0) as service_fee,
+                    COALESCE(o.discount_amount, 0.0) as discount_amount,
+                    COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as food_subtotal
                 FROM orders o
                 LEFT JOIN online_platforms op ON o.platform_id = op.id
                 JOIN kots k ON k.order_id = o.id
@@ -668,28 +681,81 @@ class Bill extends Model {
                 JOIN products p ON ki.product_id = p.id
                 WHERE o.order_type = 'online' AND o.status = 'completed' AND ki.status != 'cancelled'
                 AND DATE(o.created_at) BETWEEN ? AND ?
-                GROUP BY o.platform_id";
+                GROUP BY o.id, o.platform_id, op.name, o.delivery_fee, o.service_fee, o.discount_amount";
                 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$startDate, $endDate]);
-        $rows = $stmt->fetchAll();
+        $orders = $stmt->fetchAll();
         
-        $breakdown = [];
-        $total = 0;
-        
-        foreach ($rows as $row) {
-            $sub = (float)$row['subtotal'];
-            $tax = $sub * 0.10; // 10% tax to match active orders logic
-            $grand = $sub + $tax;
-            
-            $breakdown[] = [
-                'platform_name' => $row['platform_name'],
-                'order_count' => $row['order_count'],
-                'total' => $grand
-            ];
-            $total += $grand;
+        $settingsModel = new Setting();
+        $settings = $settingsModel->getSettings();
+        $taxType = $settings['tax_type'] ?? 'VAT';
+        $taxPercent = ($taxType === 'VAT') ? (float)($settings['vat_percent'] ?? 10.0) : ((float)($settings['cgst_percent'] ?? 2.5) + (float)($settings['sgst_percent'] ?? 2.5));
+
+        $platformsMap = [];
+        $summaryTotals = [
+            'order_count'     => 0,
+            'food_subtotal'   => 0.0,
+            'delivery_fee'    => 0.0,
+            'discount_amount' => 0.0,
+            'tax_amount'      => 0.0,
+            'service_fee'     => 0.0,
+            'gross_total'     => 0.0,
+            'net_total'       => 0.0
+        ];
+
+        foreach ($orders as $ord) {
+            $platName = $ord['platform_name'];
+            $foodSub = (float)$ord['food_subtotal'];
+            $discount = min((float)$ord['discount_amount'], $foodSub);
+            $taxable = max(0.0, $foodSub - $discount);
+            $tax = $taxable * ($taxPercent / 100.0);
+            $deliveryFee = (float)$ord['delivery_fee'];
+            $serviceFee = (float)$ord['service_fee'];
+            $gross = max(0.0, $taxable + $tax + $deliveryFee);
+            $net = max(0.0, $gross - $serviceFee);
+
+            if (!isset($platformsMap[$platName])) {
+                $platformsMap[$platName] = [
+                    'platform_name'   => $platName,
+                    'order_count'     => 0,
+                    'food_subtotal'   => 0.0,
+                    'delivery_fee'    => 0.0,
+                    'discount_amount' => 0.0,
+                    'tax_amount'      => 0.0,
+                    'service_fee'     => 0.0,
+                    'gross_total'     => 0.0,
+                    'net_total'       => 0.0,
+                    'total'           => 0.0
+                ];
+            }
+
+            $platformsMap[$platName]['order_count'] += 1;
+            $platformsMap[$platName]['food_subtotal'] += $foodSub;
+            $platformsMap[$platName]['delivery_fee'] += $deliveryFee;
+            $platformsMap[$platName]['discount_amount'] += $discount;
+            $platformsMap[$platName]['tax_amount'] += $tax;
+            $platformsMap[$platName]['service_fee'] += $serviceFee;
+            $platformsMap[$platName]['gross_total'] += $gross;
+            $platformsMap[$platName]['net_total'] += $net;
+            $platformsMap[$platName]['total'] += $gross;
+
+            $summaryTotals['order_count'] += 1;
+            $summaryTotals['food_subtotal'] += $foodSub;
+            $summaryTotals['delivery_fee'] += $deliveryFee;
+            $summaryTotals['discount_amount'] += $discount;
+            $summaryTotals['tax_amount'] += $tax;
+            $summaryTotals['service_fee'] += $serviceFee;
+            $summaryTotals['gross_total'] += $gross;
+            $summaryTotals['net_total'] += $net;
         }
-        
-        return ['total' => $total, 'breakdown' => $breakdown];
+
+        return [
+            'total'          => $summaryTotals['gross_total'],
+            'gross_total'    => $summaryTotals['gross_total'],
+            'net_total'      => $summaryTotals['net_total'],
+            'summary_totals' => $summaryTotals,
+            'breakdown'      => array_values($platformsMap)
+        ];
     }
 }

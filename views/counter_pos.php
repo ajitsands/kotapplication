@@ -1070,7 +1070,7 @@
                 </div>
 
                 <div id="online-select-container" style="display: none;">
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                         <div style="flex: 1;">
                             <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Platform:</label>
                             <select id="pos-platform-select" class="meta-input" onchange="onPlatformChange()">
@@ -1088,6 +1088,20 @@
                         <div style="flex: 1;">
                             <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Order ID / Ref:</label>
                             <input type="text" id="pos-platform-number" class="meta-input" placeholder="e.g. #7821">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background: rgba(99,102,241,0.04); border: 1px dashed var(--card-border); padding: 8px; border-radius: 8px;">
+                        <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 3px;" title="Delivery fee charged for this order">🚚 Delivery Fee:</label>
+                            <input type="number" id="pos-online-delivery-fee" step="0.001" min="0" value="0.000" class="meta-input" placeholder="0.000" style="padding: 6px 8px; font-size: 12px;" oninput="renderCart()">
+                        </div>
+                        <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 3px;" title="Commission or service fee deducted by platform">💼 Service Fee:</label>
+                            <input type="number" id="pos-online-service-fee" step="0.001" min="0" value="0.000" class="meta-input" placeholder="0.000" style="padding: 6px 8px; font-size: 12px;" oninput="renderCart()">
+                        </div>
+                        <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 3px;" title="Discounts applied to items">🏷️ Discount:</label>
+                            <input type="number" id="pos-online-discount" step="0.001" min="0" value="0.000" class="meta-input" placeholder="0.000" style="padding: 6px 8px; font-size: 12px;" oninput="renderCart()">
                         </div>
                     </div>
                 </div>
@@ -1117,13 +1131,29 @@
                     <span>Subtotal:</span>
                     <span id="pos-subtotal">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
+                <div class="total-row" id="pos-row-discount" style="display: none; color: #ef4444;">
+                    <span>Discount:</span>
+                    <span id="pos-discount-amount">-0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
                 <div class="total-row">
                     <span id="pos-tax-label"><?= ($settings['tax_type'] ?? 'VAT') === 'GST' ? 'GST' : 'VAT (' . (float)($settings['vat_percent'] ?? 10) . '%)' ?>:</span>
                     <span id="pos-tax-amount" style="color: var(--accent-orange);">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
+                <div class="total-row" id="pos-row-delivery-fee" style="display: none; color: #38bdf8;">
+                    <span>Delivery Fee:</span>
+                    <span id="pos-delivery-fee-amount">+0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
                 <div class="total-row grand">
                     <span>Total Amount:</span>
                     <span id="pos-grand-total" style="color: var(--accent-green);">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
+                <div class="total-row" id="pos-row-service-fee" style="display: none; font-size: 11.5px; color: #f43f5e; border-top: 1px dashed var(--card-border); padding-top: 4px; margin-top: 4px;">
+                    <span>Service Fee (Deduction):</span>
+                    <span id="pos-service-fee-amount">-0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
+                </div>
+                <div class="total-row" id="pos-row-net-payout" style="display: none; font-size: 13px; font-weight: 700; color: #818cf8;">
+                    <span>Net Restaurant Payout:</span>
+                    <span id="pos-net-payout-amount">0.000 <?= htmlspecialchars($settings['currency_code']) ?></span>
                 </div>
 
                 <button type="button" class="btn-checkout-kot" onclick="submitPosOrder(false)">
@@ -1410,9 +1440,22 @@
             cart.forEach(item => {
                 const base = (typeof item.base_price !== 'undefined') ? item.base_price : item.price;
                 item.base_price = base;
-                item.price = markup > 0 ? (base * (1 + markup / 100)) : base;
+                if (!item.is_custom_price) {
+                    item.price = markup > 0 ? (base * (1 + markup / 100)) : base;
+                }
                 item.markup_percent = markup;
             });
+            renderCart();
+        }
+
+        function updateItemPrice(productId, newPrice) {
+            const idx = cart.findIndex(i => i.id === productId);
+            if (idx === -1) return;
+            const val = parseFloat(newPrice);
+            if (!isNaN(val) && val >= 0) {
+                cart[idx].price = val;
+                cart[idx].is_custom_price = true;
+            }
             renderCart();
         }
 
@@ -1438,8 +1481,10 @@
             if (existingIndex > -1) {
                 cart[existingIndex].quantity += 1;
                 cart[existingIndex].base_price = basePrice;
-                cart[existingIndex].price = finalPrice;
-                cart[existingIndex].markup_percent = markup;
+                if (!cart[existingIndex].is_custom_price) {
+                    cart[existingIndex].price = finalPrice;
+                    cart[existingIndex].markup_percent = markup;
+                }
             } else {
                 cart.push({
                     id: product.id,
@@ -1447,6 +1492,7 @@
                     base_price: basePrice,
                     price: finalPrice,
                     markup_percent: markup,
+                    is_custom_price: false,
                     quantity: 1,
                     notes: ''
                 });
@@ -1515,11 +1561,22 @@
                     html += `
                         <div class="cart-item-card">
                             <div class="cart-item-top">
-                                <div>
+                                <div style="flex: 1;">
                                     <div class="cart-item-title">${escapeHtml(item.name)}</div>
-                                    <div class="cart-item-price">${item.price.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</div>
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
+                                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Unit Price:</label>
+                                        <div style="display: inline-flex; align-items: center; gap: 3px;">
+                                            <input type="number" step="0.001" min="0" 
+                                                   value="${item.price.toFixed(window.PRICE_DECIMALS || 3)}" 
+                                                   onchange="updateItemPrice(${item.id}, this.value)" 
+                                                   style="width: 76px; padding: 2px 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--card-border); background: var(--bg-card); color: var(--text-color); text-align: right;" 
+                                                   title="Edit item unit price (e.g. customized platform price)">
+                                            <span style="font-size: 11px; color: var(--text-muted);">${currencyCode}</span>
+                                        </div>
+                                        ${item.is_custom_price ? '<span style="font-size: 9.5px; background: rgba(99,102,241,0.18); color: #818cf8; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Custom</span>' : ''}
+                                    </div>
                                 </div>
-                                <button onclick="updateQuantity(${item.id}, -${item.quantity})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 14px;" title="Remove Item">🗑️</button>
+                                <button onclick="updateQuantity(${item.id}, -${item.quantity})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 14px; padding: 4px;" title="Remove Item">🗑️</button>
                             </div>
                             <input type="text" class="cart-item-note-input" placeholder="Notes (e.g. No onion)" value="${escapeHtml(item.notes)}" onchange="updateItemNote(${item.id}, this.value)">
                             <div class="cart-item-bottom">
@@ -1538,18 +1595,67 @@
 
             countLabel.innerText = totalQty + (totalQty === 1 ? ' item' : ' items');
 
+            // Online fees & deductions
+            let onlineDeliveryFee = 0;
+            let onlineServiceFee = 0;
+            let onlineDiscount = 0;
+            if (currentOrderType === 'online') {
+                onlineDeliveryFee = parseFloat(document.getElementById('pos-online-delivery-fee')?.value || 0) || 0;
+                onlineServiceFee = parseFloat(document.getElementById('pos-online-service-fee')?.value || 0) || 0;
+                onlineDiscount = parseFloat(document.getElementById('pos-online-discount')?.value || 0) || 0;
+            }
+
+            const taxableSubtotal = Math.max(0, subtotal - onlineDiscount);
+
             // Calculate taxes
             let taxAmount = 0;
             if (taxType === 'VAT') {
-                taxAmount = subtotal * (vatPercent / 100.0);
+                taxAmount = taxableSubtotal * (vatPercent / 100.0);
             } else {
-                taxAmount = subtotal * ((cgstPercent + sgstPercent) / 100.0);
+                taxAmount = taxableSubtotal * ((cgstPercent + sgstPercent) / 100.0);
             }
-            const grandTotal = subtotal + taxAmount;
+            const grandTotal = Math.max(0, taxableSubtotal + taxAmount + onlineDeliveryFee);
+            const netPayout = Math.max(0, grandTotal - onlineServiceFee);
 
             document.getElementById('pos-subtotal').innerText = subtotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+            
+            const discRow = document.getElementById('pos-row-discount');
+            if (discRow) {
+                if (onlineDiscount > 0) {
+                    discRow.style.display = 'flex';
+                    document.getElementById('pos-discount-amount').innerText = '-' + onlineDiscount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                } else {
+                    discRow.style.display = 'none';
+                }
+            }
+
             document.getElementById('pos-tax-amount').innerText = taxAmount.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            const delRow = document.getElementById('pos-row-delivery-fee');
+            if (delRow) {
+                if (onlineDeliveryFee > 0) {
+                    delRow.style.display = 'flex';
+                    document.getElementById('pos-delivery-fee-amount').innerText = '+' + onlineDeliveryFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                } else {
+                    delRow.style.display = 'none';
+                }
+            }
+
             document.getElementById('pos-grand-total').innerText = grandTotal.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            const servRow = document.getElementById('pos-row-service-fee');
+            const netRow = document.getElementById('pos-row-net-payout');
+            if (servRow && netRow) {
+                if (currentOrderType === 'online' && onlineServiceFee > 0) {
+                    servRow.style.display = 'flex';
+                    netRow.style.display = 'flex';
+                    document.getElementById('pos-service-fee-amount').innerText = '-' + onlineServiceFee.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                    document.getElementById('pos-net-payout-amount').innerText = netPayout.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+                } else {
+                    servRow.style.display = 'none';
+                    netRow.style.display = 'none';
+                }
+            }
         }
 
         // Customer Phone Lookup
@@ -1780,6 +1886,15 @@
             const custName = document.getElementById('pos-cust-name').value.trim();
             const custMobile = document.getElementById('pos-cust-mobile').value.trim();
 
+            let onlineDeliveryFee = 0;
+            let onlineServiceFee = 0;
+            let onlineDiscount = 0;
+            if (currentOrderType === 'online') {
+                onlineDeliveryFee = parseFloat(document.getElementById('pos-online-delivery-fee')?.value || 0) || 0;
+                onlineServiceFee = parseFloat(document.getElementById('pos-online-service-fee')?.value || 0) || 0;
+                onlineDiscount = parseFloat(document.getElementById('pos-online-discount')?.value || 0) || 0;
+            }
+
             const itemsPayload = cart.map(i => ({
                 product_id: i.id,
                 quantity: i.quantity,
@@ -1837,6 +1952,9 @@
                 pay_now: options.payNow,
                 payment_method: options.paymentMethod || 'cash',
                 discount_percent: options.discountPercent || 0,
+                delivery_fee: onlineDeliveryFee,
+                service_fee: onlineServiceFee,
+                discount_amount: onlineDiscount,
                 gender: options.gender || '',
                 printer_ip: counterPrinterIp,
                 printer_port: counterPrinterPort
@@ -1929,6 +2047,9 @@
                     if (platSel) platSel.value = '';
                     const platNum = document.getElementById('pos-platform-number');
                     if (platNum) platNum.value = '';
+                    if (document.getElementById('pos-online-delivery-fee')) document.getElementById('pos-online-delivery-fee').value = '0.000';
+                    if (document.getElementById('pos-online-service-fee')) document.getElementById('pos-online-service-fee').value = '0.000';
+                    if (document.getElementById('pos-online-discount')) document.getElementById('pos-online-discount').value = '0.000';
                     setOrderType('take_away');
                     closePosPayModal();
                 } else {

@@ -31,10 +31,27 @@ class Order extends Model {
             if (!in_array('token_number', $cols)) {
                 $this->db->exec("ALTER TABLE orders ADD COLUMN token_number VARCHAR(10) DEFAULT NULL");
             }
+            if (!in_array('delivery_fee', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN delivery_fee DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER customer_mobile");
+            }
+            if (!in_array('service_fee', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN service_fee DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER delivery_fee");
+            }
+            if (!in_array('discount_amount', $cols)) {
+                $this->db->exec("ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER service_fee");
+            }
             if (!in_array('cancellation_reason', $cols)) {
                 $this->db->exec("ALTER TABLE orders ADD COLUMN cancellation_reason VARCHAR(255) DEFAULT NULL");
                 $this->db->exec("ALTER TABLE orders ADD COLUMN cancelled_by VARCHAR(100) DEFAULT NULL");
                 $this->db->exec("ALTER TABLE orders ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL");
+            }
+
+            $billCols = $this->db->query("SHOW COLUMNS FROM bills")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('delivery_fee', $billCols)) {
+                $this->db->exec("ALTER TABLE bills ADD COLUMN delivery_fee DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER discount_amount");
+            }
+            if (!in_array('service_fee', $billCols)) {
+                $this->db->exec("ALTER TABLE bills ADD COLUMN service_fee DECIMAL(10,3) NOT NULL DEFAULT 0.000 AFTER delivery_fee");
             }
 
             $kotCols = $this->db->query("SHOW COLUMNS FROM kot_items")->fetchAll(PDO::FETCH_COLUMN);
@@ -85,10 +102,19 @@ class Order extends Model {
         }
     }
 
-    public function createOnlineOrder($platformId, $platformOrderNumber, $customerName = null, $customerMobile = null) {
+    public function createOnlineOrder($platformId, $platformOrderNumber, $customerName = null, $customerMobile = null, $deliveryFee = 0.0, $serviceFee = 0.0, $discountAmount = 0.0) {
         $tokenNumber = 'OL-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
-        $stmt = $this->db->prepare("INSERT INTO orders (status, order_type, platform_id, platform_order_number, customer_name, customer_mobile, token_number) VALUES ('active', 'online', ?, ?, ?, ?, ?)");
-        $stmt->execute([$platformId, $platformOrderNumber, $customerName, $customerMobile, $tokenNumber]);
+        $stmt = $this->db->prepare("INSERT INTO orders (status, order_type, platform_id, platform_order_number, customer_name, customer_mobile, delivery_fee, service_fee, discount_amount, token_number) VALUES ('active', 'online', ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $platformId, 
+            $platformOrderNumber, 
+            $customerName, 
+            $customerMobile, 
+            (float)$deliveryFee, 
+            (float)$serviceFee, 
+            (float)$discountAmount, 
+            $tokenNumber
+        ]);
         return $this->db->lastInsertId();
     }
 
@@ -157,7 +183,7 @@ class Order extends Model {
             }
 
             // Update bill if exists
-            $stmtBillCheck = $this->db->prepare("SELECT id, discount_percent, discount_amount FROM bills WHERE order_id = ? AND status = 'pending'");
+            $stmtBillCheck = $this->db->prepare("SELECT id, discount_percent, discount_amount, delivery_fee FROM bills WHERE order_id = ? AND status = 'pending'");
             $stmtBillCheck->execute([$orderId]);
             $bill = $stmtBillCheck->fetch();
             if ($bill) {
@@ -168,7 +194,14 @@ class Order extends Model {
                 } else {
                     $discountAmount = min((float)($bill['discount_amount'] ?? 0.0), $subtotal);
                 }
-                $grandTotal = max(0.0, ($subtotal - $discountAmount) + $taxAmount);
+                $taxableAmount = max(0.0, $subtotal - $discountAmount);
+                if ($taxType === 'VAT') {
+                    $taxAmount = $taxableAmount * ($vatPercent / 100.0);
+                } else {
+                    $taxAmount = $taxableAmount * (($cgstPercent + $sgstPercent) / 100.0);
+                }
+                $deliveryFee = (float)($bill['delivery_fee'] ?? 0.0);
+                $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee);
                 $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
                 $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $grandTotal, $bill['id']]);
             }
@@ -218,8 +251,12 @@ class Order extends Model {
                 $taxAmount = $subtotal * (($cgstPercent + $sgstPercent) / 100.0);
             }
 
+            $orderDeliveryFee = (float)($order['delivery_fee'] ?? 0.0);
+            $orderServiceFee = (float)($order['service_fee'] ?? 0.0);
+            $orderDiscount = (float)($order['discount_amount'] ?? 0.0);
+
             // Check if a pending bill already exists for this order
-            $stmtExistingBill = $this->db->prepare("SELECT id, discount_percent, discount_amount FROM bills WHERE order_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+            $stmtExistingBill = $this->db->prepare("SELECT id, discount_percent, discount_amount, delivery_fee, service_fee FROM bills WHERE order_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
             $stmtExistingBill->execute([$orderId]);
             $existingBill = $stmtExistingBill->fetch();
 
@@ -227,17 +264,45 @@ class Order extends Model {
                 $discountPercent = (float)($existingBill['discount_percent'] ?? 0.0);
                 $discountAmount = ($discountPercent > 0)
                     ? ($subtotal * ($discountPercent / 100.0))
-                    : min((float)($existingBill['discount_amount'] ?? 0.0), $subtotal);
-                $grandTotal = max(0.0, ($subtotal - $discountAmount) + $taxAmount);
+                    : (float)(!empty($existingBill['discount_amount']) ? $existingBill['discount_amount'] : $orderDiscount);
+                $discountAmount = min($discountAmount, $subtotal);
 
-                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, grand_total = ? WHERE id = ?");
-                $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $grandTotal, $existingBill['id']]);
+                $taxableAmount = max(0.0, $subtotal - $discountAmount);
+                if ($taxType === 'VAT') {
+                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                    $taxAmount = $taxableAmount * ($vatPercent / 100.0);
+                } else {
+                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                    $taxAmount = $taxableAmount * (($cgstPercent + $sgstPercent) / 100.0);
+                }
+
+                $deliveryFee = $orderDeliveryFee > 0 ? $orderDeliveryFee : (float)($existingBill['delivery_fee'] ?? 0.0);
+                $serviceFee = $orderServiceFee > 0 ? $orderServiceFee : (float)($existingBill['service_fee'] ?? 0.0);
+                $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee);
+
+                $stmtUpdateBill = $this->db->prepare("UPDATE bills SET subtotal = ?, discount_amount = ?, tax_amount = ?, delivery_fee = ?, service_fee = ?, grand_total = ? WHERE id = ?");
+                $stmtUpdateBill->execute([$subtotal, $discountAmount, $taxAmount, $deliveryFee, $serviceFee, $grandTotal, $existingBill['id']]);
             } else {
-                $grandTotal = $subtotal + $taxAmount;
+                $discountAmount = min($orderDiscount, $subtotal);
+                $taxableAmount = max(0.0, $subtotal - $discountAmount);
+                if ($taxType === 'VAT') {
+                    $vatPercent = (float)($settings['vat_percent'] ?? 10.00);
+                    $taxAmount = $taxableAmount * ($vatPercent / 100.0);
+                } else {
+                    $cgstPercent = (float)($settings['cgst_percent'] ?? 2.50);
+                    $sgstPercent = (float)($settings['sgst_percent'] ?? 2.50);
+                    $taxAmount = $taxableAmount * (($cgstPercent + $sgstPercent) / 100.0);
+                }
+
+                $deliveryFee = $orderDeliveryFee;
+                $serviceFee = $orderServiceFee;
+                $grandTotal = max(0.0, ($taxableAmount + $taxAmount) + $deliveryFee);
+
                 // Create Pending Bill
-                $stmtBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, tax_amount, grand_total, status) 
-                                                VALUES (?, ?, ?, ?, 'pending')");
-                $stmtBill->execute([$orderId, $subtotal, $taxAmount, $grandTotal]);
+                $stmtBill = $this->db->prepare("INSERT INTO bills (order_id, subtotal, discount_amount, tax_amount, delivery_fee, service_fee, grand_total, status) 
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+                $stmtBill->execute([$orderId, $subtotal, $discountAmount, $taxAmount, $deliveryFee, $serviceFee, $grandTotal]);
             }
 
             // Update order status to closed

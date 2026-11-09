@@ -146,6 +146,9 @@ class CounterController extends Controller {
         $payNow = !empty($data['pay_now']);
         $paymentMethod = $data['payment_method'] ?? 'cash';
         $discountPercent = (float)($data['discount_percent'] ?? 0);
+        $deliveryFee = (float)($data['delivery_fee'] ?? 0);
+        $serviceFee = (float)($data['service_fee'] ?? 0);
+        $discountAmount = (float)($data['discount_amount'] ?? 0);
         $gender = trim($data['gender'] ?? '');
         $printerIp = $data['printer_ip'] ?? null;
         $printerPort = $data['printer_port'] ?? null;
@@ -198,7 +201,10 @@ class CounterController extends Controller {
                 $platformId,
                 $platformOrderNumber,
                 $customerName !== '' ? $customerName : null,
-                $customerMobile !== '' ? $customerMobile : null
+                $customerMobile !== '' ? $customerMobile : null,
+                $deliveryFee,
+                $serviceFee,
+                $discountAmount
             );
         } else {
             $orderId = $orderModel->createOrder(
@@ -322,15 +328,37 @@ class CounterController extends Controller {
         $db = Database::getInstance()->getConnection();
         
         $sql = "SELECT o.id, o.token_number, o.status, p.name as platform_name, o.platform_order_number, 
+                       COALESCE(o.delivery_fee, 0.0) as delivery_fee,
+                       COALESCE(o.service_fee, 0.0) as service_fee,
+                       COALESCE(o.discount_amount, 0.0) as discount_amount,
+                       COALESCE(b.grand_total, 0.0) as bill_grand_total,
+                       (SELECT COALESCE(SUM(COALESCE(ki.price, IF(p.markup_percent > 0, ROUND(p2.price * (1 + p.markup_percent / 100), 3), p2.price)) * ki.quantity), 0)
+                        FROM kot_items ki JOIN kots k ON ki.kot_id = k.id JOIN products p2 ON ki.product_id = p2.id WHERE k.order_id = o.id AND ki.status != 'cancelled') as food_subtotal,
                        (SELECT COUNT(*) FROM kots k JOIN kot_items ki ON k.id = ki.kot_id WHERE k.order_id = o.id AND ki.status = 'pending') as pending_items_count,
                        (SELECT COUNT(*) FROM kots k WHERE k.order_id = o.id) as kot_exists
                 FROM orders o
                 LEFT JOIN online_platforms p ON o.platform_id = p.id
+                LEFT JOIN bills b ON b.order_id = o.id
                 WHERE o.order_type = 'online' AND o.status IN ('active', 'closed')
                 ORDER BY o.created_at DESC";
                 
         $stmt = $db->query($sql);
         $orders = $stmt->fetchAll();
+
+        foreach ($orders as &$ord) {
+            $foodSub = (float)$ord['food_subtotal'];
+            $disc = (float)$ord['discount_amount'];
+            $delFee = (float)$ord['delivery_fee'];
+            $servFee = (float)$ord['service_fee'];
+            $taxable = max(0.0, $foodSub - $disc);
+            $tax = $taxable * 0.10;
+            $gross = (float)$ord['bill_grand_total'] > 0 ? (float)$ord['bill_grand_total'] : max(0.0, $taxable + $tax + $delFee);
+            $net = max(0.0, $gross - $servFee);
+            $ord['gross_total'] = $gross;
+            $ord['net_total'] = $net;
+        }
+        unset($ord);
+
         $this->json(['success' => true, 'orders' => $orders]);
     }
     
@@ -349,6 +377,10 @@ class CounterController extends Controller {
             
             $stmtKotItems = $db->prepare("UPDATE kot_items ki JOIN kots k ON ki.kot_id = k.id SET ki.status = 'dispatched' WHERE k.order_id = ?");
             $stmtKotItems->execute([$orderId]);
+
+            // Also mark bill as paid if exists
+            $stmtBill = $db->prepare("UPDATE bills SET status = 'paid' WHERE order_id = ? AND status = 'pending'");
+            $stmtBill->execute([$orderId]);
             
             $db->commit();
             $this->json(['success' => true]);
@@ -631,6 +663,7 @@ class CounterController extends Controller {
             $summary['refund_total'] = $refundTotal;
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
+            $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
@@ -679,6 +712,7 @@ class CounterController extends Controller {
             $summary['refund_total'] = $refundTotal;
             $summary['online_total'] = $onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
+            $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
             $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
             
             $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);
@@ -706,7 +740,17 @@ class CounterController extends Controller {
                 !empty($endTime) ? $endTime : date('Y-m-d H:i:s')
             );
         }
-        $this->json(['session' => $session, 'totals' => $totals]);
+        $billModel = new Bill();
+        $sessStart = !empty($startTime) ? date('Y-m-d', strtotime($startTime)) : date('Y-m-d', strtotime($session['opened_at'] ?? 'today'));
+        $sessEnd = !empty($endTime) ? date('Y-m-d', strtotime($endTime)) : date('Y-m-d');
+        $onlineData = $billModel->getOnlineOrdersBreakdown($sessStart, $sessEnd);
+
+        $this->json([
+            'session'          => $session, 
+            'totals'           => $totals,
+            'online_summary'   => $onlineData['summary_totals'] ?? null,
+            'online_breakdown' => $onlineData['breakdown'] ?? []
+        ]);
     }
 
     // AJAX: Cashier submits close counter request
