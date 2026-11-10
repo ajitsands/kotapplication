@@ -1455,15 +1455,22 @@
             cart.forEach(item => {
                 const base = (typeof item.base_price !== 'undefined') ? item.base_price : item.price;
                 item.base_price = base;
-                if (!item.is_custom_price) {
-                    item.price = markup > 0 ? (base * (1 + markup / 100)) : base;
+                if (currentOrderType === 'online') {
+                    if (!item.is_custom_price) {
+                        item.price = markup > 0 ? (base * (1 + markup / 100)) : base;
+                    }
+                } else {
+                    // For Take Away and Dine In, item price is fixed to base catalog price
+                    item.price = base;
+                    item.is_custom_price = false;
                 }
-                item.markup_percent = markup;
+                item.markup_percent = (currentOrderType === 'online') ? markup : 0;
             });
             renderCart();
         }
 
         function updateItemPrice(productId, newPrice) {
+            if (currentOrderType !== 'online') return; // Only allowed for online orders
             const idx = cart.findIndex(i => i.id === productId);
             if (idx === -1) return;
             const val = parseFloat(newPrice);
@@ -1488,17 +1495,24 @@
 
         // Cart Management
         function addToCart(product) {
-            const markup = getActivePlatformMarkup();
+            const isOnline = (currentOrderType === 'online');
+            const markup = isOnline ? getActivePlatformMarkup() : 0;
             const basePrice = parseFloat(product.price);
-            const finalPrice = markup > 0 ? (basePrice * (1 + markup / 100)) : basePrice;
+            const finalPrice = (isOnline && markup > 0) ? (basePrice * (1 + markup / 100)) : basePrice;
 
             const existingIndex = cart.findIndex(item => item.id === product.id);
             if (existingIndex > -1) {
                 cart[existingIndex].quantity += 1;
                 cart[existingIndex].base_price = basePrice;
-                if (!cart[existingIndex].is_custom_price) {
-                    cart[existingIndex].price = finalPrice;
-                    cart[existingIndex].markup_percent = markup;
+                if (isOnline) {
+                    if (!cart[existingIndex].is_custom_price) {
+                        cart[existingIndex].price = finalPrice;
+                        cart[existingIndex].markup_percent = markup;
+                    }
+                } else {
+                    cart[existingIndex].price = basePrice;
+                    cart[existingIndex].markup_percent = 0;
+                    cart[existingIndex].is_custom_price = false;
                 }
             } else {
                 cart.push({
@@ -1573,23 +1587,36 @@
                         badge.style.display = 'block';
                     }
 
+                    let priceSectionHtml = '';
+                    if (currentOrderType === 'online') {
+                        priceSectionHtml = `
+                            <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
+                                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Unit Price:</label>
+                                <div style="display: inline-flex; align-items: center; gap: 3px;">
+                                    <input type="number" step="0.001" min="0" 
+                                           value="${item.price.toFixed(window.PRICE_DECIMALS || 3)}" 
+                                           onchange="updateItemPrice(${item.id}, this.value)" 
+                                           style="width: 76px; padding: 2px 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--card-border); background: var(--bg-card); color: var(--text-color); text-align: right;" 
+                                           title="Edit item unit price (e.g. customized platform price)">
+                                    <span style="font-size: 11px; color: var(--text-muted);">${currencyCode}</span>
+                                </div>
+                                ${item.is_custom_price ? '<span style="font-size: 9.5px; background: rgba(99,102,241,0.18); color: #818cf8; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Custom</span>' : ''}
+                            </div>
+                        `;
+                    } else {
+                        priceSectionHtml = `
+                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+                                ${item.price.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}
+                            </div>
+                        `;
+                    }
+
                     html += `
                         <div class="cart-item-card">
                             <div class="cart-item-top">
                                 <div style="flex: 1;">
                                     <div class="cart-item-title">${escapeHtml(item.name)}</div>
-                                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
-                                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Unit Price:</label>
-                                        <div style="display: inline-flex; align-items: center; gap: 3px;">
-                                            <input type="number" step="0.001" min="0" 
-                                                   value="${item.price.toFixed(window.PRICE_DECIMALS || 3)}" 
-                                                   onchange="updateItemPrice(${item.id}, this.value)" 
-                                                   style="width: 76px; padding: 2px 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--card-border); background: var(--bg-card); color: var(--text-color); text-align: right;" 
-                                                   title="Edit item unit price (e.g. customized platform price)">
-                                            <span style="font-size: 11px; color: var(--text-muted);">${currencyCode}</span>
-                                        </div>
-                                        ${item.is_custom_price ? '<span style="font-size: 9.5px; background: rgba(99,102,241,0.18); color: #818cf8; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Custom</span>' : ''}
-                                    </div>
+                                    ${priceSectionHtml}
                                 </div>
                                 <button onclick="updateQuantity(${item.id}, -${item.quantity})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 14px; padding: 4px;" title="Remove Item">🗑️</button>
                             </div>

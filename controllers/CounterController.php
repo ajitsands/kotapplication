@@ -185,12 +185,17 @@ class CounterController extends Controller {
         }
 
         foreach ($items as &$item) {
-            if (!isset($item['price']) || $item['price'] === null) {
-                $prod = $productModel->getById($item['product_id']);
-                $basePrice = (float)($prod['price'] ?? 0.0);
-                $item['price'] = ($markupPercent > 0) ? round($basePrice * (1 + $markupPercent / 100), 3) : $basePrice;
+            $prod = $productModel->getById($item['product_id']);
+            $basePrice = (float)($prod['price'] ?? 0.0);
+            if ($orderType === 'online') {
+                if (!isset($item['price']) || $item['price'] === null) {
+                    $item['price'] = ($markupPercent > 0) ? round($basePrice * (1 + $markupPercent / 100), 3) : $basePrice;
+                } else {
+                    $item['price'] = (float)$item['price'];
+                }
             } else {
-                $item['price'] = (float)$item['price'];
+                // Take Away & Dine In: item prices are strictly the standard catalog price
+                $item['price'] = $basePrice;
             }
         }
         unset($item);
