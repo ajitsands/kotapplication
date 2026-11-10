@@ -13,6 +13,7 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
     if (typeof $.fn.dataTable !== 'undefined') {
         $.extend(true, $.fn.dataTable.defaults, {
@@ -882,6 +883,7 @@
             else if (id === 'analytics' && typeof loadAnalyticsReport === 'function') loadAnalyticsReport();
             else if (id === 'item_insights' && typeof loadItemInsights === 'function') loadItemInsights();
             else if (id === 'transactions' && typeof loadTransactionsReport === 'function') loadTransactionsReport();
+            else if (id === 'total_collection' && typeof loadTotalCollectionReport === 'function') loadTotalCollectionReport();
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
             else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
             else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
@@ -907,6 +909,7 @@
             inventory:     { icon: '📦', label: 'Inventory Stock' },
             suppliers:     { icon: '🚚', label: 'Suppliers Mgmt' },
             platforms:     { icon: '🌐', label: 'Online Platforms' },
+            total_collection: { icon: '💰', label: 'Total Collection Report' },
             transactions:  { icon: '🗂️', label: 'All Transactions' },
             tax_reports:   { icon: '🧾', label: 'VAT/Tax Reports' },
             analytics:     { icon: '📊', label: 'Sales & Product Analytics' },
@@ -973,6 +976,9 @@
                     <div class="nav-dropdown-header">Reports &amp; Analytics</div>
 
                     <!-- Reports Group -->
+                    <button class="nav-dropdown-item" id="item-total_collection" onclick="selectSection('total_collection','💰','Total Collection Report')">
+                        <span class="item-icon">💰</span> Total Collection Report
+                    </button>
                     <button class="nav-dropdown-item" id="item-transactions" onclick="selectSection('transactions','🗂️','All Transactions')">
                         <span class="item-icon">🗂️</span> All Transactions
                     </button>
@@ -1872,6 +1878,153 @@
                     <button type="button" id="admin-modal-print-btn" class="btn-primary" style="padding: 10px 22px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700;">
                         <span>🖨️</span> Print Receipt (Thermal)
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Collection Report Tab -->
+        <div id="total_collection" class="tab-content">
+            <div class="panel-card" style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+                    <div>
+                        <h2 class="panel-title" style="margin-bottom: 4px;">💰 Total Collection Report</h2>
+                        <div style="color: var(--text-muted); font-size: 13px;">Shift &amp; custom-time collection reconciliation (Cash, Card, QR Pay, Online Platforms) with parent-child transaction details.</div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="exportAdminTotalCollectionExcel()" class="btn-checkout" style="padding: 9px 18px; font-size: 13px; background: #059669; border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(5,150,105,0.3);">
+                            <span>📥</span> Export to Excel (.xlsx)
+                        </button>
+                        <button type="button" onclick="exportAdminTotalCollectionCsv()" class="btn-secondary" style="padding: 9px 14px; font-size: 13px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📄</span> CSV
+                        </button>
+                        <button type="button" onclick="printAdminTotalCollection()" class="btn-secondary" style="padding: 9px 14px; font-size: 13px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>🖨️</span> Print Shift
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shift Presets Bar -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--card-border);">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
+                    <button type="button" class="btn-shift-preset active" id="btn-preset-current" onclick="setAdminShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid rgba(99,102,241,0.3); background: rgba(99,102,241,0.15); color: #818cf8; cursor: pointer;">
+                        🌙 Shift (3:00 PM - 4:00 AM)
+                    </button>
+                    <button type="button" class="btn-shift-preset" id="btn-preset-yesterday-shift" onclick="setAdminShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        🌙 Yesterday Shift (3 PM - 4 AM)
+                    </button>
+                    <button type="button" class="btn-shift-preset" id="btn-preset-today" onclick="setAdminShiftPreset('today')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        ☀️ Today Full Day (00:00 - 23:59)
+                    </button>
+                    <button type="button" class="btn-shift-preset" id="btn-preset-yesterday" onclick="setAdminShiftPreset('yesterday')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        📅 Yesterday Full Day
+                    </button>
+                </div>
+
+                <!-- Custom Range Inputs Row -->
+                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 25px; background: rgba(255,255,255,0.01); padding: 14px; border-radius: 12px; border: 1px solid var(--card-border);">
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Date</label>
+                        <input type="date" id="admin-tc-from-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 140px; margin-bottom: 0;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
+                        <input type="time" id="admin-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
+                        <input type="date" id="admin-tc-to-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 140px; margin-bottom: 0;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
+                        <input type="time" id="admin-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">Cashier / Staff</label>
+                        <select id="admin-tc-cashier" class="form-input" style="padding: 8px 12px; font-size: 13px; width: 150px; margin-bottom: 0;">
+                            <option value="all">All Cashiers</option>
+                            <?php if (!empty($users)): ?>
+                                <?php foreach ($users as $u): ?>
+                                    <option value="<?= $u['id'] ?>"><?= htmlspecialchars($u['name']) ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                    <button type="button" onclick="loadTotalCollectionReport()" class="btn-primary" style="padding: 9px 22px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: none;">
+                        🔍 Filter Report
+                    </button>
+                    <div id="admin-tc-period-badge" style="margin-left: auto; font-size: 12px; color: var(--text-muted); align-self: center; font-weight: 600;">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+
+                <!-- KPI Cards Row -->
+                <div class="grid-3" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                    <!-- Cash KPI -->
+                    <div class="panel-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 18px; border-radius: 14px; position: relative; overflow: hidden;">
+                        <div style="font-size: 12px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>💵</span> Cash Collection
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="admin-tc-cash-total" style="font-size: 26px; font-weight: 800; color: var(--text-color);">0.000</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                        </div>
+                        <div id="admin-tc-cash-count" style="font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500;">0 transactions</div>
+                    </div>
+
+                    <!-- Card KPI -->
+                    <div class="panel-card" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 18px; border-radius: 14px; position: relative; overflow: hidden;">
+                        <div style="font-size: 12px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>💳</span> Card Payments
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="admin-tc-card-total" style="font-size: 26px; font-weight: 800; color: var(--text-color);">0.000</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                        </div>
+                        <div id="admin-tc-card-count" style="font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500;">0 transactions</div>
+                    </div>
+
+                    <!-- QR Pay KPI -->
+                    <div class="panel-card" style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.2); padding: 18px; border-radius: 14px; position: relative; overflow: hidden;">
+                        <div style="font-size: 12px; font-weight: 700; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>📱</span> QR / BenefitPay
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="admin-tc-qr-total" style="font-size: 26px; font-weight: 800; color: var(--text-color);">0.000</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                        </div>
+                        <div id="admin-tc-qr-count" style="font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500;">0 transactions</div>
+                    </div>
+
+                    <!-- Online Platforms KPI -->
+                    <div class="panel-card" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); padding: 18px; border-radius: 14px; position: relative; overflow: hidden;">
+                        <div style="font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>🌐</span> Online Platforms
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="admin-tc-online-total" style="font-size: 26px; font-weight: 800; color: var(--text-color);">0.000</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                        </div>
+                        <div id="admin-tc-online-count" style="font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500;">Talabat, Jahez, etc.</div>
+                    </div>
+
+                    <!-- GRAND TOTAL KPI -->
+                    <div class="panel-card" style="background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.15)); border: 1.5px solid rgba(16, 185, 129, 0.4); padding: 18px; border-radius: 14px; position: relative; overflow: hidden; box-shadow: 0 4px 15px rgba(16,185,129,0.1);">
+                        <div style="font-size: 12px; font-weight: 800; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            <span>👑</span> Grand Total Collection
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="admin-tc-grand-total" style="font-size: 28px; font-weight: 900; color: #10b981;">0.000</span>
+                            <span style="font-size: 13px; color: #10b981; font-weight: 700;"><?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?></span>
+                        </div>
+                        <div id="admin-tc-total-bills" style="font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 600;">0 Total Paid Orders</div>
+                    </div>
+                </div>
+
+                <!-- Categorized Parent-Child Tables Container -->
+                <div id="admin-tc-categories-container" style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        Loading collection report data...
+                    </div>
                 </div>
             </div>
         </div>
@@ -3785,6 +3938,751 @@
                 link.click();
                 document.body.removeChild(link);
             }
+        }
+
+        // ==========================================
+        // TOTAL COLLECTION REPORT (SHIFT & STREAM WISE)
+        // ==========================================
+        let adminCurrentCollectionData = null;
+
+        function setAdminShiftPreset(preset) {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const formatDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+            let fromDateStr = '';
+            let toDateStr = '';
+            let fromTimeStr = '15:00';
+            let toTimeStr = '04:00';
+
+            const curHour = now.getHours();
+
+            if (preset === 'current') {
+                if (curHour < 4) {
+                    const y = new Date(now);
+                    y.setDate(y.getDate() - 1);
+                    fromDateStr = formatDate(y);
+                    toDateStr = formatDate(now);
+                } else if (curHour >= 15) {
+                    const t = new Date(now);
+                    t.setDate(t.getDate() + 1);
+                    fromDateStr = formatDate(now);
+                    toDateStr = formatDate(t);
+                } else {
+                    const y = new Date(now);
+                    y.setDate(y.getDate() - 1);
+                    fromDateStr = formatDate(y);
+                    toDateStr = formatDate(now);
+                }
+                fromTimeStr = '15:00';
+                toTimeStr = '04:00';
+            } else if (preset === 'yesterday_shift') {
+                const y1 = new Date(now);
+                y1.setDate(y1.getDate() - 2);
+                const y2 = new Date(now);
+                y2.setDate(y2.getDate() - 1);
+                fromDateStr = formatDate(y1);
+                toDateStr = formatDate(y2);
+                fromTimeStr = '15:00';
+                toTimeStr = '04:00';
+            } else if (preset === 'today') {
+                fromDateStr = formatDate(now);
+                toDateStr = formatDate(now);
+                fromTimeStr = '00:00';
+                toTimeStr = '23:59';
+            } else if (preset === 'yesterday') {
+                const y = new Date(now);
+                y.setDate(y.getDate() - 1);
+                fromDateStr = formatDate(y);
+                toDateStr = formatDate(y);
+                fromTimeStr = '00:00';
+                toTimeStr = '23:59';
+            }
+
+            const fromDateEl = document.getElementById('admin-tc-from-date');
+            const toDateEl = document.getElementById('admin-tc-to-date');
+            const fromTimeEl = document.getElementById('admin-tc-from-time');
+            const toTimeEl = document.getElementById('admin-tc-to-time');
+
+            if (fromDateEl) fromDateEl.value = fromDateStr;
+            if (toDateEl) toDateEl.value = toDateStr;
+            if (fromTimeEl) fromTimeEl.value = fromTimeStr;
+            if (toTimeEl) toTimeEl.value = toTimeStr;
+
+            document.querySelectorAll('.btn-shift-preset').forEach(b => {
+                b.classList.remove('active');
+                b.style.borderColor = 'var(--card-border)';
+                b.style.background = 'transparent';
+                b.style.color = 'var(--text-muted)';
+            });
+            const activePresetBtn = document.getElementById('btn-preset-' + preset.replace('_', '-'));
+            if (activePresetBtn) {
+                activePresetBtn.classList.add('active');
+                activePresetBtn.style.borderColor = 'rgba(99,102,241,0.4)';
+                activePresetBtn.style.background = 'rgba(99,102,241,0.15)';
+                activePresetBtn.style.color = '#818cf8';
+            }
+
+            loadTotalCollectionReport();
+        }
+
+        function loadTotalCollectionReport() {
+            const fromDateEl = document.getElementById('admin-tc-from-date');
+            const toDateEl = document.getElementById('admin-tc-to-date');
+            const fromTimeEl = document.getElementById('admin-tc-from-time');
+            const toTimeEl = document.getElementById('admin-tc-to-time');
+            const cashierEl = document.getElementById('admin-tc-cashier');
+
+            if (!fromDateEl || !toDateEl) return;
+
+            if (!fromDateEl.value || !toDateEl.value) {
+                setAdminShiftPreset('current');
+                return;
+            }
+
+            const fromDateTime = fromDateEl.value + ' ' + (fromTimeEl.value ? fromTimeEl.value + ':00' : '00:00:00');
+            const toDateTime = toDateEl.value + ' ' + (toTimeEl.value ? toTimeEl.value + ':59' : '23:59:59');
+            const cashierId = cashierEl ? cashierEl.value : 'all';
+
+            const container = document.getElementById('admin-tc-categories-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <div style="font-size: 22px; margin-bottom: 8px;">⏳</div>
+                        <div>Loading shift collection data...</div>
+                    </div>`;
+            }
+
+            const badge = document.getElementById('admin-tc-period-badge');
+            if (badge) {
+                badge.textContent = `📅 ${fromDateTime} ➔ ${toDateTime}`;
+            }
+
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const url = `${basePath}/reports/total-collection?startDateTime=${encodeURIComponent(fromDateTime)}&endDateTime=${encodeURIComponent(toDateTime)}&cashierId=${encodeURIComponent(cashierId)}&_=${Date.now()}`;
+
+            fetch(url, { cache: 'no-store' })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data) {
+                        adminCurrentCollectionData = res.data;
+                        renderAdminTotalCollectionReport(res.data);
+                    } else {
+                        if (container) {
+                            container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--accent-red);">Failed to load collection data: ${res.message || 'Unknown error'}</div>`;
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Total Collection fetch error:', err);
+                    if (container) {
+                        container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--accent-red);">Error loading collection data. Please try again.</div>`;
+                    }
+                });
+        }
+
+        function renderAdminTotalCollectionReport(data) {
+            const dec = window.PRICE_DECIMALS || 3;
+            const sum = data.summary || {};
+            const cats = data.categories || {};
+
+            // Update KPI Cards
+            document.getElementById('admin-tc-cash-total').textContent = (sum.cash_total || 0).toFixed(dec);
+            document.getElementById('admin-tc-cash-count').textContent = `${cats.cash ? cats.cash.count : 0} transactions`;
+
+            document.getElementById('admin-tc-card-total').textContent = (sum.card_total || 0).toFixed(dec);
+            document.getElementById('admin-tc-card-count').textContent = `${cats.card ? cats.card.count : 0} transactions`;
+
+            document.getElementById('admin-tc-qr-total').textContent = (sum.qr_total || 0).toFixed(dec);
+            document.getElementById('admin-tc-qr-count').textContent = `${cats.qr ? cats.qr.count : 0} transactions`;
+
+            document.getElementById('admin-tc-online-total').textContent = (sum.online_total || 0).toFixed(dec);
+            let onlineOrderCount = 0;
+            if (Array.isArray(cats.online_providers)) {
+                onlineOrderCount = cats.online_providers.reduce((acc, p) => acc + (p.count || 0), 0);
+            }
+            document.getElementById('admin-tc-online-count').textContent = `${onlineOrderCount} orders (${(cats.online_providers || []).map(p => p.name).join(', ') || 'None'})`;
+
+            document.getElementById('admin-tc-grand-total').textContent = (sum.grand_total || 0).toFixed(dec);
+            document.getElementById('admin-tc-total-bills').textContent = `${sum.total_bills || 0} Total Paid Orders`;
+
+            const container = document.getElementById('admin-tc-categories-container');
+            if (!container) return;
+
+            let html = '';
+
+            // Helper to render standard category card (Cash, Card, QR)
+            function buildStandardCategoryCard(catKey, catObj, icon, title, colorHex, borderHex) {
+                const count = catObj.count || 0;
+                const total = (catObj.total || 0).toFixed(dec);
+                const items = catObj.items || [];
+
+                let rowsHtml = '';
+                if (items.length === 0) {
+                    rowsHtml = `<tr><td colspan="8" style="text-align: center; padding: 25px; color: var(--text-muted);">No ${title.toLowerCase()} recorded in this shift window.</td></tr>`;
+                } else {
+                    items.forEach((it, idx) => {
+                        const noteHtml = it.split_note 
+                            ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-size: 11px;">${escapeHtml(it.split_note)}</span>`
+                            : `<span style="color: var(--text-muted); font-size: 11px;">-</span>`;
+
+                        const typeBadge = `<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-color); font-size: 11px;">${escapeHtml(it.order_type ? it.order_type.replace('_',' ').toUpperCase() : '')}</span>`;
+
+                        rowsHtml += `
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                                <td style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
+                                <td style="padding: 10px 12px; font-weight: 700; color: ${colorHex};">
+                                    <a href="javascript:void(0)" onclick="viewOrderDetails(${it.order_id})" style="color: ${colorHex}; text-decoration: none;">
+                                        #${escapeHtml(it.bill_number)}
+                                    </a>
+                                </td>
+                                <td style="padding: 10px 12px; font-weight: 600; color: var(--text-color);">${escapeHtml(it.reference)}</td>
+                                <td style="padding: 10px 12px;">${typeBadge}</td>
+                                <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.created_at_formatted)}</td>
+                                <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.cashier_name)}</td>
+                                <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: var(--text-color);">${parseFloat(it.amount || 0).toFixed(dec)}</td>
+                                <td style="padding: 10px 12px;">${noteHtml}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                return `
+                    <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid ${borderHex}; border-radius: 14px; background: rgba(255,255,255,0.015);">
+                        <!-- Parent Category Header -->
+                        <div style="padding: 16px 20px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--card-border);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 24px;">${icon}</span>
+                                <div>
+                                    <div style="font-size: 16px; font-weight: 800; color: var(--text-color);">${title}</div>
+                                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Parent Category Summary</div>
+                                </div>
+                                <span style="margin-left: 6px; background: ${colorHex}22; color: ${colorHex}; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid ${colorHex}44;">
+                                    ${count} ${count === 1 ? 'Transaction' : 'Transactions'}
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 18px;">
+                                <div style="text-align: right;">
+                                    <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Subtotal Collection</div>
+                                    <div style="font-size: 20px; font-weight: 900; color: ${colorHex};">${total} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
+                                </div>
+                                <button type="button" onclick="toggleTotalCollectionCard('${catKey}')" id="btn-toggle-${catKey}" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                    ▼ Toggle Child Table
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Child Transactions Table -->
+                        <div id="content-${catKey}" style="overflow-x: auto; display: block;">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: rgba(255,255,255,0.01); border-bottom: 1px solid var(--card-border);">
+                                        <th style="padding: 10px 12px; width: 40px; text-align: left;">#</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Bill #</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Order / Ref</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Type</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Date & Time</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Cashier</th>
+                                        <th style="padding: 10px 12px; text-align: right;">Amount (${_cur})</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid ${borderHex}; font-weight: 800;">
+                                        <td colspan="6" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">
+                                            SUBTOTAL ${title.toUpperCase()}:
+                                        </td>
+                                        <td style="padding: 12px; text-align: right; font-size: 15px; color: ${colorHex};">
+                                            ${total} ${_cur}
+                                        </td>
+                                        <td style="padding: 12px; color: var(--text-muted); font-size: 12px;">${count} items</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 1. Cash Category
+            if (cats.cash) {
+                html += buildStandardCategoryCard('cash', cats.cash, '💵', 'Cash Collection', '#10b981', 'rgba(16,185,129,0.25)');
+            }
+
+            // 2. Card Category
+            if (cats.card) {
+                html += buildStandardCategoryCard('card', cats.card, '💳', 'Card Payment Collection', '#3b82f6', 'rgba(59,130,246,0.25)');
+            }
+
+            // 3. QR Category
+            if (cats.qr) {
+                html += buildStandardCategoryCard('qr', cats.qr, '📱', 'QR / BenefitPay Collection', '#a855f7', 'rgba(168,85,247,0.25)');
+            }
+
+            // 4. Online Providers (Provider-Wise Parent-Child Tables)
+            if (Array.isArray(cats.online_providers) && cats.online_providers.length > 0) {
+                cats.online_providers.forEach((prov, pIdx) => {
+                    const catKey = 'online-' + pIdx;
+                    const count = prov.count || 0;
+                    const total = (prov.total || 0).toFixed(dec);
+                    const foodSub = (prov.food_subtotal || 0).toFixed(dec);
+                    const servFee = (prov.service_fee || 0).toFixed(dec);
+                    const delFee = (prov.delivery_fee || 0).toFixed(dec);
+                    const discAmt = (prov.discount_amount || 0).toFixed(dec);
+                    const items = prov.items || [];
+
+                    let rowsHtml = '';
+                    if (items.length === 0) {
+                        rowsHtml = `<tr><td colspan="11" style="text-align: center; padding: 25px; color: var(--text-muted);">No orders recorded for ${escapeHtml(prov.name)}.</td></tr>`;
+                    } else {
+                        items.forEach((it, idx) => {
+                            const noteHtml = it.split_note 
+                                ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-size: 11px;">${escapeHtml(it.split_note)}</span>`
+                                : `<span style="color: var(--text-muted); font-size: 11px;">-</span>`;
+
+                            rowsHtml += `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                                    <td style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
+                                    <td style="padding: 10px 12px; font-weight: 700; color: #f59e0b;">
+                                        <a href="javascript:void(0)" onclick="viewOrderDetails(${it.order_id})" style="color: #f59e0b; text-decoration: none;">
+                                            #${escapeHtml(it.bill_number)}
+                                        </a>
+                                    </td>
+                                    <td style="padding: 10px 12px; font-weight: 600; color: var(--text-color);">${escapeHtml(it.reference)}</td>
+                                    <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.created_at_formatted)}</td>
+                                    <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.cashier_name)}</td>
+                                    <td style="padding: 10px 12px; text-align: right; color: var(--text-color);">${parseFloat(it.subtotal || 0).toFixed(dec)}</td>
+                                    <td style="padding: 10px 12px; text-align: right; color: #60a5fa;">+${parseFloat(it.service_fee || 0).toFixed(dec)}</td>
+                                    <td style="padding: 10px 12px; text-align: right; color: #fbbf24;">+${parseFloat(it.delivery_fee || 0).toFixed(dec)}</td>
+                                    <td style="padding: 10px 12px; text-align: right; color: #ef4444;">-${parseFloat(it.discount_amount || 0).toFixed(dec)}</td>
+                                    <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #10b981;">${parseFloat(it.amount || 0).toFixed(dec)}</td>
+                                    <td style="padding: 10px 12px;">${noteHtml}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+
+                    html += `
+                        <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(245,158,11,0.3); border-radius: 14px; background: rgba(255,255,255,0.015);">
+                            <!-- Parent Provider Header -->
+                            <div style="padding: 16px 20px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--card-border);">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 24px;">🌐</span>
+                                    <div>
+                                        <div style="font-size: 16px; font-weight: 800; color: var(--text-color);">Online Platform - ${escapeHtml(prov.name)}</div>
+                                        <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Provider Collection Stream</div>
+                                    </div>
+                                    <span style="margin-left: 6px; background: rgba(245,158,11,0.15); color: #f59e0b; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(245,158,11,0.3);">
+                                        ${count} ${count === 1 ? 'Order' : 'Orders'}
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 18px;">
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Net Collected</div>
+                                        <div style="font-size: 20px; font-weight: 900; color: #f59e0b;">${total} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
+                                    </div>
+                                    <button type="button" onclick="toggleTotalCollectionCard('${catKey}')" id="btn-toggle-${catKey}" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                        ▼ Toggle Child Table
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Provider Fee Breakdown Subheader -->
+                            <div style="background: rgba(0,0,0,0.15); padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
+                                <div><strong style="color:var(--text-color);">Food Subtotal:</strong> ${foodSub} ${_cur}</div>
+                                <div><strong style="color:#60a5fa;">Service Fee (+):</strong> ${servFee} ${_cur}</div>
+                                <div><strong style="color:#fbbf24;">Delivery Fee (+):</strong> ${delFee} ${_cur}</div>
+                                <div><strong style="color:#ef4444;">Discount (-):</strong> ${discAmt} ${_cur}</div>
+                                <div><strong style="color:#10b981;">Net Collection (=):</strong> ${total} ${_cur}</div>
+                            </div>
+
+                            <!-- Child Transactions Table -->
+                            <div id="content-${catKey}" style="overflow-x: auto; display: block;">
+                                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    <thead>
+                                        <tr style="background: rgba(255,255,255,0.01); border-bottom: 1px solid var(--card-border);">
+                                            <th style="padding: 10px 12px; width: 40px; text-align: left;">#</th>
+                                            <th style="padding: 10px 12px; text-align: left;">Bill #</th>
+                                            <th style="padding: 10px 12px; text-align: left;">Platform / Order Ref</th>
+                                            <th style="padding: 10px 12px; text-align: left;">Date & Time</th>
+                                            <th style="padding: 10px 12px; text-align: left;">Cashier</th>
+                                            <th style="padding: 10px 12px; text-align: right;">Food Subtotal</th>
+                                            <th style="padding: 10px 12px; text-align: right;">Service Fee</th>
+                                            <th style="padding: 10px 12px; text-align: right;">Delivery Fee</th>
+                                            <th style="padding: 10px 12px; text-align: right;">Discount</th>
+                                            <th style="padding: 10px 12px; text-align: right;">Net Collected</th>
+                                            <th style="padding: 10px 12px; text-align: left;">Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${rowsHtml}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid rgba(245,158,11,0.4); font-weight: 800;">
+                                            <td colspan="5" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">
+                                                SUBTOTAL ONLINE (${escapeHtml(prov.name).toUpperCase()}):
+                                            </td>
+                                            <td style="padding: 12px; text-align: right; color: var(--text-color);">${foodSub}</td>
+                                            <td style="padding: 12px; text-align: right; color: #60a5fa;">+${servFee}</td>
+                                            <td style="padding: 12px; text-align: right; color: #fbbf24;">+${delFee}</td>
+                                            <td style="padding: 12px; text-align: right; color: #ef4444;">-${discAmt}</td>
+                                            <td style="padding: 12px; text-align: right; font-size: 15px; color: #10b981;">
+                                                ${total} ${_cur}
+                                            </td>
+                                            <td style="padding: 12px; color: var(--text-muted); font-size: 12px;">${count} orders</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // 5. Split Payments Breakdown Card (if any)
+            if (Array.isArray(cats.splits) && cats.splits.length > 0) {
+                let splitRows = '';
+                let totalSplitCash = 0;
+                let totalSplitCard = 0;
+                let totalSplitQr = 0;
+                let totalSplitOnline = 0;
+                let totalSplitGrand = 0;
+
+                cats.splits.forEach((sp, idx) => {
+                    const c = parseFloat(sp.cash_amount || 0);
+                    const k = parseFloat(sp.card_amount || 0);
+                    const q = parseFloat(sp.qr_amount || 0);
+                    const o = parseFloat(sp.online_amount || 0);
+                    const g = parseFloat(sp.grand_total || 0);
+
+                    totalSplitCash += c;
+                    totalSplitCard += k;
+                    totalSplitQr += q;
+                    totalSplitOnline += o;
+                    totalSplitGrand += g;
+
+                    splitRows += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <td style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
+                            <td style="padding: 10px 12px; font-weight: 700; color: #ec4899;">
+                                <a href="javascript:void(0)" onclick="viewOrderDetails(${sp.order_id})" style="color: #ec4899; text-decoration: none;">
+                                    #${escapeHtml(sp.bill_number)}
+                                </a>
+                            </td>
+                            <td style="padding: 10px 12px; font-weight: 600;">${escapeHtml(sp.reference)}</td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(sp.created_at_formatted)}</td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(sp.cashier_name)}</td>
+                            <td style="padding: 10px 12px; text-align: right; font-weight: 700;">${g.toFixed(dec)}</td>
+                            <td style="padding: 10px 12px; text-align: right; color: #10b981; font-weight: 700;">${c > 0 ? c.toFixed(dec) : '-'}</td>
+                            <td style="padding: 10px 12px; text-align: right; color: #3b82f6; font-weight: 700;">${k > 0 ? k.toFixed(dec) : '-'}</td>
+                            <td style="padding: 10px 12px; text-align: right; color: #a855f7; font-weight: 700;">${q > 0 ? q.toFixed(dec) : '-'}</td>
+                            <td style="padding: 10px 12px; text-align: right; color: #f59e0b; font-weight: 700;">${o > 0 ? o.toFixed(dec) : '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                    <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(236,72,153,0.3); border-radius: 14px; background: rgba(255,255,255,0.015);">
+                        <div style="padding: 16px 20px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--card-border);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 24px;">🔀</span>
+                                <div>
+                                    <div style="font-size: 16px; font-weight: 800; color: var(--text-color);">Split Payments Audit Breakdown</div>
+                                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">
+                                        Bills paid with multiple payment methods. Each portion has been accounted into Cash, Card, QR, and Online categories above.
+                                    </div>
+                                </div>
+                                <span style="margin-left: 6px; background: rgba(236,72,153,0.15); color: #ec4899; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(236,72,153,0.3);">
+                                    ${cats.splits.length} Split Bills
+                                </span>
+                            </div>
+                            <div>
+                                <button type="button" onclick="toggleTotalCollectionCard('splits')" id="btn-toggle-splits" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                    ▼ Toggle Split Details
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="content-splits" style="overflow-x: auto; display: block;">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: rgba(255,255,255,0.01); border-bottom: 1px solid var(--card-border);">
+                                        <th style="padding: 10px 12px; width: 40px; text-align: left;">#</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Bill #</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Order / Ref</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Date & Time</th>
+                                        <th style="padding: 10px 12px; text-align: left;">Cashier</th>
+                                        <th style="padding: 10px 12px; text-align: right;">Bill Grand Total</th>
+                                        <th style="padding: 10px 12px; text-align: right; color: #10b981;">💵 Cash Portion</th>
+                                        <th style="padding: 10px 12px; text-align: right; color: #3b82f6;">💳 Card Portion</th>
+                                        <th style="padding: 10px 12px; text-align: right; color: #a855f7;">📱 QR Portion</th>
+                                        <th style="padding: 10px 12px; text-align: right; color: #f59e0b;">🌐 Online Portion</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${splitRows}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid rgba(236,72,153,0.4); font-weight: 800;">
+                                        <td colspan="5" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">
+                                            TOTAL SPLIT RECONCILIATION:
+                                        </td>
+                                        <td style="padding: 12px; text-align: right; color: var(--text-color); font-size: 14px;">${totalSplitGrand.toFixed(dec)}</td>
+                                        <td style="padding: 12px; text-align: right; color: #10b981; font-size: 14px;">${totalSplitCash.toFixed(dec)}</td>
+                                        <td style="padding: 12px; text-align: right; color: #3b82f6; font-size: 14px;">${totalSplitCard.toFixed(dec)}</td>
+                                        <td style="padding: 12px; text-align: right; color: #a855f7; font-size: 14px;">${totalSplitQr.toFixed(dec)}</td>
+                                        <td style="padding: 12px; text-align: right; color: #f59e0b; font-size: 14px;">${totalSplitOnline.toFixed(dec)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function toggleTotalCollectionCard(catKey) {
+            const content = document.getElementById('content-' + catKey);
+            const btn = document.getElementById('btn-toggle-' + catKey);
+            if (!content) return;
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                if (btn) btn.textContent = '▼ Toggle Child Table';
+            } else {
+                content.style.display = 'none';
+                if (btn) btn.textContent = '▶ Expand Child Table';
+            }
+        }
+
+        function exportAdminTotalCollectionExcel() {
+            if (!adminCurrentCollectionData) {
+                Swal.fire({
+                    title: 'No Data',
+                    text: 'Please load a collection report before exporting.',
+                    icon: 'warning',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            // If SheetJS is loaded, generate native XLSX
+            if (typeof XLSX !== 'undefined') {
+                try {
+                    const data = adminCurrentCollectionData;
+                    const dec = window.PRICE_DECIMALS || 3;
+                    const wsData = [];
+
+                    // Title Header
+                    wsData.push(['TOTAL COLLECTION REPORT']);
+                    wsData.push(['Period:', data.period.start_formatted + ' to ' + data.period.end_formatted]);
+                    wsData.push(['Generated At:', new Date().toLocaleString()]);
+                    wsData.push([]);
+
+                    // Summary Block
+                    wsData.push(['STREAM / PROVIDER', 'AMOUNT (' + _cur + ')', 'TRANSACTIONS']);
+                    wsData.push(['Cash Collection', (data.summary.cash_total || 0).toFixed(dec), data.categories.cash ? data.categories.cash.count : 0]);
+                    wsData.push(['Card Payment Collection', (data.summary.card_total || 0).toFixed(dec), data.categories.card ? data.categories.card.count : 0]);
+                    wsData.push(['QR / BenefitPay Collection', (data.summary.qr_total || 0).toFixed(dec), data.categories.qr ? data.categories.qr.count : 0]);
+                    if (Array.isArray(data.categories.online_providers)) {
+                        data.categories.online_providers.forEach(p => {
+                            wsData.push(['Online - ' + p.name, (p.total || 0).toFixed(dec), p.count || 0]);
+                        });
+                    }
+                    wsData.push(['GRAND TOTAL COLLECTION', (data.summary.grand_total || 0).toFixed(dec), data.summary.total_bills || 0]);
+                    wsData.push([]);
+
+                    // Helper to add standard category
+                    function appendCatToSheet(catTitle, catObj) {
+                        if (!catObj) return;
+                        wsData.push(['--- ' + catTitle.toUpperCase() + ' (Total: ' + (catObj.total || 0).toFixed(dec) + ' ' + _cur + ', ' + (catObj.count || 0) + ' items) ---']);
+                        wsData.push(['Bill #', 'Order / Ref', 'Type', 'Date & Time', 'Cashier', 'Amount (' + _cur + ')', 'Notes']);
+                        (catObj.items || []).forEach(it => {
+                            wsData.push([
+                                it.bill_number,
+                                it.reference,
+                                (it.order_type || '').toUpperCase(),
+                                it.created_at_formatted,
+                                it.cashier_name,
+                                parseFloat(it.amount || 0).toFixed(dec),
+                                it.split_note || ''
+                            ]);
+                        });
+                        wsData.push(['SUBTOTAL ' + catTitle.toUpperCase(), '', '', '', '', (catObj.total || 0).toFixed(dec), (catObj.count || 0) + ' items']);
+                        wsData.push([]);
+                    }
+
+                    appendCatToSheet('Cash Collection', data.categories.cash);
+                    appendCatToSheet('Card Payment Collection', data.categories.card);
+                    appendCatToSheet('QR / BenefitPay Collection', data.categories.qr);
+
+                    // Online Providers
+                    if (Array.isArray(data.categories.online_providers)) {
+                        data.categories.online_providers.forEach(p => {
+                            wsData.push(['--- ONLINE: ' + p.name.toUpperCase() + ' (Net Total: ' + (p.total || 0).toFixed(dec) + ' ' + _cur + ', ' + (p.count || 0) + ' orders) ---']);
+                            wsData.push(['Bill #', 'Platform Ref', 'Date & Time', 'Cashier', 'Food Subtotal', 'Service Fee', 'Delivery Fee', 'Discount', 'Net Collected (' + _cur + ')', 'Notes']);
+                            (p.items || []).forEach(it => {
+                                wsData.push([
+                                    it.bill_number,
+                                    it.reference,
+                                    it.created_at_formatted,
+                                    it.cashier_name,
+                                    parseFloat(it.subtotal || 0).toFixed(dec),
+                                    parseFloat(it.service_fee || 0).toFixed(dec),
+                                    parseFloat(it.delivery_fee || 0).toFixed(dec),
+                                    parseFloat(it.discount_amount || 0).toFixed(dec),
+                                    parseFloat(it.amount || 0).toFixed(dec),
+                                    it.split_note || ''
+                                ]);
+                            });
+                            wsData.push([
+                                'SUBTOTAL ONLINE ' + p.name.toUpperCase(),
+                                '',
+                                '',
+                                '',
+                                (p.food_subtotal || 0).toFixed(dec),
+                                (p.service_fee || 0).toFixed(dec),
+                                (p.delivery_fee || 0).toFixed(dec),
+                                (p.discount_amount || 0).toFixed(dec),
+                                (p.total || 0).toFixed(dec),
+                                (p.count || 0) + ' orders'
+                            ]);
+                            wsData.push([]);
+                        });
+                    }
+
+                    // Splits
+                    if (Array.isArray(data.categories.splits) && data.categories.splits.length > 0) {
+                        wsData.push(['--- SPLIT PAYMENTS AUDIT BREAKDOWN ---']);
+                        wsData.push(['Bill #', 'Order / Ref', 'Date & Time', 'Cashier', 'Bill Grand Total', 'Cash Amount', 'Card Amount', 'QR Amount', 'Online Amount']);
+                        data.categories.splits.forEach(sp => {
+                            wsData.push([
+                                sp.bill_number,
+                                sp.reference,
+                                sp.created_at_formatted,
+                                sp.cashier_name,
+                                parseFloat(sp.grand_total || 0).toFixed(dec),
+                                parseFloat(sp.cash_amount || 0).toFixed(dec),
+                                parseFloat(sp.card_amount || 0).toFixed(dec),
+                                parseFloat(sp.qr_amount || 0).toFixed(dec),
+                                parseFloat(sp.online_amount || 0).toFixed(dec)
+                            ]);
+                        });
+                        wsData.push([]);
+                    }
+
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+                    ws['!cols'] = [
+                        { wch: 18 }, { wch: 28 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 24 }
+                    ];
+
+                    XLSX.utils.book_append_sheet(wb, ws, "Collection_Report");
+                    const filename = `Total_Collection_Report_${new Date().toISOString().slice(0,10)}.xlsx`;
+                    XLSX.writeFile(wb, filename);
+
+                    Swal.fire({
+                        title: 'Excel Exported!',
+                        text: `File "${filename}" has been generated and downloaded.`,
+                        icon: 'success',
+                        timer: 2500,
+                        showConfirmButton: false,
+                        background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                        color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                    });
+                    return;
+                } catch (e) {
+                    console.error('SheetJS generation error, falling back to server CSV:', e);
+                }
+            }
+
+            exportAdminTotalCollectionCsv();
+        }
+
+        function exportAdminTotalCollectionCsv() {
+            const fromDateEl = document.getElementById('admin-tc-from-date');
+            const toDateEl = document.getElementById('admin-tc-to-date');
+            const fromTimeEl = document.getElementById('admin-tc-from-time');
+            const toTimeEl = document.getElementById('admin-tc-to-time');
+            const cashierEl = document.getElementById('admin-tc-cashier');
+
+            const fromDateTime = fromDateEl ? fromDateEl.value + ' ' + (fromTimeEl ? fromTimeEl.value + ':00' : '00:00:00') : '';
+            const toDateTime = toDateEl ? toDateEl.value + ' ' + (toTimeEl ? toTimeEl.value + ':59' : '23:59:59') : '';
+            const cashierId = cashierEl ? cashierEl.value : 'all';
+
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            window.location.href = `${basePath}/reports/total-collection/export?startDateTime=${encodeURIComponent(fromDateTime)}&endDateTime=${encodeURIComponent(toDateTime)}&cashierId=${encodeURIComponent(cashierId)}`;
+        }
+
+        function printAdminTotalCollection() {
+            if (!adminCurrentCollectionData) {
+                Swal.fire({
+                    title: 'No Data',
+                    text: 'Please load a collection report before printing.',
+                    icon: 'warning',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            const data = adminCurrentCollectionData;
+            const dec = window.PRICE_DECIMALS || 3;
+            const containerHtml = document.getElementById('admin-tc-categories-container').innerHTML;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Total Collection Report</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 20px; color: #111; background: #fff; }
+                        h1 { font-size: 20px; margin-bottom: 4px; }
+                        .meta { font-size: 13px; color: #555; margin-bottom: 20px; }
+                        .kpi-row { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+                        .kpi-card { border: 1px solid #ddd; padding: 12px 18px; border-radius: 8px; flex: 1; min-width: 140px; }
+                        .kpi-title { font-size: 11px; text-transform: uppercase; color: #666; font-weight: 700; margin-bottom: 4px; }
+                        .kpi-val { font-size: 20px; font-weight: 800; }
+                        .panel-card { border: 1px solid #ccc !important; margin-bottom: 20px; border-radius: 8px; page-break-inside: avoid; }
+                        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+                        th { background: #f5f5f5; font-weight: 700; }
+                        tfoot td { background: #f9f9f9; font-weight: 800; }
+                        button { display: none !important; }
+                        @media print {
+                            body { margin: 10px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>💰 TOTAL COLLECTION REPORT</h1>
+                    <div class="meta">
+                        <strong>Period:</strong> ${data.period.start_formatted} to ${data.period.end_formatted} | 
+                        <strong>Generated:</strong> ${new Date().toLocaleString()}
+                    </div>
+                    <div class="kpi-row">
+                        <div class="kpi-card"><div class="kpi-title">Cash Collection</div><div class="kpi-val">${(data.summary.cash_total || 0).toFixed(dec)} ${_cur}</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Card Collection</div><div class="kpi-val">${(data.summary.card_total || 0).toFixed(dec)} ${_cur}</div></div>
+                        <div class="kpi-card"><div class="kpi-title">QR Pay Collection</div><div class="kpi-val">${(data.summary.qr_total || 0).toFixed(dec)} ${_cur}</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Online Platforms</div><div class="kpi-val">${(data.summary.online_total || 0).toFixed(dec)} ${_cur}</div></div>
+                        <div class="kpi-card" style="border: 2px solid #059669;"><div class="kpi-title" style="color:#059669;">Grand Total</div><div class="kpi-val" style="color:#059669;">${(data.summary.grand_total || 0).toFixed(dec)} ${_cur}</div></div>
+                    </div>
+                    ${containerHtml}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 350);
         }
 
         let fastMovingTable = null;

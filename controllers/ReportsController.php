@@ -388,4 +388,191 @@ class ReportsController extends Controller {
 
         $this->json(['status' => 'success', 'data' => $transactions]);
     }
+
+    private function resolveReportRange() {
+        if (!empty($_GET['startDateTime']) && !empty($_GET['endDateTime'])) {
+            $startDateTime = $_GET['startDateTime'];
+            $endDateTime   = $_GET['endDateTime'];
+        } else {
+            $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : null;
+            $startTime = !empty($_GET['startTime']) ? $_GET['startTime'] : null;
+            $endDate   = !empty($_GET['endDate'])   ? $_GET['endDate']   : null;
+            $endTime   = !empty($_GET['endTime'])   ? $_GET['endTime']   : null;
+
+            if ($startDate && $endDate) {
+                $startDateTime = $startDate . ' ' . ($startTime ?: '00:00:00');
+                $endDateTime   = $endDate . ' ' . ($endTime ?: '23:59:59');
+            } else {
+                // Default shift: 3:00 PM (15:00) to 4:00 AM next day
+                $curHour = (int)date('G');
+                if ($curHour < 4) {
+                    $startDateTime = date('Y-m-d 15:00:00', strtotime('-1 day'));
+                    $endDateTime   = date('Y-m-d 04:00:00');
+                } else {
+                    $startDateTime = date('Y-m-d 15:00:00');
+                    $endDateTime   = date('Y-m-d 04:00:00', strtotime('+1 day'));
+                }
+            }
+        }
+        return [$startDateTime, $endDateTime];
+    }
+
+    public function totalCollectionJson() {
+        $this->requireAuth('counter');
+        list($startDateTime, $endDateTime) = $this->resolveReportRange();
+        $cashierId = !empty($_GET['cashierId']) ? $_GET['cashierId'] : null;
+
+        $billModel = new Bill();
+        $data = $billModel->getTotalCollectionReport($startDateTime, $endDateTime, $cashierId);
+
+        $this->json(['status' => 'success', 'data' => $data]);
+    }
+
+    public function totalCollectionExport() {
+        $this->requireAuth('counter');
+        list($startDateTime, $endDateTime) = $this->resolveReportRange();
+        $cashierId = !empty($_GET['cashierId']) ? $_GET['cashierId'] : null;
+
+        $billModel = new Bill();
+        $data = $billModel->getTotalCollectionReport($startDateTime, $endDateTime, $cashierId);
+
+        $filename = 'Total_Collection_Report_' . date('Ymd_His', strtotime($startDateTime)) . '_to_' . date('Ymd_His', strtotime($endDateTime)) . '.csv';
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $out = fopen('php://output', 'w');
+        // UTF-8 BOM for Excel
+        fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        // Title and Period
+        fputcsv($out, ['TOTAL COLLECTION REPORT']);
+        fputcsv($out, ['Period:', $data['period']['start_formatted'] . ' to ' . $data['period']['end_formatted']]);
+        fputcsv($out, ['Generated At:', date('d M Y, h:i A')]);
+        fputcsv($out, []);
+
+        // Summary
+        fputcsv($out, ['COLLECTION SUMMARY']);
+        fputcsv($out, ['Stream / Provider', 'Total Amount (BHD)', 'Transactions Count']);
+        fputcsv($out, ['Cash Collection', number_format($data['summary']['cash_total'], 3), $data['categories']['cash']['count']]);
+        fputcsv($out, ['Card Payment Collection', number_format($data['summary']['card_total'], 3), $data['categories']['card']['count']]);
+        fputcsv($out, ['QR / BenefitPay Collection', number_format($data['summary']['qr_total'], 3), $data['categories']['qr']['count']]);
+        foreach ($data['categories']['online_providers'] as $p) {
+            fputcsv($out, ['Online - ' . $p['name'], number_format($p['total'], 3), $p['count']]);
+        }
+        fputcsv($out, ['GRAND TOTAL COLLECTION', number_format($data['summary']['grand_total'], 3), $data['summary']['total_bills']]);
+        fputcsv($out, []);
+
+        // Cash Table
+        $cash = $data['categories']['cash'];
+        fputcsv($out, ['--- CASH COLLECTION (Total: ' . number_format($cash['total'], 3) . ' BHD, ' . $cash['count'] . ' Orders) ---']);
+        fputcsv($out, ['Bill #', 'Order / Ref', 'Order Type', 'Date & Time', 'Cashier', 'Amount (BHD)', 'Notes']);
+        foreach ($cash['items'] as $it) {
+            fputcsv($out, [
+                $it['bill_number'],
+                $it['reference'],
+                ucfirst($it['order_type']),
+                $it['created_at_formatted'],
+                $it['cashier_name'],
+                number_format($it['amount'], 3),
+                $it['split_note'] ?: ''
+            ]);
+        }
+        fputcsv($out, ['SUBTOTAL CASH', '', '', '', '', number_format($cash['total'], 3), $cash['count'] . ' items']);
+        fputcsv($out, []);
+
+        // Card Table
+        $card = $data['categories']['card'];
+        fputcsv($out, ['--- CARD PAYMENT COLLECTION (Total: ' . number_format($card['total'], 3) . ' BHD, ' . $card['count'] . ' Orders) ---']);
+        fputcsv($out, ['Bill #', 'Order / Ref', 'Order Type', 'Date & Time', 'Cashier', 'Amount (BHD)', 'Notes']);
+        foreach ($card['items'] as $it) {
+            fputcsv($out, [
+                $it['bill_number'],
+                $it['reference'],
+                ucfirst($it['order_type']),
+                $it['created_at_formatted'],
+                $it['cashier_name'],
+                number_format($it['amount'], 3),
+                $it['split_note'] ?: ''
+            ]);
+        }
+        fputcsv($out, ['SUBTOTAL CARD', '', '', '', '', number_format($card['total'], 3), $card['count'] . ' items']);
+        fputcsv($out, []);
+
+        // QR Table
+        $qr = $data['categories']['qr'];
+        fputcsv($out, ['--- QR / BENEFITPAY COLLECTION (Total: ' . number_format($qr['total'], 3) . ' BHD, ' . $qr['count'] . ' Orders) ---']);
+        fputcsv($out, ['Bill #', 'Order / Ref', 'Order Type', 'Date & Time', 'Cashier', 'Amount (BHD)', 'Notes']);
+        foreach ($qr['items'] as $it) {
+            fputcsv($out, [
+                $it['bill_number'],
+                $it['reference'],
+                ucfirst($it['order_type']),
+                $it['created_at_formatted'],
+                $it['cashier_name'],
+                number_format($it['amount'], 3),
+                $it['split_note'] ?: ''
+            ]);
+        }
+        fputcsv($out, ['SUBTOTAL QR PAY', '', '', '', '', number_format($qr['total'], 3), $qr['count'] . ' items']);
+        fputcsv($out, []);
+
+        // Online Providers
+        foreach ($data['categories']['online_providers'] as $op) {
+            fputcsv($out, ['--- ONLINE: ' . strtoupper($op['name']) . ' (Total: ' . number_format($op['total'], 3) . ' BHD, ' . $op['count'] . ' Orders) ---']);
+            fputcsv($out, ['Bill #', 'Order / Platform Ref', 'Date & Time', 'Cashier', 'Food Subtotal', 'Service Fee', 'Delivery Fee', 'Discount', 'Net Collected (BHD)', 'Notes']);
+            foreach ($op['items'] as $it) {
+                fputcsv($out, [
+                    $it['bill_number'],
+                    $it['reference'],
+                    $it['created_at_formatted'],
+                    $it['cashier_name'],
+                    number_format($it['subtotal'], 3),
+                    number_format($it['service_fee'], 3),
+                    number_format($it['delivery_fee'], 3),
+                    number_format($it['discount_amount'], 3),
+                    number_format($it['amount'], 3),
+                    $it['split_note'] ?: ''
+                ]);
+            }
+            fputcsv($out, [
+                'SUBTOTAL ' . strtoupper($op['name']),
+                '',
+                '',
+                '',
+                number_format($op['food_subtotal'], 3),
+                number_format($op['service_fee'], 3),
+                number_format($op['delivery_fee'], 3),
+                number_format($op['discount_amount'], 3),
+                number_format($op['total'], 3),
+                $op['count'] . ' orders'
+            ]);
+            fputcsv($out, []);
+        }
+
+        // Split Payments if any
+        if (!empty($data['categories']['splits'])) {
+            fputcsv($out, ['--- SPLIT PAYMENTS BREAKDOWN ---']);
+            fputcsv($out, ['Bill #', 'Order / Ref', 'Date & Time', 'Cashier', 'Bill Grand Total', 'Cash Amount', 'Card Amount', 'QR Amount', 'Online Amount']);
+            foreach ($data['categories']['splits'] as $sp) {
+                fputcsv($out, [
+                    $sp['bill_number'],
+                    $sp['reference'],
+                    $sp['created_at_formatted'],
+                    $sp['cashier_name'],
+                    number_format($sp['grand_total'], 3),
+                    number_format($sp['cash_amount'], 3),
+                    number_format($sp['card_amount'], 3),
+                    number_format($sp['qr_amount'], 3),
+                    number_format($sp['online_amount'], 3)
+                ]);
+            }
+            fputcsv($out, []);
+        }
+
+        fclose($out);
+        exit;
+    }
 }

@@ -831,4 +831,243 @@ class Bill extends Model {
         $stmt->execute([$startDate, $endDate]);
         return $stmt->fetchAll();
     }
+
+    public function getTotalCollectionReport($startDateTime, $endDateTime, $cashierId = null) {
+        // Query all paid bills in this date & time range
+        $sql = "SELECT 
+                    b.id as bill_id,
+                    CONCAT('INV-', b.id) as bill_number,
+                    b.order_id,
+                    b.subtotal,
+                    b.tax_amount,
+                    COALESCE(b.discount_amount, o.discount_amount, 0) as discount_amount,
+                    COALESCE(b.delivery_fee, o.delivery_fee, 0) as delivery_fee,
+                    COALESCE(b.service_fee, o.service_fee, 0) as service_fee,
+                    b.grand_total,
+                    b.payment_method,
+                    b.cash_amount,
+                    b.card_amount,
+                    b.qr_amount,
+                    b.online_amount,
+                    b.cashier_id,
+                    u.name as cashier_name,
+                    b.created_at as bill_created_at,
+                    o.id as order_number,
+                    o.order_type,
+                    o.token_number,
+                    o.customer_name,
+                    o.customer_mobile,
+                    o.table_number,
+                    o.platform_order_number,
+                    COALESCE(op.name, 'Other Online') as platform_name,
+                    COALESCE(op.id, 0) as platform_id
+                FROM bills b
+                JOIN orders o ON b.order_id = o.id
+                LEFT JOIN users u ON b.cashier_id = u.id
+                LEFT JOIN online_platforms op ON COALESCE(b.platform_id, o.platform_id) = op.id
+                WHERE b.status = 'paid'
+                  AND b.created_at BETWEEN :start AND :end";
+
+        $params = [
+            'start' => $startDateTime,
+            'end'   => $endDateTime
+        ];
+        if ($cashierId !== null && $cashierId !== '' && $cashierId !== 'all') {
+            $sql .= " AND b.cashier_id = :cashier_id";
+            $params['cashier_id'] = $cashierId;
+        }
+        $sql .= " ORDER BY b.created_at ASC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $cash = ['name' => 'Cash', 'total' => 0.0, 'count' => 0, 'items' => []];
+        $card = ['name' => 'Card', 'total' => 0.0, 'count' => 0, 'items' => []];
+        $qr   = ['name' => 'QR Pay / BenefitPay', 'total' => 0.0, 'count' => 0, 'items' => []];
+        $onlineProviders = [];
+        $splits = [];
+
+        $grandTotal = 0.0;
+        $totalBillsCount = count($rows);
+
+        foreach ($rows as $row) {
+            $billTotal = (float)$row['grand_total'];
+            $grandTotal += $billTotal;
+            $method = $row['payment_method'];
+
+            $ref = '';
+            if ($row['order_type'] === 'online') {
+                $ref = $row['platform_name'] . ($row['platform_order_number'] ? ' #' . $row['platform_order_number'] : '');
+            } elseif ($row['order_type'] === 'take_away') {
+                $ref = 'Token #' . ($row['token_number'] ?: $row['order_id']);
+            } else {
+                $ref = $row['table_number'] ? 'Table ' . $row['table_number'] : 'Dine In';
+            }
+            if (!empty($row['customer_name'])) {
+                $ref .= ' - ' . $row['customer_name'];
+            }
+
+            $baseItem = [
+                'bill_id' => (int)$row['bill_id'],
+                'bill_number' => $row['bill_number'] ?: ('INV-' . $row['bill_id']),
+                'order_id' => (int)$row['order_id'],
+                'order_type' => $row['order_type'],
+                'reference' => $ref,
+                'cashier_name' => $row['cashier_name'] ?: 'Staff',
+                'created_at' => $row['bill_created_at'],
+                'created_at_formatted' => date('d M Y, h:i A', strtotime($row['bill_created_at'])),
+                'subtotal' => (float)$row['subtotal'],
+                'tax_amount' => (float)$row['tax_amount'],
+                'discount_amount' => (float)$row['discount_amount'],
+                'delivery_fee' => (float)$row['delivery_fee'],
+                'service_fee' => (float)$row['service_fee'],
+                'grand_total' => $billTotal,
+                'payment_method' => $method,
+                'split_note' => null
+            ];
+
+            if ($method === 'cash') {
+                $item = $baseItem;
+                $item['amount'] = $billTotal;
+                $cash['items'][] = $item;
+                $cash['total'] += $billTotal;
+                $cash['count']++;
+            } elseif ($method === 'card') {
+                $item = $baseItem;
+                $item['amount'] = $billTotal;
+                $card['items'][] = $item;
+                $card['total'] += $billTotal;
+                $card['count']++;
+            } elseif ($method === 'qr_pay') {
+                $item = $baseItem;
+                $item['amount'] = $billTotal;
+                $qr['items'][] = $item;
+                $qr['total'] += $billTotal;
+                $qr['count']++;
+            } elseif ($method === 'online' || $row['order_type'] === 'online') {
+                $pName = !empty($row['platform_name']) ? $row['platform_name'] : 'Other Online';
+                if (!isset($onlineProviders[$pName])) {
+                    $onlineProviders[$pName] = [
+                        'name' => $pName,
+                        'total' => 0.0,
+                        'count' => 0,
+                        'food_subtotal' => 0.0,
+                        'service_fee' => 0.0,
+                        'delivery_fee' => 0.0,
+                        'discount_amount' => 0.0,
+                        'items' => []
+                    ];
+                }
+                $item = $baseItem;
+                $item['amount'] = $billTotal;
+                $item['platform_name'] = $pName;
+                $onlineProviders[$pName]['items'][] = $item;
+                $onlineProviders[$pName]['total'] += $billTotal;
+                $onlineProviders[$pName]['food_subtotal'] += (float)$row['subtotal'];
+                $onlineProviders[$pName]['service_fee'] += (float)$row['service_fee'];
+                $onlineProviders[$pName]['delivery_fee'] += (float)$row['delivery_fee'];
+                $onlineProviders[$pName]['discount_amount'] += (float)$row['discount_amount'];
+                $onlineProviders[$pName]['count']++;
+            } elseif ($method === 'split') {
+                $cAmount = (float)$row['cash_amount'];
+                $kAmount = (float)$row['card_amount'];
+                $qAmount = (float)$row['qr_amount'];
+                $oAmount = (float)$row['online_amount'];
+
+                if ($cAmount > 0) {
+                    $item = $baseItem;
+                    $item['amount'] = $cAmount;
+                    $item['split_note'] = 'Split (Cash ' . number_format($cAmount, 3) . ' of ' . number_format($billTotal, 3) . ')';
+                    $cash['items'][] = $item;
+                    $cash['total'] += $cAmount;
+                    $cash['count']++;
+                }
+                if ($kAmount > 0) {
+                    $item = $baseItem;
+                    $item['amount'] = $kAmount;
+                    $item['split_note'] = 'Split (Card ' . number_format($kAmount, 3) . ' of ' . number_format($billTotal, 3) . ')';
+                    $card['items'][] = $item;
+                    $card['total'] += $kAmount;
+                    $card['count']++;
+                }
+                if ($qAmount > 0) {
+                    $item = $baseItem;
+                    $item['amount'] = $qAmount;
+                    $item['split_note'] = 'Split (QR ' . number_format($qAmount, 3) . ' of ' . number_format($billTotal, 3) . ')';
+                    $qr['items'][] = $item;
+                    $qr['total'] += $qAmount;
+                    $qr['count']++;
+                }
+                if ($oAmount > 0) {
+                    $pName = !empty($row['platform_name']) ? $row['platform_name'] : 'Other Online';
+                    if (!isset($onlineProviders[$pName])) {
+                        $onlineProviders[$pName] = [
+                            'name' => $pName,
+                            'total' => 0.0,
+                            'count' => 0,
+                            'food_subtotal' => 0.0,
+                            'service_fee' => 0.0,
+                            'delivery_fee' => 0.0,
+                            'discount_amount' => 0.0,
+                            'items' => []
+                        ];
+                    }
+                    $item = $baseItem;
+                    $item['amount'] = $oAmount;
+                    $item['split_note'] = 'Split (Online ' . number_format($oAmount, 3) . ' of ' . number_format($billTotal, 3) . ')';
+                    $item['platform_name'] = $pName;
+                    $onlineProviders[$pName]['items'][] = $item;
+                    $onlineProviders[$pName]['total'] += $oAmount;
+                    $onlineProviders[$pName]['food_subtotal'] += (float)$row['subtotal'];
+                    $onlineProviders[$pName]['service_fee'] += (float)$row['service_fee'];
+                    $onlineProviders[$pName]['delivery_fee'] += (float)$row['delivery_fee'];
+                    $onlineProviders[$pName]['discount_amount'] += (float)$row['discount_amount'];
+                    $onlineProviders[$pName]['count']++;
+                }
+
+                $splitItem = $baseItem;
+                $splitItem['cash_amount'] = $cAmount;
+                $splitItem['card_amount'] = $kAmount;
+                $splitItem['qr_amount'] = $qAmount;
+                $splitItem['online_amount'] = $oAmount;
+                $splits[] = $splitItem;
+            } else {
+                $item = $baseItem;
+                $item['amount'] = $billTotal;
+                $cash['items'][] = $item;
+                $cash['total'] += $billTotal;
+                $cash['count']++;
+            }
+        }
+
+        $onlineTotalAll = 0.0;
+        foreach ($onlineProviders as $p) {
+            $onlineTotalAll += (float)$p['total'];
+        }
+
+        return [
+            'period' => [
+                'start' => $startDateTime,
+                'end'   => $endDateTime,
+                'start_formatted' => date('d M Y, h:i A', strtotime($startDateTime)),
+                'end_formatted'   => date('d M Y, h:i A', strtotime($endDateTime))
+            ],
+            'summary' => [
+                'grand_total'  => round($grandTotal, 3),
+                'cash_total'   => round($cash['total'], 3),
+                'card_total'   => round($card['total'], 3),
+                'qr_total'     => round($qr['total'], 3),
+                'online_total' => round($onlineTotalAll, 3),
+                'total_bills'  => $totalBillsCount,
+            ],
+            'categories' => [
+                'cash'             => $cash,
+                'card'             => $card,
+                'qr'               => $qr,
+                'online_providers' => array_values($onlineProviders),
+                'splits'           => $splits
+            ]
+        ];
+    }
 }

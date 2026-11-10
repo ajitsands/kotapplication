@@ -134,6 +134,10 @@ $router->add('GET', '/admin/reports/item-insights', 'ReportsController@itemInsig
 $router->add('GET', '/admin/reports/transactions', 'ReportsController@transactionsJson');
 $router->add('GET', '/counter/reports/transactions', 'ReportsController@transactionsJson');
 $router->add('GET', '/reports/transactions', 'ReportsController@transactionsJson');
+$router->add('GET', '/admin/reports/total-collection', 'ReportsController@totalCollectionJson');
+$router->add('GET', '/counter/reports/total-collection', 'ReportsController@totalCollectionJson');
+$router->add('GET', '/reports/total-collection', 'ReportsController@totalCollectionJson');
+$router->add('GET', '/reports/total-collection/export', 'ReportsController@totalCollectionExport');
 $router->add('GET', '/admin/order/:id', 'CounterController@orderDetails');
 $router->add('GET', '/api/order/:id', 'CounterController@orderDetails');
 $router->add('GET', '/print/order/:id', 'CounterController@printOrder');
