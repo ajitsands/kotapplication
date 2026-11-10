@@ -1,6 +1,8 @@
 <?php
 
 require_once 'core/Controller.php';
+require_once __DIR__ . '/../models/Bill.php';
+require_once __DIR__ . '/../models/Setting.php';
 
 class ReportsController extends Controller {
 

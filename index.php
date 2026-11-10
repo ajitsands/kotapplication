@@ -16,6 +16,21 @@ require_once 'core/Model.php';
 require_once 'core/helpers.php';
 require_once 'models/OnlinePlatform.php';
 
+// Safe class autoloader for models, core, and controllers
+spl_autoload_register(function ($class) {
+    $candidates = [
+        __DIR__ . '/models/' . $class . '.php',
+        __DIR__ . '/core/' . $class . '.php',
+        __DIR__ . '/controllers/' . $class . '.php'
+    ];
+    foreach ($candidates as $file) {
+        if (file_exists($file)) {
+            require_once $file;
+            return;
+        }
+    }
+});
+
 // Create directories for uploads if not exists
 if (!file_exists('uploads')) {
     mkdir('uploads', 0777, true);

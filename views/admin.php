@@ -3945,6 +3945,17 @@
         // ==========================================
         let adminCurrentCollectionData = null;
 
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        window.escapeHtml = escapeHtml;
+
         function setAdminShiftPreset(preset) {
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -4061,8 +4072,19 @@
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
             const url = `${basePath}/reports/total-collection?startDateTime=${encodeURIComponent(fromDateTime)}&endDateTime=${encodeURIComponent(toDateTime)}&cashierId=${encodeURIComponent(cashierId)}&_=${Date.now()}`;
 
-            fetch(url, { cache: 'no-store' })
-                .then(r => r.json())
+            fetch(url, {
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error(`Server returned HTTP ${r.status} (${r.statusText})`);
+                    }
+                    return r.json();
+                })
                 .then(res => {
                     if (res.status === 'success' && res.data) {
                         adminCurrentCollectionData = res.data;
@@ -4076,7 +4098,7 @@
                 .catch(err => {
                     console.error('Total Collection fetch error:', err);
                     if (container) {
-                        container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--accent-red);">Error loading collection data. Please try again.</div>`;
+                        container.innerHTML = `<div style="text-align: center; padding: 30px; color: var(--accent-red);">Error loading collection data: ${escapeHtml(err.message || 'Please try again')}.</div>`;
                     }
                 });
         }
@@ -4111,11 +4133,28 @@
 
             let html = '';
 
+            // Zero data helpful banner
+            if ((sum.total_bills || 0) === 0) {
+                const startStr = data.period ? (data.period.start_formatted || data.period.start) : '';
+                const endStr = data.period ? (data.period.end_formatted || data.period.end) : '';
+                html += `
+                    <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 14px; margin-bottom: 5px;">
+                        <span style="font-size: 26px;">ℹ️</span>
+                        <div>
+                            <div style="font-weight: 700; font-size: 14px; color: var(--text-color);">No paid transactions recorded in this shift window</div>
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                                The selected period (<strong>${escapeHtml(startStr)} ➔ ${escapeHtml(endStr)}</strong>) currently has 0 settled orders. Use the quick shift buttons above or adjust the date & time filter to view other shifts.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             // Helper to render standard category card (Cash, Card, QR)
             function buildStandardCategoryCard(catKey, catObj, icon, title, colorHex, borderHex) {
-                const count = catObj.count || 0;
-                const total = (catObj.total || 0).toFixed(dec);
-                const items = catObj.items || [];
+                const count = catObj ? (catObj.count || 0) : 0;
+                const total = (catObj ? (catObj.total || 0) : 0).toFixed(dec);
+                const items = catObj ? (catObj.items || []) : [];
 
                 let rowsHtml = '';
                 if (items.length === 0) {
@@ -4340,6 +4379,30 @@
                         </div>
                     `;
                 });
+            } else {
+                html += `
+                    <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(245,158,11,0.25); border-radius: 14px; background: rgba(255,255,255,0.015);">
+                        <div style="padding: 16px 20px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--card-border);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 24px;">🌐</span>
+                                <div>
+                                    <div style="font-size: 16px; font-weight: 800; color: var(--text-color);">Online Platform Aggregators</div>
+                                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Talabat, Jahez, etc.</div>
+                                </div>
+                                <span style="margin-left: 6px; background: rgba(245,158,11,0.15); color: #f59e0b; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(245,158,11,0.3);">
+                                    0 Orders
+                                </span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Subtotal Collection</div>
+                                <div style="font-size: 20px; font-weight: 900; color: #f59e0b;">0.000 <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
+                            </div>
+                        </div>
+                        <div style="padding: 25px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                            No online platform orders recorded in this shift window.
+                        </div>
+                    </div>
+                `;
             }
 
             // 5. Split Payments Breakdown Card (if any)
