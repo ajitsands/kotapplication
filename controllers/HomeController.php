@@ -250,9 +250,14 @@ class HomeController extends Controller {
         $productModel = new Product();
         $products = $productModel->getAll();
 
-        // Organize products by category
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $packs = $packModel->getPacksForMenu();
+
+        // Organize products by category (excluding pack container products from normal list)
         $productsByCategory = [];
         foreach ($products as $product) {
+            if (!empty($product['is_pack'])) continue;
             $productsByCategory[$product['category_id']][] = $product;
         }
 
@@ -262,7 +267,8 @@ class HomeController extends Controller {
             'settings' => $settings,
             'categories' => $categories,
             'productsByCategory' => $productsByCategory,
-            'products' => $products
+            'products' => $products,
+            'packs' => $packs
         ]);
     }
 

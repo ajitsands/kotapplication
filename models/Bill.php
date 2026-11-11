@@ -74,7 +74,10 @@ class Bill extends Model {
 
         if ($bill) {
             // Fetch item summary (excluding cancelled items and honoring custom/markup price)
-            $sqlItems = "SELECT p.name as product_name, 
+            $sqlItems = "SELECT p.id as product_id,
+                                p.name as product_name, 
+                                p.is_pack,
+                                GROUP_CONCAT(DISTINCT ki.notes SEPARATOR '; ') as notes,
                                 COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) as price, 
                                 SUM(ki.quantity) as total_quantity, 
                                 SUM(COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity) as subtotal_price 
@@ -84,7 +87,7 @@ class Bill extends Model {
                          LEFT JOIN online_platforms op ON o.platform_id = op.id
                          JOIN products p ON ki.product_id = p.id 
                          WHERE k.order_id = ? AND ki.status != 'cancelled'
-                         GROUP BY p.id, p.name, COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price))";
+                         GROUP BY p.id, p.name, p.is_pack, COALESCE(ki.price, IF(o.order_type = 'online' AND op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price))";
             $stmtItems = $this->db->prepare($sqlItems);
             $stmtItems->execute([$bill['order_id']]);
             $bill['items'] = $stmtItems->fetchAll();

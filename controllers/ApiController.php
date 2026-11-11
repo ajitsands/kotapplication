@@ -161,6 +161,37 @@ class ApiController extends Controller {
         $customerName = !empty($data['customer_name']) ? mb_substr(trim($data['customer_name']), 0, 95) : null;
         $customerMobile = !empty($data['customer_mobile']) ? mb_substr(trim($data['customer_mobile']), 0, 20) : null;
 
+        // Resolve Pack items if submitted via pack_id
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        foreach ($items as &$it) {
+            if (!empty($it['is_pack']) || !empty($it['pack_id'])) {
+                $packId = !empty($it['pack_id']) ? (int)$it['pack_id'] : 0;
+                $pInfo = $packId ? $packModel->getById($packId) : null;
+                if ($pInfo) {
+                    if (empty($it['product_id']) && !empty($pInfo['product_id'])) {
+                        $it['product_id'] = (int)$pInfo['product_id'];
+                    }
+                    if (!isset($it['price'])) {
+                        $it['price'] = (float)$pInfo['price'];
+                    }
+                }
+                // If pack_selections is provided as an array, format human-readable notes
+                if (!empty($it['pack_selections']) && is_array($it['pack_selections'])) {
+                    $parts = [];
+                    foreach ($it['pack_selections'] as $sel) {
+                        $q = !empty($sel['quantity']) ? (int)$sel['quantity'] : 1;
+                        $n = $sel['product_name'] ?? $sel['name'] ?? 'Item';
+                        $parts[] = "{$q}x {$n}";
+                    }
+                    if (!empty($parts)) {
+                        $it['notes'] = implode(', ', $parts);
+                    }
+                }
+            }
+        }
+        unset($it);
+
         // For takeaway orders, waiterId is always null (customer self-service)
         if ($orderType === 'take_away') {
             $waiterId = null;
@@ -464,5 +495,12 @@ class ApiController extends Controller {
         }
 
         $this->json($data, $httpCode ?: 200);
+    }
+
+    public function getPacks() {
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $packs = $packModel->getPacksForMenu();
+        $this->json(['status' => 'success', 'data' => $packs]);
     }
 }

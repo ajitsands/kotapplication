@@ -277,8 +277,13 @@
                 ?>
                     <tr>
                         <td class="text-left">
-                            <b><?= htmlspecialchars($pName) ?></b><br>
-                            <small style="color:#333; font-size:9px;">@ <?= format_price($pPrice) ?></small>
+                            <b><?= htmlspecialchars($pName) ?></b>
+                            <?php if (!empty($item['notes'])): ?>
+                                <div style="font-size: 9px; color: #555; font-style: italic; margin-top: 1px; line-height: 1.2;">
+                                    <?= htmlspecialchars($item['notes']) ?>
+                                </div>
+                            <?php endif; ?>
+                            <br><small style="color:#333; font-size:9px;">@ <?= format_price($pPrice) ?></small>
                         </td>
                         <td class="text-center" style="vertical-align: middle;"><b><?= $pQty ?></b></td>
                         <td class="text-right" style="vertical-align: middle;"><b><?= format_price($pSubtotal) ?></b></td>
@@ -502,6 +507,9 @@
                 $pSubtotal = (float)($item['subtotal_price'] ?? (($item['price'] ?? 0) * $pQty));
             ?>
             text += "<?= addslashes(mb_strimwidth($pName, 0, 18, '..')) ?> x<?= $pQty ?>  <?= format_price($pSubtotal) ?>\n";
+            <?php if (!empty($item['notes'])): ?>
+            text += "  * <?= addslashes(mb_strimwidth($item['notes'], 0, 30, '..')) ?>\n";
+            <?php endif; ?>
             <?php endforeach; ?>
             text += "--------------------------------\n";
             text += "Subtotal: <?= format_price($bill['subtotal']) ?> <?= $settings['currency_code'] ?>\n";

@@ -752,7 +752,13 @@
     <!-- Horizontal Categories -->
     <div class="categories-scroll">
         <button class="cat-chip active" id="chip-all" onclick="selectCategory('all')">All Menu</button>
+        <?php if (!empty($packs)): ?>
+            <button class="cat-chip" id="chip-packs" onclick="selectCategory('packs')">
+                🍱 Meal Packs (<?= count($packs) ?>)
+            </button>
+        <?php endif; ?>
         <?php foreach ($categories as $cat): ?>
+            <?php if (in_array(strtolower($cat['name']), ['packs', 'meal packs', 'combo packs'])) continue; ?>
             <button class="cat-chip" id="chip-<?= $cat['id'] ?>" onclick="selectCategory(<?= $cat['id'] ?>)">
                 <?= htmlspecialchars($cat['name']) ?>
             </button>
@@ -851,6 +857,52 @@
         <button class="btn-checkout" onclick="openReviewModal()">View Order</button>
     </div>
 
+    <!-- Interactive Meal Pack Customizer Modal -->
+    <div class="modal" id="pack-builder-modal" style="display: none; z-index: 1300;">
+        <div class="modal-content" style="max-width: 580px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 20px 20px 15px; text-align: left; border-radius: 20px; box-sizing: border-box;">
+            <!-- Header -->
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--card-border);">
+                <div>
+                    <div style="display: inline-block; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;">
+                        🍱 COMBO MEAL BUILDER
+                    </div>
+                    <h3 id="pb-modal-pack-name" class="modal-title" style="margin: 0; font-size: 20px; font-weight: 800; color: var(--text-color);">
+                        Meal Pack
+                    </h3>
+                    <p id="pb-modal-pack-desc" style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.3;"></p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="pb-modal-pack-price" style="font-weight: 900; font-size: 18px; color: var(--accent-green); white-space: nowrap;">
+                        0.000 <?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>
+                    </span>
+                    <button type="button" onclick="closePackBuilderModal()" class="btn-close-modal" style="background: none; border: none; font-size: 26px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+                </div>
+            </div>
+
+            <!-- Scrollable Slots Container -->
+            <div id="pb-modal-slots-container" style="overflow-y: auto; flex-grow: 1; padding-right: 4px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 14px;">
+                <!-- Dynamically populated slots -->
+            </div>
+
+            <!-- Sticky Bottom Review & Add to Cart -->
+            <div style="border-top: 1px solid var(--card-border); padding-top: 12px; background: inherit;">
+                <div id="pb-modal-summary-box" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Your Selections</span>
+                        <span id="pb-modal-status-badge" style="font-weight: 700; color: #f59e0b; font-size: 11px;">Select all required items</span>
+                    </div>
+                    <div id="pb-modal-selections-list" style="color: var(--text-color); font-weight: 600; min-height: 18px; line-height: 1.4;">
+                        None selected yet
+                    </div>
+                </div>
+
+                <button type="button" id="pb-modal-add-btn" onclick="addCurrentPackToCart()" class="btn-checkout" style="width: 100%; padding: 14px; font-size: 15px; font-weight: 800; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #6366f1); border: none; color: white; cursor: pointer; transition: opacity 0.2s;" disabled>
+                    Complete Selections Above
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Review Order Modal -->
     <div class="modal" id="review-modal">
         <div class="modal-content">
@@ -943,6 +995,7 @@
         if (_urlParams.get('mobile')) sessionStorage.setItem('takeaway_mobile', _urlParams.get('mobile'));
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const categories = <?= json_encode($categories) ?>;
+        const menuPacks = <?= json_encode($packs ?? []) ?>;
         const taxType = '<?= $settings['tax_type'] ?? 'VAT' ?>';
         const vatPercent = parseFloat('<?= $settings['vat_percent'] ?? 10.00 ?>');
         const cgstPercent = parseFloat('<?= $settings['cgst_percent'] ?? 2.50 ?>');
@@ -952,6 +1005,7 @@
         let activeOrder = null;
         let pollInterval = null;
         let currentModalProductId = null;
+        let currentActiveCategory = 'all';
 
         // Details Modal Functions
         function openProductDetailsModal(event, prodId) {
@@ -999,7 +1053,7 @@
             fetch('/api/products')
                 .then(res => res.json())
                 .then(data => {
-                    products = data;
+                    products = (data || []).filter(p => !p.is_pack);
                     // Render all products initially
                     selectCategory('all');
                 })
@@ -1011,6 +1065,7 @@
 
         function addToCart(product) {
             cart[product.id] = {
+                cart_key: product.id,
                 product_id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),
@@ -1027,27 +1082,33 @@
             }
         }
 
-        function changeQty(productId, amount) {
-            if (!cart[productId]) return;
-            cart[productId].quantity += amount;
-            if (cart[productId].quantity <= 0) {
-                delete cart[productId];
+        function changeCartItemQty(cartKey, amount) {
+            if (!cart[cartKey]) return;
+            cart[cartKey].quantity += amount;
+            if (cart[cartKey].quantity <= 0) {
+                delete cart[cartKey];
             }
             updateCartUI();
+        }
+
+        function changeQty(productId, amount) {
+            changeCartItemQty(productId, amount);
         }
 
         function updateCartUI() {
             let totalQty = 0;
             let totalPrice = 0.0;
 
-            // Draw product item add button replacements
+            Object.values(cart).forEach(item => {
+                totalQty += item.quantity;
+                totalPrice += item.price * item.quantity;
+            });
+
+            // Draw product item add button replacements for regular items
             document.querySelectorAll('[id^="control-"]').forEach(div => {
                 const id = parseInt(div.id.replace('control-', ''));
                 
                 if (cart[id]) {
-                    totalQty += cart[id].quantity;
-                    totalPrice += cart[id].price * cart[id].quantity;
-
                     div.innerHTML = `
                         <div class="cart-control">
                             <button class="btn-qty" onclick="changeQty(${id}, -1)">-</button>
@@ -1056,7 +1117,6 @@
                         </div>
                     `;
                 } else {
-                    // Reset to add button
                     div.innerHTML = `<button class="btn-add" onclick="addToCartById(${id})">Add</button>`;
                 }
             });
@@ -1082,9 +1142,6 @@
                 }
             }
 
-            // Re-render add buttons for all products NOT in cart
-            // Since we need product details, let's keep a record, or just regenerate them using inline onclick binding
-            // Simply trigger complete UI updates based on cart state
             const cartBar = document.getElementById('cart-drawer-bar');
             if (totalQty > 0) {
                 document.getElementById('cart-qty-label').innerText = totalQty + (totalQty === 1 ? ' Item' : ' Items');
@@ -1095,9 +1152,9 @@
             }
         }
 
-        function updateItemNotes(prodId, element) {
-            if (cart[prodId]) {
-                cart[prodId].notes = element.value;
+        function updateItemNotes(cartKey, element) {
+            if (cart[cartKey]) {
+                cart[cartKey].notes = element.value;
             }
         }
 
@@ -1106,26 +1163,39 @@
             let html = '';
             let total = 0.0;
 
-            Object.values(cart).forEach(item => {
+            Object.entries(cart).forEach(([key, item]) => {
                 const sub = (item.price * item.quantity).toFixed(window.PRICE_DECIMALS || 3);
                 total += item.price * item.quantity;
+
+                const packBadge = item.is_pack 
+                    ? `<span style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px; margin-right: 4px;">COMBO PACK</span>`
+                    : '';
+
+                const notesDisplay = item.is_pack
+                    ? `<div style="font-size: 11px; color: #a855f7; margin-top: 3px; line-height: 1.3; font-weight: 500;">${escapeHtml(item.notes || '')}</div>`
+                    : `<input class="item-notes-input" type="text" placeholder="Cooking notes (e.g. no spice, extra sauce)" value="${escapeHtml(item.notes || '')}" oninput="updateItemNotes('${key}', this)">`;
+
                 html += `
                     <div class="cart-item">
                         <div style="flex-grow:1; margin-right:15px;">
-                            <div class="cart-item-name">${escapeHtml(item.name)}</div>
-                            <div class="cart-item-price">${item.quantity} × ${item.price.toFixed(window.PRICE_DECIMALS || 3)} = ${sub} ${currencyCode}</div>
-                            <input class="item-notes-input" type="text" placeholder="Cooking notes (e.g. no spice, extra sauce)" value="${escapeHtml(item.notes)}" oninput="updateItemNotes(${item.product_id}, this)">
+                            <div class="cart-item-name" style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                ${packBadge} <span>${escapeHtml(item.name)}</span>
+                            </div>
+                            <div class="cart-item-price" style="margin-top: 2px;">
+                                ${item.quantity} × ${item.price.toFixed(window.PRICE_DECIMALS || 3)} = ${sub} ${currencyCode}
+                            </div>
+                            ${notesDisplay}
                         </div>
                         <div class="cart-control">
-                            <button class="btn-qty" onclick="changeQty(${item.product_id}, -1); openReviewModal();">-</button>
+                            <button class="btn-qty" onclick="changeCartItemQty('${key}', -1); openReviewModal();">-</button>
                             <span class="qty-num">${item.quantity}</span>
-                            <button class="btn-qty" onclick="changeQty(${item.product_id}, 1); openReviewModal();">+</button>
+                            <button class="btn-qty" onclick="changeCartItemQty('${key}', 1); openReviewModal();">+</button>
                         </div>
                     </div>
                 `;
             });
 
-            container.innerHTML = html;
+            container.innerHTML = html || '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Your cart is empty.</div>';
             document.getElementById('modal-total-price').innerText = total.toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
             document.getElementById('review-modal').style.display = 'flex';
         }
@@ -1260,6 +1330,339 @@
             location.reload(); // Reload to reset all clean
         }
 
+        function renderPacksSectionHtml() {
+            if (!Array.isArray(menuPacks) || menuPacks.length === 0) return '';
+            
+            const dec = window.PRICE_DECIMALS || 3;
+            let cardsHtml = '';
+
+            menuPacks.forEach(pack => {
+                const price = parseFloat(pack.price || 0).toFixed(dec);
+                const imgHtml = pack.image_url 
+                    ? `<img src="/${pack.image_url.replace(/^\/+/, '')}" class="product-img" style="width: 85px; height: 85px; min-width: 85px; border-radius: 12px; object-fit: cover;" alt="Pack">`
+                    : `<div class="product-img" style="width: 85px; height: 85px; min-width: 85px; border-radius: 12px; background: rgba(168, 85, 247, 0.12); color: #c084fc; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800;">🍱</div>`;
+
+                let slotsBadges = '';
+                if (Array.isArray(pack.slots) && pack.slots.length > 0) {
+                    slotsBadges = pack.slots.map(s => `
+                        <span style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700;">
+                            ${s.quantity}x ${escapeHtml(s.slot_name || s.category_name)}
+                        </span>
+                    `).join('');
+                }
+
+                cardsHtml += `
+                    <div class="product-card" onclick="openPackBuilderModal(${pack.id})" style="border: 1.5px solid rgba(168, 85, 247, 0.35); border-radius: 16px; padding: 12px; cursor: pointer; background: var(--card-bg); transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;" data-name="${escapeHtml(pack.name.toLowerCase())}" data-desc="${escapeHtml((pack.description || '').toLowerCase())}">
+                        <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                            ${imgHtml}
+                            <div class="product-details" style="flex-grow: 1; padding: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                    <div>
+                                        <span style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 2px;">COMBO PACK</span>
+                                        <h4 class="product-name" style="margin: 0; font-size: 15px; font-weight: 800; color: var(--text-color);">${escapeHtml(pack.name)}</h4>
+                                    </div>
+                                    <span style="font-weight: 900; font-size: 15px; color: var(--accent-green); white-space: nowrap;">
+                                        ${price} <span style="font-size: 11px;">${currencyCode}</span>
+                                    </span>
+                                </div>
+                                <p class="product-desc" style="margin: 3px 0 6px; font-size: 12px; line-height: 1.3;">${escapeHtml(pack.description || '')}</p>
+                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                                    ${slotsBadges}
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <button type="button" class="btn-add" onclick="event.stopPropagation(); openPackBuilderModal(${pack.id})" style="background: linear-gradient(135deg, #a855f7, #6366f1); border: none; color: white; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer;">
+                                        Build Pack ➔
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="category-group" id="cat-group-packs" style="margin-bottom: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+                        <h3 class="category-heading" style="margin: 0; display: flex; align-items: center; gap: 8px; color: #c084fc;">
+                            <span>🍱</span> Value Packs &amp; Combos
+                        </h3>
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Customizable Meals</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        let currentBuildingPack = null;
+        let currentPackSelections = {}; // slotId -> array of { product_id, name, quantity }
+
+        function openPackBuilderModal(packId) {
+            const pack = menuPacks.find(p => p.id == packId);
+            if (!pack) return;
+
+            currentBuildingPack = pack;
+            currentPackSelections = {};
+
+            document.getElementById('pb-modal-pack-name').textContent = pack.name;
+            document.getElementById('pb-modal-pack-desc').textContent = pack.description || 'Choose your items from each category below to create your meal.';
+            document.getElementById('pb-modal-pack-price').textContent = parseFloat(pack.price || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            const container = document.getElementById('pb-modal-slots-container');
+            container.innerHTML = '';
+
+            if (!Array.isArray(pack.slots) || pack.slots.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-muted);">This pack has no items configured yet.</div>';
+                document.getElementById('pb-modal-add-btn').disabled = true;
+                document.getElementById('pack-builder-modal').style.display = 'flex';
+                return;
+            }
+
+            pack.slots.forEach((slot, sIdx) => {
+                currentPackSelections[slot.id] = [];
+
+                const maxQty = slot.quantity || 1;
+                const slotTitle = slot.slot_name || `Step ${sIdx + 1}: Choose ${slot.category_name}`;
+
+                const slotBox = document.createElement('div');
+                slotBox.id = `pb-slot-box-${slot.id}`;
+                slotBox.style = "background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px;";
+
+                let prodsHtml = '';
+                if (!Array.isArray(slot.products) || slot.products.length === 0) {
+                    prodsHtml = '<div style="font-size: 12px; color: var(--text-muted); padding: 10px;">No available items in this category.</div>';
+                } else {
+                    prodsHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px;">';
+                    slot.products.forEach(p => {
+                        const img = p.image_url
+                            ? `<img src="/${p.image_url.replace(/^\/+/, '')}" style="width: 100%; height: 75px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;">`
+                            : `<div style="width: 100%; height: 75px; border-radius: 8px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 6px;">🍽️</div>`;
+
+                        prodsHtml += `
+                            <div class="pb-item-card" id="pb-item-${slot.id}-${p.id}" onclick="togglePackSlotItem(${slot.id}, ${p.id}, '${escapeHtml(p.name).replace(/'/g, "\\'")}', ${maxQty})" style="background: rgba(0,0,0,0.15); border: 1.5px solid var(--card-border); border-radius: 10px; padding: 8px; cursor: pointer; transition: all 0.2s; position: relative; text-align: center;">
+                                <div id="pb-check-${slot.id}-${p.id}" style="position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 1.5px solid var(--card-border); display: flex; align-items: center; justify-content: center; font-size: 11px; color: white;"></div>
+                                ${img}
+                                <div style="font-weight: 700; font-size: 12px; color: var(--text-color); line-height: 1.2; height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                    ${escapeHtml(p.name)}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    prodsHtml += '</div>';
+                }
+
+                slotBox.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <span style="font-weight: 800; font-size: 14px; color: var(--text-color);">${escapeHtml(slotTitle)}</span>
+                            <span style="font-size: 12px; color: var(--text-muted); margin-left: 6px;">(Select ${maxQty})</span>
+                        </div>
+                        <span id="pb-slot-badge-${slot.id}" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">
+                            0 / ${maxQty} selected
+                        </span>
+                    </div>
+                    ${prodsHtml}
+                `;
+
+                container.appendChild(slotBox);
+            });
+
+            updatePackBuilderState();
+            document.getElementById('pack-builder-modal').style.display = 'flex';
+        }
+
+        function closePackBuilderModal() {
+            document.getElementById('pack-builder-modal').style.display = 'none';
+            currentBuildingPack = null;
+        }
+
+        function togglePackSlotItem(slotId, prodId, prodName, maxQty) {
+            if (!currentBuildingPack || !currentPackSelections[slotId]) return;
+
+            const currentList = currentPackSelections[slotId];
+            const existingIdx = currentList.findIndex(i => i.product_id === prodId);
+
+            if (maxQty === 1) {
+                // Single choice slot: replace with this product
+                if (existingIdx !== -1) {
+                    currentPackSelections[slotId] = []; // toggle off
+                } else {
+                    currentPackSelections[slotId] = [{ product_id: prodId, name: prodName, quantity: 1 }];
+                }
+            } else {
+                // Multi choice slot: pick up to maxQty
+                if (existingIdx !== -1) {
+                    currentList.splice(existingIdx, 1);
+                } else {
+                    const totalSelected = currentList.reduce((acc, i) => acc + i.quantity, 0);
+                    if (totalSelected < maxQty) {
+                        currentList.push({ product_id: prodId, name: prodName, quantity: 1 });
+                    } else {
+                        // Already max selected, pop first and add new
+                        currentList.shift();
+                        currentList.push({ product_id: prodId, name: prodName, quantity: 1 });
+                    }
+                }
+            }
+
+            updatePackBuilderState();
+        }
+
+        function updatePackBuilderState() {
+            if (!currentBuildingPack || !Array.isArray(currentBuildingPack.slots)) return;
+
+            let allSatisfied = true;
+            let summaryItems = [];
+
+            currentBuildingPack.slots.forEach(slot => {
+                const maxQty = slot.quantity || 1;
+                const chosen = currentPackSelections[slot.id] || [];
+                const chosenCount = chosen.reduce((acc, i) => acc + i.quantity, 0);
+
+                const badge = document.getElementById(`pb-slot-badge-${slot.id}`);
+                const slotBox = document.getElementById(`pb-slot-box-${slot.id}`);
+
+                if (chosenCount >= maxQty) {
+                    if (badge) {
+                        badge.innerHTML = `✓ ${chosenCount} / ${maxQty} Selected`;
+                        badge.style.background = 'rgba(16, 185, 129, 0.15)';
+                        badge.style.color = '#10b981';
+                        badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    }
+                    if (slotBox) slotBox.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                } else {
+                    allSatisfied = false;
+                    if (badge) {
+                        badge.innerHTML = `${chosenCount} / ${maxQty} Selected`;
+                        badge.style.background = 'rgba(245, 158, 11, 0.15)';
+                        badge.style.color = '#f59e0b';
+                        badge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                    }
+                    if (slotBox) slotBox.style.borderColor = 'var(--card-border)';
+                }
+
+                // Update cards visual highlight in this slot
+                if (Array.isArray(slot.products)) {
+                    slot.products.forEach(p => {
+                        const card = document.getElementById(`pb-item-${slot.id}-${p.id}`);
+                        const chk = document.getElementById(`pb-check-${slot.id}-${p.id}`);
+                        const isSelected = chosen.some(i => i.product_id === p.id);
+
+                        if (card && chk) {
+                            if (isSelected) {
+                                card.style.borderColor = '#a855f7';
+                                card.style.background = 'rgba(168, 85, 247, 0.12)';
+                                card.style.transform = 'translateY(-2px)';
+                                chk.style.background = '#a855f7';
+                                chk.style.borderColor = '#a855f7';
+                                chk.innerHTML = '✓';
+                            } else {
+                                card.style.borderColor = 'var(--card-border)';
+                                card.style.background = 'rgba(0,0,0,0.15)';
+                                card.style.transform = 'none';
+                                chk.style.background = 'rgba(0,0,0,0.4)';
+                                chk.style.borderColor = 'var(--card-border)';
+                                chk.innerHTML = '';
+                            }
+                        }
+                    });
+                }
+
+                chosen.forEach(c => {
+                    summaryItems.push(`${c.quantity}x ${c.name}`);
+                });
+            });
+
+            // Update bottom selections text
+            const listEl = document.getElementById('pb-modal-selections-list');
+            const statusBadge = document.getElementById('pb-modal-status-badge');
+            const addBtn = document.getElementById('pb-modal-add-btn');
+
+            if (listEl) {
+                listEl.innerHTML = summaryItems.length > 0 
+                    ? summaryItems.map(s => `<span style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); border-radius: 6px; padding: 2px 7px; font-size: 11px; margin-right: 4px; display: inline-block; margin-bottom: 3px;">${escapeHtml(s)}</span>`).join('')
+                    : '<span style="color: var(--text-muted); font-style: italic;">No items selected yet. Tap products above to select.</span>';
+            }
+
+            const dec = window.PRICE_DECIMALS || 3;
+            const priceStr = parseFloat(currentBuildingPack.price || 0).toFixed(dec) + ' ' + currencyCode;
+
+            if (allSatisfied) {
+                if (statusBadge) {
+                    statusBadge.textContent = '✓ Ready to Add!';
+                    statusBadge.style.color = '#10b981';
+                }
+                if (addBtn) {
+                    addBtn.disabled = false;
+                    addBtn.style.opacity = '1';
+                    addBtn.innerHTML = `Add ${escapeHtml(currentBuildingPack.name)} to Order • ${priceStr}`;
+                }
+            } else {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Please complete all selections';
+                    statusBadge.style.color = '#f59e0b';
+                }
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = '0.5';
+                    addBtn.innerHTML = `Complete Selections Above (${priceStr})`;
+                }
+            }
+        }
+
+        function addCurrentPackToCart() {
+            if (!currentBuildingPack) return;
+
+            const selectionsList = [];
+            const summaryParts = [];
+
+            currentBuildingPack.slots.forEach(slot => {
+                const chosen = currentPackSelections[slot.id] || [];
+                chosen.forEach(item => {
+                    selectionsList.push({
+                        slot_id: slot.id,
+                        slot_name: slot.slot_name || slot.category_name,
+                        product_id: item.product_id,
+                        product_name: item.name,
+                        quantity: item.quantity
+                    });
+                    summaryParts.push(`${item.quantity}x ${item.name}`);
+                });
+            });
+
+            const cartKey = 'pack_' + currentBuildingPack.id + '_' + Date.now();
+            const formattedNotes = summaryParts.join(', ');
+
+            cart[cartKey] = {
+                cart_key: cartKey,
+                is_pack: true,
+                pack_id: currentBuildingPack.id,
+                product_id: currentBuildingPack.product_id,
+                name: currentBuildingPack.name,
+                price: parseFloat(currentBuildingPack.price || 0),
+                quantity: 1,
+                notes: formattedNotes,
+                pack_selections: selectionsList
+            };
+
+            closePackBuilderModal();
+            updateCartUI();
+
+            // Toast feedback
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `🍱 ${currentBuildingPack.name} added to cart!`,
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+            }
+        }
+
         function renderProducts(productsToRender) {
             const container = document.querySelector('.products-section');
             
@@ -1274,6 +1677,12 @@
             });
 
             let html = '';
+
+            // If All Menu is selected, show Packs at the very top!
+            if (currentActiveCategory === 'all') {
+                html += renderPacksSectionHtml();
+            }
+
             categories.forEach(cat => {
                 const catProds = grouped[cat.id] || [];
                 if (catProds.length === 0) return;
@@ -1320,13 +1729,21 @@
         }
 
         function selectCategory(catId) {
+            currentActiveCategory = catId;
             // Update chip styling
             document.querySelectorAll('.cat-chip').forEach(chip => chip.classList.remove('active'));
             if (catId === 'all') {
-                document.getElementById('chip-all').classList.add('active');
+                const chipAll = document.getElementById('chip-all');
+                if (chipAll) chipAll.classList.add('active');
                 renderProducts(products);
+            } else if (catId === 'packs') {
+                const chipP = document.getElementById('chip-packs');
+                if (chipP) chipP.classList.add('active');
+                const container = document.querySelector('.products-section');
+                container.innerHTML = renderPacksSectionHtml() || '<div style="text-align:center; padding:40px; color:var(--text-muted); font-weight:600;">No meal packs currently available.</div>';
             } else {
-                document.getElementById('chip-' + catId).classList.add('active');
+                const chipEl = document.getElementById('chip-' + catId);
+                if (chipEl) chipEl.classList.add('active');
                 const filtered = products.filter(p => parseInt(p.category_id) === parseInt(catId));
                 renderProducts(filtered);
             }

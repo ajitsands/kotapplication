@@ -271,6 +271,13 @@ $router->add('POST', '/api/activate-license', 'ApiController@activateLicense');
 $router->add('GET', '/customer/:table', 'HomeController@customerView');
 $router->add('GET', '/takeaway', 'HomeController@takeawayView');
 
+// Meal Packs Admin & Public API Routes
+$router->add('GET', '/admin/packs', 'AdminController@packsListJson');
+$router->add('POST', '/admin/packs/save', 'AdminController@savePack');
+$router->add('POST', '/admin/packs/toggle/:id', 'AdminController@togglePack');
+$router->add('POST', '/admin/packs/delete/:id', 'AdminController@deletePack');
+$router->add('GET', '/api/packs', 'ApiController@getPacks');
+
 // Admin Mobile/Web App Routes
 $router->add('GET', '/admin-app', 'AdminAppController@index');
 $router->add('POST', '/api/admin-app/login', 'AdminAppController@login');

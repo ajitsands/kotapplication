@@ -887,6 +887,7 @@
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
             else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
             else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
+            else if (id === 'packs' && typeof loadPacksAdmin === 'function') loadPacksAdmin();
             else if (id === 'kpi' && typeof loadKPIs === 'function') loadKPIs();
         }
 
@@ -901,6 +902,7 @@
         // Tab map for restore
         const TAB_MAP = {
             catalog:       { icon: '📋', label: 'Menu Catalog' },
+            packs:         { icon: '🍱', label: 'Meal Packs & Combos' },
             settings:      { icon: '⚙️', label: 'Settings & Taxes' },
             tables:        { icon: '🪑', label: 'Tables & QR Codes' },
             users:         { icon: '👥', label: 'Users Management' },
@@ -945,6 +947,9 @@
                     <!-- Core & Operations -->
                     <button class="nav-dropdown-item active" id="item-catalog" onclick="selectSection('catalog','📋','Menu Catalog')">
                         <span class="item-icon">📋</span> Menu Catalog
+                    </button>
+                    <button class="nav-dropdown-item" id="item-packs" onclick="selectSection('packs','🍱','Meal Packs &amp; Combos')">
+                        <span class="item-icon">🍱</span> Meal Packs &amp; Combos
                     </button>
                     <button class="nav-dropdown-item" id="item-settings" onclick="selectSection('settings','⚙️','Settings &amp; Taxes')">
                         <span class="item-icon">⚙️</span> Settings &amp; Taxes
@@ -1265,6 +1270,140 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- Meal Packs & Combos Tab -->
+        <div id="packs" class="tab-content">
+            <div class="panel-card" style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 18px;">
+                    <div>
+                        <h2 class="panel-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span>🍱</span> Meal Packs &amp; Combos
+                        </h2>
+                        <p style="margin: 4px 0 0; color: var(--text-muted); font-size: 13px;">
+                            Create fixed-price bundles with category choices (e.g. 1 Burger, 1 Fries, 1 Drink). Customers can build their own custom pack when scanning Take Away or Dine-In QR menus.
+                        </p>
+                    </div>
+                    <div>
+                        <button type="button" class="btn-primary" onclick="openCreatePackModal()" style="padding: 10px 18px; border-radius: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
+                            <span>➕</span> Create New Pack
+                        </button>
+                    </div>
+                </div>
+
+                <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: var(--text-color); display: flex; align-items: flex-start; gap: 12px;">
+                    <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+                    <div>
+                        <strong>How Meal Packs Work:</strong> Assign any category (e.g. <em>Burgers</em>, <em>Fries</em>, <em>Drinks</em>) to a pack and specify the quantity (Nos) the customer can pick. 
+                        When customers view the Take Away QR menu, tapping the pack opens an interactive selector allowing them to pick their preferred burger, fries, and drink, with the entire combo billed at the pack's fixed price.
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="admin-packs-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th style="width: 70px;">Image</th>
+                                <th>Pack Name</th>
+                                <th>Pack Price (<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>)</th>
+                                <th>Category Slots &amp; Quantities</th>
+                                <th>Status</th>
+                                <th style="width: 140px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-packs-table-body">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    Loading meal packs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create / Edit Meal Pack Modal -->
+        <div id="admin-pack-modal" class="modal" style="display: none; z-index: 1250;">
+            <div class="modal-content" style="max-width: 680px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 25px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 18px;">
+                    <div>
+                        <h3 id="admin-pack-modal-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-color);">
+                            🍱 Add Meal Pack
+                        </h3>
+                        <p style="margin: 3px 0 0; font-size: 12px; color: var(--text-muted);">Configure pack name, fixed price, and category slots.</p>
+                    </div>
+                    <button type="button" onclick="closePackModal()" style="background: none; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+                </div>
+
+                <form id="admin-pack-form" onsubmit="savePackAdmin(event)" style="overflow-y: auto; padding-right: 5px; flex-grow: 1;">
+                    <input type="hidden" id="pack-form-id" name="id" value="">
+                    <input type="hidden" id="pack-form-slots-json" name="slots_json" value="">
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-weight: 600;">Pack Name <span style="color: #ef4444;">*</span></label>
+                            <input type="text" id="pack-form-name" name="name" class="form-input" placeholder="e.g. Burger Meal Pack, Dinner Pack" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-weight: 600;">Pack Price (<?= htmlspecialchars($settings['currency_code'] ?? 'BHD') ?>) <span style="color: #ef4444;">*</span></label>
+                            <input type="number" step="0.001" min="0" id="pack-form-price" name="price" class="form-input" placeholder="e.g. 2.500" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label class="form-label" style="font-weight: 600;">Description (Optional)</label>
+                        <textarea id="pack-form-desc" name="description" class="form-input" rows="2" placeholder="e.g. Includes choice of any 1 Burger, 1 Fries, and 1 Soft Drink"></textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-weight: 600;">Pack Image (Optional)</label>
+                            <input type="file" id="pack-form-image" name="image" accept="image/*" class="form-input">
+                            <input type="hidden" id="pack-form-existing-image" name="existing_image_url" value="">
+                            <div id="pack-form-image-preview" style="margin-top: 8px; display: none;">
+                                <img src="" id="pack-form-image-img" style="height: 60px; border-radius: 8px; border: 1px solid var(--card-border); object-fit: cover;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center;">
+                            <label class="form-label" style="font-weight: 600;">Status</label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px;">
+                                <input type="checkbox" id="pack-form-available" name="is_available" value="1" checked style="width: 18px; height: 18px; accent-color: #10b981;">
+                                <span style="font-size: 13px; font-weight: 600; color: var(--text-color);">Active / Available for order</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Category Slots Builder -->
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1.5px dashed var(--card-border); border-radius: 14px; padding: 18px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-color); display: flex; align-items: center; gap: 6px;">
+                                    <span>🧩</span> Pack Category Slots (What items can they choose?)
+                                </h4>
+                                <p style="margin: 2px 0 0; font-size: 12px; color: var(--text-muted);">
+                                    Add categories to this pack and specify how many items the customer can pick from each category.
+                                </p>
+                            </div>
+                            <button type="button" onclick="addPackSlotRow()" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                <span>➕</span> Add Category Slot
+                            </button>
+                        </div>
+
+                        <div id="pack-slots-container" style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- Dynamic Slot Rows inserted here -->
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 1px solid var(--card-border); padding-top: 15px; margin-top: 10px;">
+                        <button type="button" class="modal-close" onclick="closePackModal()" style="margin: 0; padding: 10px 18px;">Cancel</button>
+                        <button type="submit" id="btn-save-pack" class="btn-primary" style="padding: 10px 22px; font-weight: 700;">
+                            Save Meal Pack
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -3938,6 +4077,326 @@
                 link.click();
                 document.body.removeChild(link);
             }
+        }
+
+        // ==========================================
+        // MEAL PACKS & COMBOS MANAGEMENT (ADMIN)
+        // ==========================================
+        let adminCategoriesList = <?= json_encode(array_values(array_map(function($c) {
+            return ['id' => (int)$c['id'], 'name' => $c['name']];
+        }, $categories))) ?>;
+
+        let adminCurrentPacks = [];
+
+        function loadPacksAdmin() {
+            const tbody = document.getElementById('admin-packs-table-body');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">⏳ Loading meal packs...</td></tr>';
+            }
+
+            fetch('/admin/packs', { cache: 'no-store' })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && Array.isArray(res.data)) {
+                        adminCurrentPacks = res.data;
+                        renderPacksTable(res.data);
+                    } else {
+                        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color: var(--accent-red);">Failed to load packs: ${escapeHtml(res.message || 'Unknown error')}</td></tr>`;
+                    }
+                })
+                .catch(err => {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 25px; color: var(--accent-red);">Error loading packs: ${escapeHtml(err.message)}</td></tr>`;
+                });
+        }
+
+        function renderPacksTable(packs) {
+            const tbody = document.getElementById('admin-packs-table-body');
+            if (!tbody) return;
+
+            if (packs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <div style="font-size: 32px; margin-bottom: 8px;">🍱</div>
+                            <div style="font-weight: 700; font-size: 15px; color: var(--text-color);">No Meal Packs Created Yet</div>
+                            <div style="font-size: 13px; margin-top: 4px;">Click the <strong>➕ Create New Pack</strong> button above to add your first combo meal pack!</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const dec = window.PRICE_DECIMALS || 3;
+            let html = '';
+
+            packs.forEach((p, idx) => {
+                const imgHtml = p.image_url 
+                    ? `<img src="/${p.image_url.replace(/^\/+/, '')}" style="width: 46px; height: 46px; border-radius: 8px; object-fit: cover; border: 1px solid var(--card-border);">`
+                    : `<div style="width: 46px; height: 46px; border-radius: 8px; background: rgba(99,102,241,0.1); color: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 20px;">🍱</div>`;
+
+                let slotsBadges = '';
+                if (Array.isArray(p.slots) && p.slots.length > 0) {
+                    slotsBadges = p.slots.map(s => {
+                        const label = escapeHtml(s.slot_name || s.category_name);
+                        return `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.25); font-size: 12px; margin: 2px 4px 2px 0; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px;">
+                            <strong>${s.quantity}x</strong> ${label}
+                        </span>`;
+                    }).join('');
+                } else {
+                    slotsBadges = '<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">No categories assigned</span>';
+                }
+
+                const isAvail = p.is_available == 1;
+                const statusBadge = isAvail
+                    ? `<span onclick="togglePackStatus(${p.id})" style="cursor: pointer; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 20px;" title="Click to disable">● Active</span>`
+                    : `<span onclick="togglePackStatus(${p.id})" style="cursor: pointer; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 20px;" title="Click to enable">○ Inactive</span>`;
+
+                html += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                        <td style="padding: 12px 10px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
+                        <td style="padding: 12px 10px;">${imgHtml}</td>
+                        <td style="padding: 12px 10px;">
+                            <div style="font-weight: 800; font-size: 14px; color: var(--text-color);">${escapeHtml(p.name)}</div>
+                            ${p.description ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(p.description)}</div>` : ''}
+                        </td>
+                        <td style="padding: 12px 10px; font-weight: 800; font-size: 15px; color: var(--accent-green);">
+                            ${parseFloat(p.price || 0).toFixed(dec)} <span style="font-size: 11px; color: var(--text-muted);">${_cur}</span>
+                        </td>
+                        <td style="padding: 12px 10px;">
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">${slotsBadges}</div>
+                        </td>
+                        <td style="padding: 12px 10px;">${statusBadge}</td>
+                        <td style="padding: 12px 10px; text-align: center;">
+                            <button type="button" onclick="openEditPackModal(${p.id})" style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; margin-right: 5px;" title="Edit Pack">
+                                ✏️ Edit
+                            </button>
+                            <button type="button" onclick="deletePackAdmin(${p.id}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;" title="Delete Pack">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function openCreatePackModal() {
+            document.getElementById('admin-pack-modal-title').textContent = '🍱 Create Meal Pack';
+            document.getElementById('pack-form-id').value = '';
+            document.getElementById('pack-form-name').value = '';
+            document.getElementById('pack-form-price').value = '';
+            document.getElementById('pack-form-desc').value = '';
+            document.getElementById('pack-form-image').value = '';
+            document.getElementById('pack-form-existing-image').value = '';
+            document.getElementById('pack-form-image-preview').style.display = 'none';
+            document.getElementById('pack-form-available').checked = true;
+
+            const container = document.getElementById('pack-slots-container');
+            container.innerHTML = '';
+            // Add 1 default slot row
+            addPackSlotRow();
+
+            document.getElementById('admin-pack-modal').style.display = 'flex';
+        }
+
+        function openEditPackModal(packId) {
+            const pack = adminCurrentPacks.find(p => p.id == packId);
+            if (!pack) return;
+
+            document.getElementById('admin-pack-modal-title').textContent = '🍱 Edit Meal Pack';
+            document.getElementById('pack-form-id').value = pack.id;
+            document.getElementById('pack-form-name').value = pack.name || '';
+            document.getElementById('pack-form-price').value = parseFloat(pack.price || 0);
+            document.getElementById('pack-form-desc').value = pack.description || '';
+            document.getElementById('pack-form-image').value = '';
+            document.getElementById('pack-form-existing-image').value = pack.image_url || '';
+            document.getElementById('pack-form-available').checked = pack.is_available == 1;
+
+            if (pack.image_url) {
+                document.getElementById('pack-form-image-img').src = '/' + pack.image_url.replace(/^\/+/, '');
+                document.getElementById('pack-form-image-preview').style.display = 'block';
+            } else {
+                document.getElementById('pack-form-image-preview').style.display = 'none';
+            }
+
+            const container = document.getElementById('pack-slots-container');
+            container.innerHTML = '';
+
+            if (Array.isArray(pack.slots) && pack.slots.length > 0) {
+                pack.slots.forEach(s => addPackSlotRow(s));
+            } else {
+                addPackSlotRow();
+            }
+
+            document.getElementById('admin-pack-modal').style.display = 'flex';
+        }
+
+        function closePackModal() {
+            document.getElementById('admin-pack-modal').style.display = 'none';
+        }
+
+        function addPackSlotRow(slotData = null) {
+            const container = document.getElementById('pack-slots-container');
+            if (!container) return;
+
+            const selectedCatId = slotData ? slotData.category_id : '';
+            const qty = slotData ? (slotData.quantity || 1) : 1;
+            const slotName = slotData ? (slotData.slot_name || '') : '';
+
+            let catOptions = '<option value="">-- Select Category --</option>';
+            adminCategoriesList.forEach(c => {
+                if (c.name.toLowerCase() === 'packs' || c.name.toLowerCase() === 'meal packs') return;
+                const sel = String(c.id) === String(selectedCatId) ? 'selected' : '';
+                catOptions += `<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`;
+            });
+
+            const rowId = 'slot-row-' + Math.random().toString(36).substr(2, 9);
+            const rowDiv = document.createElement('div');
+            rowDiv.id = rowId;
+            rowDiv.className = 'pack-slot-row';
+            rowDiv.style = "background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 14px; display: grid; grid-template-columns: 2fr 1fr 2fr 36px; gap: 10px; align-items: center;";
+
+            rowDiv.innerHTML = `
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">CATEGORY</label>
+                    <select class="form-input pack-slot-cat" style="padding: 7px 10px; font-size: 13px;" required>
+                        ${catOptions}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">QUANTITY</label>
+                    <input type="number" min="1" max="20" value="${qty}" class="form-input pack-slot-qty" style="padding: 7px 10px; font-size: 13px;" required>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">SLOT TITLE / INSTRUCTION</label>
+                    <input type="text" value="${escapeHtml(slotName)}" placeholder="e.g. Choose 1 Burger" class="form-input pack-slot-name" style="padding: 7px 10px; font-size: 13px;">
+                </div>
+                <div style="display: flex; align-items: flex-end; padding-top: 18px;">
+                    <button type="button" onclick="document.getElementById('${rowId}').remove()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Remove this category slot">
+                        🗑️
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(rowDiv);
+        }
+
+        function savePackAdmin(e) {
+            e.preventDefault();
+            const form = document.getElementById('admin-pack-form');
+            const submitBtn = document.getElementById('btn-save-pack');
+
+            // Gather slots
+            const slotRows = document.querySelectorAll('.pack-slot-row');
+            if (slotRows.length === 0) {
+                Swal.fire('Category Slot Required', 'Please add at least one category slot for this pack (e.g. 1 Burger).', 'warning');
+                return;
+            }
+
+            const slots = [];
+            for (let row of slotRows) {
+                const catSelect = row.querySelector('.pack-slot-cat');
+                const qtyInput = row.querySelector('.pack-slot-qty');
+                const nameInput = row.querySelector('.pack-slot-name');
+
+                const catId = catSelect ? parseInt(catSelect.value) : 0;
+                const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+                const slotName = nameInput ? nameInput.value.trim() : '';
+
+                if (!catId) {
+                    Swal.fire('Missing Category', 'Please select a valid category for all slots.', 'warning');
+                    if (catSelect) catSelect.focus();
+                    return;
+                }
+
+                slots.push({
+                    category_id: catId,
+                    quantity: qty,
+                    slot_name: slotName
+                });
+            }
+
+            document.getElementById('pack-form-slots-json').value = JSON.stringify(slots);
+
+            const formData = new FormData(form);
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving Pack...';
+
+            fetch('/admin/packs/save', {
+                method: 'POST',
+                body: formData
+            })
+                .then(r => r.json())
+                .then(res => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Meal Pack';
+
+                    if (res.status === 'success') {
+                        closePackModal();
+                        Swal.fire({
+                            title: 'Saved!',
+                            text: res.message || 'Meal pack saved successfully.',
+                            icon: 'success',
+                            timer: 1600,
+                            showConfirmButton: false
+                        });
+                        loadPacksAdmin();
+                    } else {
+                        Swal.fire('Error', res.message || 'Failed to save meal pack.', 'error');
+                    }
+                })
+                .catch(err => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Meal Pack';
+                    Swal.fire('Error', 'Network or server error: ' + err.message, 'error');
+                });
+        }
+
+        function togglePackStatus(id) {
+            fetch(`/admin/packs/toggle/${id}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        loadPacksAdmin();
+                    } else {
+                        Swal.fire('Error', 'Failed to update pack status.', 'error');
+                    }
+                })
+                .catch(err => Swal.fire('Error', err.message, 'error'));
+        }
+
+        function deletePackAdmin(id, name) {
+            Swal.fire({
+                title: 'Delete Pack?',
+                text: `Are you sure you want to permanently delete "${name}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Yes, delete it'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    fetch(`/admin/packs/delete/${id}`, { method: 'POST' })
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.status === 'success') {
+                                Swal.fire({
+                                    title: 'Deleted',
+                                    text: 'Pack has been deleted.',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                });
+                                loadPacksAdmin();
+                            } else {
+                                Swal.fire('Error', res.message || 'Failed to delete pack.', 'error');
+                            }
+                        })
+                        .catch(err => Swal.fire('Error', err.message, 'error'));
+                }
+            });
         }
 
         // ==========================================

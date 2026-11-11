@@ -34,13 +34,18 @@ class AdminController extends Controller {
         $platformModel = new OnlinePlatform();
         $platforms = $platformModel->getAll();
 
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $packs = $packModel->getAll();
+
         $this->render('admin', [
             'settings' => $settings,
             'categories' => $categories,
             'products' => $products,
             'tables' => $tables,
             'users' => $users,
-            'platforms' => $platforms
+            'platforms' => $platforms,
+            'packs' => $packs
         ]);
     }
 
@@ -691,6 +696,70 @@ class AdminController extends Controller {
                 $db->rollBack();
             }
             $this->json(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function packsListJson() {
+        $this->requireAuth('admin');
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $packs = $packModel->getAll();
+        $this->json(['status' => 'success', 'data' => $packs]);
+    }
+
+    public function savePack() {
+        $this->requireAuth('admin');
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        
+        $data = $this->getJsonInput();
+        if (empty($data)) {
+            $data = $_POST;
+            if (!empty($data['slots_json'])) {
+                $data['slots'] = json_decode($data['slots_json'], true);
+            }
+        }
+
+        // Handle image upload if present
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'])) {
+                $fileName = 'pack_' . time() . '_' . substr(uniqid(), -4) . '.' . $ext;
+                $uploadFile = 'uploads/' . $fileName;
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadFile)) {
+                    $data['image_url'] = 'uploads/' . $fileName;
+                }
+            }
+        }
+
+        try {
+            $packId = $packModel->savePack($data);
+            $pack = $packModel->getById($packId);
+            $this->json(['status' => 'success', 'message' => 'Pack saved successfully', 'data' => $pack]);
+        } catch (Exception $e) {
+            $this->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    public function togglePack($params) {
+        $this->requireAuth('admin');
+        $id = (int)($params['id'] ?? 0);
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $newStatus = $packModel->toggleAvailability($id);
+        $this->json(['status' => 'success', 'is_available' => $newStatus]);
+    }
+
+    public function deletePack($params) {
+        $this->requireAuth('admin');
+        $id = (int)($params['id'] ?? 0);
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $res = $packModel->deletePack($id);
+        if ($res) {
+            $this->json(['status' => 'success', 'message' => 'Pack deleted successfully']);
+        } else {
+            $this->json(['status' => 'error', 'message' => 'Failed to delete pack'], 400);
         }
     }
 }
