@@ -698,32 +698,58 @@ class CounterController extends Controller {
     }
 
     public function summary() {
-        $startDate = $_GET['start_date'] ?? $_GET['date'] ?? date('Y-m-d');
-        $endDate = $_GET['end_date'] ?? $_GET['date'] ?? date('Y-m-d');
+        $startDate = trim((string)($_GET['start_date'] ?? $_GET['date'] ?? ''));
+        $endDate   = trim((string)($_GET['end_date'] ?? $_GET['date'] ?? ''));
+        $startTime = trim((string)($_GET['start_time'] ?? ''));
+        $endTime   = trim((string)($_GET['end_time'] ?? ''));
+        $preset    = trim((string)($_GET['preset'] ?? ''));
+
+        if ($startDate === '' || $endDate === '') {
+            $curHour = (int)date('G');
+            $defaultStartDate = ($curHour < 15) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+            $defaultEndDate   = ($curHour < 15) ? date('Y-m-d') : date('Y-m-d', strtotime('+1 day'));
+            if ($startDate === '') $startDate = $defaultStartDate;
+            if ($endDate === '') $endDate = $defaultEndDate;
+            if ($startTime === '') $startTime = '15:00';
+            if ($endTime === '') $endTime = '04:00';
+        }
+
+        $startDateTime = $startTime !== '' ? ($startDate . ' ' . (strlen($startTime) === 5 ? $startTime . ':00' : $startTime)) : ($startDate . ' 00:00:00');
+        $endDateTime   = $endTime !== '' ? ($endDate . ' ' . (strlen($endTime) === 5 ? $endTime . ':59' : $endTime)) : ($endDate . ' 23:59:59');
+
         $userRole = $_SESSION['user_role'] ?? 'counter';
         $userId = $_SESSION['user_id'] ?? 0;
         $billModel = new Bill();
-        
-        $onlineData = $billModel->getOnlineOrdersBreakdown($startDate, $endDate);
-        
+
         if ($userRole === 'admin') {
-            $summary   = $billModel->getCollectionSummary($startDate, $endDate, null);
-            $breakdown = $billModel->getCashiersBreakdown($startDate, $endDate);
-            $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
-            
-            $summary['refund_total'] = $refundTotal;
-            $summary['online_total'] = $onlineData['total'];
+            $onlineData = $billModel->getOnlineOrdersBreakdown($startDateTime, $endDateTime);
+            $summary    = $billModel->getCollectionSummary($startDateTime, $endDateTime, null);
+            $breakdown  = $billModel->getCashiersBreakdown($startDateTime, $endDateTime);
+            $refundTotal = $billModel->getRefundTotal($startDateTime, $endDateTime);
+
+            $summary['refund_total'] = (float)$refundTotal;
+            $summary['online_total'] = (float)$onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
             $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
-            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? $onlineData['total'] ?? 0.0);
-            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($startDate, $endDate);
-            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
-            
-            $this->json(['role' => 'admin', 'summary' => $summary, 'breakdown' => $breakdown]);
+            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? 0.0);
+            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($startDateTime, $endDateTime);
+            // Paid online bills are already included inside grand_total; only add unpaid closed online orders if any
+            $unpaidOnlineTotal = (float)($onlineData['unpaid_total'] ?? 0.0);
+            $summary['actual_total'] = max(0, (float)$summary['grand_total'] - (float)$refundTotal + $unpaidOnlineTotal);
+
+            $this->json([
+                'role' => 'admin',
+                'summary' => $summary,
+                'breakdown' => $breakdown,
+                'range' => ['start_datetime' => $startDateTime, 'end_datetime' => $endDateTime]
+            ]);
         } else {
             $this->resolveActiveCounterSession();
-            // For cashier, default to current active session if date range is exactly today
-            if ($startDate === date('Y-m-d') && $endDate === date('Y-m-d')) {
+            $useLiveSession = ($preset === 'current') || ($startDate === date('Y-m-d') && $endDate === date('Y-m-d') && $startTime === '' && $endTime === '');
+            $queryStart = $startDateTime;
+            $queryEnd   = $endDateTime;
+
+            if ($useLiveSession) {
                 $csModel = new CounterSession();
                 $activeSession = $csModel->getActiveSession($userId);
                 if (!$activeSession) {
@@ -733,6 +759,8 @@ class CounterController extends Controller {
                 if ($activeSession) {
                     if ($activeSession['status'] === 'open') {
                         $totals = $csModel->refreshSessionTotals($activeSession['id'], null, null, false);
+                        $queryStart = !empty($activeSession['opened_at']) ? $activeSession['opened_at'] : $startDateTime;
+                        $queryEnd   = date('Y-m-d H:i:s');
                     } else {
                         $totals = [
                             'cash_total' => $activeSession['cash_total'],
@@ -741,6 +769,8 @@ class CounterController extends Controller {
                             'online_total' => $activeSession['online_total'] ?? 0.000,
                             'system_total' => $activeSession['system_total']
                         ];
+                        $queryStart = !empty($activeSession['opened_at']) ? $activeSession['opened_at'] : $startDateTime;
+                        $queryEnd   = !empty($activeSession['closed_at']) ? $activeSession['closed_at'] : $endDateTime;
                     }
                     $summary = [
                         'cash_total' => $totals['cash_total'],
@@ -761,19 +791,27 @@ class CounterController extends Controller {
                     ];
                 }
             } else {
-                $summary = $billModel->getCollectionSummary($startDate, $endDate, $userId);
+                $summary = $billModel->getCollectionSummary($queryStart, $queryEnd, $userId);
             }
-            
-            $refundTotal = $billModel->getRefundTotal($startDate, $endDate);
-            $summary['refund_total'] = $refundTotal;
-            $summary['online_total'] = $onlineData['total'];
+
+            $onlineData  = $billModel->getOnlineOrdersBreakdown($queryStart, $queryEnd);
+            $refundTotal = $billModel->getRefundTotal($queryStart, $queryEnd);
+            $summary['refund_total'] = (float)$refundTotal;
+            $summary['online_total'] = (float)$onlineData['total'];
             $summary['online_breakdown'] = $onlineData['breakdown'];
             $summary['online_summary'] = $onlineData['summary_totals'] ?? null;
-            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? $onlineData['total'] ?? 0.0);
-            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($startDate, $endDate);
-            $summary['actual_total'] = max(0, $summary['grand_total'] - $refundTotal + $summary['online_total']);
-            
-            $this->json(['role' => 'counter', 'summary' => $summary, 'breakdown' => []]);
+            $summary['online_received_total'] = (float)($summary['online_received_total'] ?? 0.0);
+            $summary['online_provider_collections'] = $billModel->getOnlineProviderCollections($queryStart, $queryEnd);
+            // Paid online bills are already included inside grand_total; only add unpaid closed online orders if any
+            $unpaidOnlineTotal = (float)($onlineData['unpaid_total'] ?? 0.0);
+            $summary['actual_total'] = max(0, (float)$summary['grand_total'] - (float)$refundTotal + $unpaidOnlineTotal);
+
+            $this->json([
+                'role' => 'counter',
+                'summary' => $summary,
+                'breakdown' => [],
+                'range' => ['start_datetime' => $queryStart, 'end_datetime' => $queryEnd]
+            ]);
         }
     }
 

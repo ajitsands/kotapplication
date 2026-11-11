@@ -404,7 +404,8 @@ class Bill extends Model {
         if ($endDate === null) {
             $endDate = $startDate;
         }
-        // Query to get overall summary totals in date range
+        list($startBound, $endBound) = $this->normalizeDateTimeBounds($startDate, $endDate);
+        // Query to get overall summary totals in date/datetime range
         $sql = "SELECT 
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.cash_amount WHEN b.payment_method = 'cash' THEN b.grand_total ELSE 0 END), 0) as cash_total,
                     COALESCE(SUM(CASE WHEN b.payment_method = 'split' THEN b.card_amount WHEN b.payment_method = 'card' THEN b.grand_total ELSE 0 END), 0) as card_total,
@@ -414,9 +415,9 @@ class Bill extends Model {
                     COALESCE(SUM(CASE WHEN o.order_type = 'take_away' THEN b.grand_total ELSE 0 END), 0) as takeaway_total
                 FROM bills b
                 JOIN orders o ON b.order_id = o.id
-                WHERE b.status = 'paid' AND DATE(b.created_at) BETWEEN ? AND ?";
+                WHERE b.status = 'paid' AND b.created_at BETWEEN ? AND ?";
                 
-        $params = [$startDate, $endDate];
+        $params = [$startBound, $endBound];
         if ($userId !== null) {
             $sql .= " AND b.cashier_id = ?";
             $params[] = $userId;
@@ -431,16 +432,17 @@ class Bill extends Model {
         if ($endDate === null) {
             $endDate = $startDate;
         }
+        list($startBound, $endBound) = $this->normalizeDateTimeBounds($startDate, $endDate);
         
         $sql = "SELECT ki.quantity, p.price as base_price
                 FROM kot_items ki
                 JOIN products p ON ki.product_id = p.id
                 JOIN kots k ON ki.kot_id = k.id
                 WHERE ki.refund_status = 'refunded' AND ki.status = 'cancelled'
-                AND DATE(k.created_at) BETWEEN ? AND ?";
+                AND k.created_at BETWEEN ? AND ?";
         
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$startDate, $endDate]);
+        $stmt->execute([$startBound, $endBound]);
         $items = $stmt->fetchAll();
 
         $stmtSettings = $this->db->query("SELECT tax_type, vat_percent, cgst_percent, sgst_percent FROM settings LIMIT 1");
@@ -471,7 +473,8 @@ class Bill extends Model {
         if ($endDate === null) {
             $endDate = $startDate;
         }
-        // Query to get summary per cashier in date range
+        list($startBound, $endBound) = $this->normalizeDateTimeBounds($startDate, $endDate);
+        // Query to get summary per cashier in date/datetime range
         $sql = "SELECT 
                     b.cashier_id,
                     u.name as cashier_name,
@@ -483,11 +486,11 @@ class Bill extends Model {
                     COALESCE(SUM(b.grand_total), 0) as grand_total
                 FROM bills b
                 JOIN users u ON b.cashier_id = u.id
-                WHERE b.status = 'paid' AND DATE(b.created_at) BETWEEN ? AND ?
+                WHERE b.status = 'paid' AND b.created_at BETWEEN ? AND ?
                 GROUP BY b.cashier_id";
                 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$startDate, $endDate]);
+        $stmt->execute([$startBound, $endBound]);
         $cashiers = $stmt->fetchAll();
 
         $stmtDaily = $this->db->prepare(
@@ -504,9 +507,11 @@ class Bill extends Model {
              ORDER BY collection_date DESC"
         );
 
-        $dailyStart = ($startDate === $endDate) ? date('Y-m-d', strtotime($startDate . ' -6 days')) : $startDate;
+        $startDateOnly = substr($startBound, 0, 10);
+        $endDateOnly = substr($endBound, 0, 10);
+        $dailyStart = ($startDateOnly === $endDateOnly) ? date('Y-m-d', strtotime($startDateOnly . ' -6 days')) : $startDateOnly;
         foreach ($cashiers as &$c) {
-            $stmtDaily->execute([$c['cashier_id'], $dailyStart, $endDate]);
+            $stmtDaily->execute([$c['cashier_id'], $dailyStart, $endDateOnly]);
             $c['daily_breakdown'] = $stmtDaily->fetchAll();
         }
 
@@ -756,6 +761,7 @@ class Bill extends Model {
         if ($endDate === null) {
             $endDate = $startDate;
         }
+        list($startBound, $endBound) = $this->normalizeDateTimeBounds($startDate, $endDate);
         
         // Group by order first to calculate precise totals per order
         $sql = "SELECT 
@@ -766,6 +772,7 @@ class Bill extends Model {
                     COALESCE(b.service_fee, o.service_fee, 0.0) as service_fee,
                     COALESCE(b.discount_amount, o.discount_amount, 0.0) as discount_amount,
                     COALESCE(b.grand_total, 0.0) as bill_grand_total,
+                    COALESCE(b.status, '') as bill_status,
                     COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as food_subtotal
                 FROM orders o
                 LEFT JOIN bills b ON b.order_id = o.id
@@ -776,11 +783,11 @@ class Bill extends Model {
                 WHERE (o.order_type = 'online' OR b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0) OR o.platform_id IS NOT NULL) 
                   AND o.status IN ('closed', 'completed') 
                   AND ki.status != 'cancelled'
-                  AND DATE(o.created_at) BETWEEN ? AND ?
-                GROUP BY o.id, COALESCE(b.platform_id, o.platform_id), op.name, b.delivery_fee, o.delivery_fee, b.service_fee, o.service_fee, b.discount_amount, o.discount_amount, b.grand_total";
+                  AND COALESCE(b.created_at, o.created_at) BETWEEN ? AND ?
+                GROUP BY o.id, COALESCE(b.platform_id, o.platform_id), op.name, b.delivery_fee, o.delivery_fee, b.service_fee, o.service_fee, b.discount_amount, o.discount_amount, b.grand_total, b.status";
                 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$startDate, $endDate]);
+        $stmt->execute([$startBound, $endBound]);
         $orders = $stmt->fetchAll();
         
         $settingsModel = new Setting();
@@ -797,7 +804,8 @@ class Bill extends Model {
             'tax_amount'      => 0.0,
             'service_fee'     => 0.0,
             'gross_total'     => 0.0,
-            'net_total'       => 0.0
+            'net_total'       => 0.0,
+            'unpaid_total'    => 0.0
         ];
 
         foreach ($orders as $ord) {
@@ -848,12 +856,16 @@ class Bill extends Model {
             $summaryTotals['service_fee'] += $serviceFee;
             $summaryTotals['gross_total'] += $gross;
             $summaryTotals['net_total'] += $net;
+            if (($ord['bill_status'] ?? '') !== 'paid') {
+                $summaryTotals['unpaid_total'] += $gross;
+            }
         }
 
         return [
             'total'          => $summaryTotals['gross_total'],
             'gross_total'    => $summaryTotals['gross_total'],
             'net_total'      => $summaryTotals['net_total'],
+            'unpaid_total'   => $summaryTotals['unpaid_total'],
             'summary_totals' => $summaryTotals,
             'breakdown'      => array_values($platformsMap)
         ];
@@ -863,6 +875,7 @@ class Bill extends Model {
         if ($endDate === null) {
             $endDate = $startDate;
         }
+        list($startBound, $endBound) = $this->normalizeDateTimeBounds($startDate, $endDate);
         $sql = "SELECT 
                     COALESCE(op.name, 'Other Online') as platform_name,
                     COALESCE(op.id, 0) as platform_id,
@@ -876,11 +889,11 @@ class Bill extends Model {
                 LEFT JOIN online_platforms op ON COALESCE(b.platform_id, o.platform_id) = op.id
                 WHERE b.status = 'paid' 
                   AND (b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0) OR o.order_type = 'online')
-                  AND DATE(b.created_at) BETWEEN ? AND ?
+                  AND b.created_at BETWEEN ? AND ?
                 GROUP BY COALESCE(op.name, 'Other Online'), COALESCE(op.id, 0)
                 ORDER BY total_collected DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$startDate, $endDate]);
+        $stmt->execute([$startBound, $endBound]);
         return $stmt->fetchAll();
     }
 

@@ -250,7 +250,7 @@ class AdminAppController extends Controller {
         $summary['refund_total'] = (float)$refundTotal;
         $summary['online_total'] = (float)$onlineData['total'];
         $summary['online_breakdown'] = $onlineData['breakdown'];
-        $summary['actual_total'] = max(0, (float)$summary['grand_total'] - (float)$refundTotal + (float)$onlineData['total']);
+        $summary['actual_total'] = max(0, (float)$summary['grand_total'] - (float)$refundTotal + (float)($onlineData['unpaid_total'] ?? 0.0));
 
         $db = Database::getInstance()->getConnection();
         $sqlStats = "SELECT 

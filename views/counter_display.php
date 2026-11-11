@@ -1106,17 +1106,54 @@
         <?php else: ?>
             <!-- Collection Summary Dashboard -->
             <div class="panel-card" style="margin-bottom: 25px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); padding-bottom: 15px;">
-                    <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); padding-bottom: 14px;">
+                    <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         📊 Collection Summary 
                         <span id="summary-user-badge" class="table-badge" style="background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); font-size:12px; padding: 3px 10px;">Loading...</span>
                     </h2>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date Range:</span>
-                        <input type="date" id="summary-start-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= $counterSummaryStartDefault ?>" onchange="fetchSummary()">
-                        <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">to</span>
-                        <input type="date" id="summary-end-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= $counterTodayDate ?>" onchange="fetchSummary()">
+                    <div id="summary-period-badge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
+                        📅 <?= $counterShiftStartDate ?> 15:00:00 → <?= $counterShiftEndDate ?> 04:00:59
                     </div>
+                </div>
+
+                <!-- Summary Quick Shift Presets -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; background: rgba(255,255,255,0.02); padding: 9px 12px; border-radius: 12px; border: 1px solid var(--card-border);">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
+                    <button type="button" class="btn-shift-preset-summary active" id="btn-preset-summary-current" onclick="setSummaryShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #6366f1; background: rgba(99,102,241,0.16); color: #6366f1; cursor: pointer;">
+                        🌙 Shift (3:00 PM - 4:00 AM)
+                    </button>
+                    <button type="button" class="btn-shift-preset-summary" id="btn-preset-summary-yesterday-shift" onclick="setSummaryShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        🌙 Yesterday Shift (3 PM - 4 AM)
+                    </button>
+                    <button type="button" class="btn-shift-preset-summary" id="btn-preset-summary-today" onclick="setSummaryShiftPreset('today')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        ☀️ Today Full Day
+                    </button>
+                    <button type="button" class="btn-shift-preset-summary" id="btn-preset-summary-yesterday" onclick="setSummaryShiftPreset('yesterday')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
+                        📅 Yesterday Full Day
+                    </button>
+                </div>
+
+                <!-- Summary Custom Shift Date & Time Filter Row -->
+                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px; background: rgba(255,255,255,0.01); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--card-border);">
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Date</label>
+                        <input type="date" id="summary-start-date" class="form-input" style="width: 146px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="<?= $counterShiftStartDate ?>" onchange="setSummaryShiftPreset('custom')">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
+                        <input type="time" id="summary-start-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="15:00" onchange="setSummaryShiftPreset('custom')">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
+                        <input type="date" id="summary-end-date" class="form-input" style="width: 146px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="<?= $counterShiftEndDate ?>" onchange="setSummaryShiftPreset('custom')">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
+                        <input type="time" id="summary-end-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="04:00" onchange="setSummaryShiftPreset('custom')">
+                    </div>
+                    <button type="button" onclick="setSummaryShiftPreset('custom')" class="btn-primary" style="padding: 9px 20px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: 0 4px 12px rgba(99,102,241,0.28);">
+                        🔍 Filter Shift
+                    </button>
                 </div>
 
                 <!-- Stats Grid -->
@@ -1179,7 +1216,7 @@
                     <div style="background: rgba(236, 72, 153, 0.05); border: 1px solid rgba(236, 72, 153, 0.15); border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 12px;">
                         <div style="font-size: 24px; background: rgba(236, 72, 153, 0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">🛵</div>
                         <div>
-                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Online Orders (Separate)</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Online Platform Sales</div>
                             <div id="summary-online-total" style="font-size: 18px; font-weight: 800; color: #f472b6; margin-top: 4px;">0.000 BHD</div>
                         </div>
                     </div>
@@ -3197,27 +3234,143 @@
             });
         }
 
+        window.summaryActivePreset = 'current';
+
+        function computeCounterShiftWindow(preset) {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const formatDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+            let fromDateStr = '';
+            let toDateStr = '';
+            let fromTimeStr = '15:00';
+            let toTimeStr = '04:00';
+            const curHour = now.getHours();
+
+            if (preset === 'current') {
+                if (curHour >= 15) {
+                    const t = new Date(now);
+                    t.setDate(t.getDate() + 1);
+                    fromDateStr = formatDate(now);
+                    toDateStr = formatDate(t);
+                } else {
+                    const y = new Date(now);
+                    y.setDate(y.getDate() - 1);
+                    fromDateStr = formatDate(y);
+                    toDateStr = formatDate(now);
+                }
+            } else if (preset === 'yesterday_shift') {
+                const y1 = new Date(now);
+                const y2 = new Date(now);
+                if (curHour >= 15) {
+                    y1.setDate(y1.getDate() - 1);
+                } else {
+                    y1.setDate(y1.getDate() - 2);
+                    y2.setDate(y2.getDate() - 1);
+                }
+                fromDateStr = formatDate(y1);
+                toDateStr = formatDate(y2);
+            } else if (preset === 'today') {
+                fromDateStr = formatDate(now);
+                toDateStr = formatDate(now);
+                fromTimeStr = '00:00';
+                toTimeStr = '23:59';
+            } else if (preset === 'yesterday') {
+                const y = new Date(now);
+                y.setDate(y.getDate() - 1);
+                fromDateStr = formatDate(y);
+                toDateStr = formatDate(y);
+                fromTimeStr = '00:00';
+                toTimeStr = '23:59';
+            }
+            return { fromDateStr, toDateStr, fromTimeStr, toTimeStr };
+        }
+
+        function applyShiftPresetStyles(selector, activeId) {
+            document.querySelectorAll(selector).forEach(b => {
+                b.classList.remove('active');
+                b.style.borderColor = 'var(--card-border)';
+                b.style.background = 'transparent';
+                b.style.color = 'var(--text-muted)';
+            });
+            if (!activeId) return;
+            const activeBtn = document.getElementById(activeId);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.style.borderColor = '#6366f1';
+                activeBtn.style.background = 'rgba(99,102,241,0.16)';
+                activeBtn.style.color = document.body.classList.contains('light-theme') ? '#4338ca' : '#818cf8';
+            }
+        }
+
+        function setSummaryShiftPreset(preset) {
+            if (preset === 'custom') {
+                window.summaryActivePreset = 'custom';
+                applyShiftPresetStyles('.btn-shift-preset-summary', null);
+                fetchSummary();
+                return;
+            }
+            window.summaryActivePreset = preset;
+            const win = computeCounterShiftWindow(preset);
+            const fromDateEl = document.getElementById('summary-start-date');
+            const toDateEl = document.getElementById('summary-end-date');
+            const fromTimeEl = document.getElementById('summary-start-time');
+            const toTimeEl = document.getElementById('summary-end-time');
+            if (fromDateEl) fromDateEl.value = win.fromDateStr;
+            if (toDateEl) toDateEl.value = win.toDateStr;
+            if (fromTimeEl) fromTimeEl.value = win.fromTimeStr;
+            if (toTimeEl) toTimeEl.value = win.toTimeStr;
+
+            applyShiftPresetStyles('.btn-shift-preset-summary', 'btn-preset-summary-' + preset.replace('_', '-'));
+            fetchSummary();
+        }
+
         function fetchSummary() {
-            const startDate = document.getElementById('summary-start-date').value;
-            const endDate = document.getElementById('summary-end-date').value;
-            fetch(basePath + '/summary?start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate))
+            const startDateEl = document.getElementById('summary-start-date');
+            const endDateEl = document.getElementById('summary-end-date');
+            const startTimeEl = document.getElementById('summary-start-time');
+            const endTimeEl = document.getElementById('summary-end-time');
+            if (!startDateEl || !endDateEl) return;
+
+            const startDate = startDateEl.value;
+            const endDate = endDateEl.value;
+            const startTime = startTimeEl ? (startTimeEl.value || '15:00') : '';
+            const endTime = endTimeEl ? (endTimeEl.value || '04:00') : '';
+
+            const qs = new URLSearchParams({
+                start_date: startDate,
+                end_date: endDate,
+                start_time: startTime,
+                end_time: endTime,
+                preset: window.summaryActivePreset || 'current'
+            });
+
+            fetch(basePath + '/summary?' + qs.toString())
                 .then(res => res.json())
                 .then(data => {
                     const sum = data.summary;
                     const cur = currencyCode;
-                    
-                    document.getElementById('summary-cash-total').innerText = parseFloat(sum.cash_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    if (document.getElementById('summary-online-received-total')) {
-                        document.getElementById('summary-online-received-total').innerText = parseFloat(sum.online_received_total || sum.online_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    const dec = window.PRICE_DECIMALS || 3;
+
+                    const periodBadge = document.getElementById('summary-period-badge');
+                    if (periodBadge && data.range && data.range.start_datetime && data.range.end_datetime) {
+                        periodBadge.textContent = '📅 ' + data.range.start_datetime + ' → ' + data.range.end_datetime;
                     }
-                    document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    document.getElementById('summary-actual-total').innerText = parseFloat(sum.actual_total || sum.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
                     
-                    document.getElementById('summary-takeaway-total').innerText = parseFloat(sum.takeaway_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
-                    document.getElementById('summary-online-total').innerText = parseFloat(sum.online_total || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + cur;
+                    document.getElementById('summary-cash-total').innerText = parseFloat(sum.cash_total || 0).toFixed(dec) + ' ' + cur;
+                    document.getElementById('summary-card-total').innerText = parseFloat(sum.card_total || 0).toFixed(dec) + ' ' + cur;
+                    document.getElementById('summary-qr-total').innerText = parseFloat(sum.qr_total || 0).toFixed(dec) + ' ' + cur;
+                    if (document.getElementById('summary-online-received-total')) {
+                        const onlineRec = (sum.online_received_total !== undefined && sum.online_received_total !== null) ? sum.online_received_total : (sum.online_total || 0);
+                        document.getElementById('summary-online-received-total').innerText = parseFloat(onlineRec).toFixed(dec) + ' ' + cur;
+                    }
+                    document.getElementById('summary-grand-total').innerText = parseFloat(sum.grand_total || 0).toFixed(dec) + ' ' + cur;
+                    document.getElementById('summary-refund-total').innerText = parseFloat(sum.refund_total || 0).toFixed(dec) + ' ' + cur;
+                    const actualVal = (sum.actual_total !== undefined && sum.actual_total !== null) ? sum.actual_total : (sum.grand_total || 0);
+                    document.getElementById('summary-actual-total').innerText = parseFloat(actualVal).toFixed(dec) + ' ' + cur;
+                    
+                    document.getElementById('summary-takeaway-total').innerText = parseFloat(sum.takeaway_total || 0).toFixed(dec) + ' ' + cur;
+                    document.getElementById('summary-online-total').innerText = parseFloat(sum.online_total || 0).toFixed(dec) + ' ' + cur;
                     
                     const badge = document.getElementById('summary-user-badge');
                     const breakdownContainer = document.getElementById('admin-breakdown-container');
@@ -5751,86 +5904,19 @@ Thank you!`;
         let counterCurrentCollectionData = null;
 
         function setCounterShiftPreset(preset) {
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const formatDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-            let fromDateStr = '';
-            let toDateStr = '';
-            let fromTimeStr = '15:00';
-            let toTimeStr = '04:00';
-
-            const curHour = now.getHours();
-
-            if (preset === 'current') {
-                if (curHour < 4) {
-                    const y = new Date(now);
-                    y.setDate(y.getDate() - 1);
-                    fromDateStr = formatDate(y);
-                    toDateStr = formatDate(now);
-                } else if (curHour >= 15) {
-                    const t = new Date(now);
-                    t.setDate(t.getDate() + 1);
-                    fromDateStr = formatDate(now);
-                    toDateStr = formatDate(t);
-                } else {
-                    const y = new Date(now);
-                    y.setDate(y.getDate() - 1);
-                    fromDateStr = formatDate(y);
-                    toDateStr = formatDate(now);
-                }
-                fromTimeStr = '15:00';
-                toTimeStr = '04:00';
-            } else if (preset === 'yesterday_shift') {
-                const y1 = new Date(now);
-                const y2 = new Date(now);
-                if (curHour >= 15) {
-                    y1.setDate(y1.getDate() - 1);
-                } else {
-                    y1.setDate(y1.getDate() - 2);
-                    y2.setDate(y2.getDate() - 1);
-                }
-                fromDateStr = formatDate(y1);
-                toDateStr = formatDate(y2);
-                fromTimeStr = '15:00';
-                toTimeStr = '04:00';
-            } else if (preset === 'today') {
-                fromDateStr = formatDate(now);
-                toDateStr = formatDate(now);
-                fromTimeStr = '00:00';
-                toTimeStr = '23:59';
-            } else if (preset === 'yesterday') {
-                const y = new Date(now);
-                y.setDate(y.getDate() - 1);
-                fromDateStr = formatDate(y);
-                toDateStr = formatDate(y);
-                fromTimeStr = '00:00';
-                toTimeStr = '23:59';
-            }
+            const win = computeCounterShiftWindow(preset);
 
             const fromDateEl = document.getElementById('counter-tc-from-date');
             const toDateEl = document.getElementById('counter-tc-to-date');
             const fromTimeEl = document.getElementById('counter-tc-from-time');
             const toTimeEl = document.getElementById('counter-tc-to-time');
 
-            if (fromDateEl) fromDateEl.value = fromDateStr;
-            if (toDateEl) toDateEl.value = toDateStr;
-            if (fromTimeEl) fromTimeEl.value = fromTimeStr;
-            if (toTimeEl) toTimeEl.value = toTimeStr;
+            if (fromDateEl) fromDateEl.value = win.fromDateStr;
+            if (toDateEl) toDateEl.value = win.toDateStr;
+            if (fromTimeEl) fromTimeEl.value = win.fromTimeStr;
+            if (toTimeEl) toTimeEl.value = win.toTimeStr;
 
-            document.querySelectorAll('.btn-shift-preset-counter').forEach(b => {
-                b.classList.remove('active');
-                b.style.borderColor = 'var(--card-border)';
-                b.style.background = 'transparent';
-                b.style.color = 'var(--text-muted)';
-            });
-            const activePresetBtn = document.getElementById('btn-preset-counter-' + preset.replace('_', '-'));
-            if (activePresetBtn) {
-                activePresetBtn.classList.add('active');
-                activePresetBtn.style.borderColor = '#6366f1';
-                activePresetBtn.style.background = 'rgba(99,102,241,0.16)';
-                activePresetBtn.style.color = document.body.classList.contains('light-theme') ? '#4338ca' : '#818cf8';
-            }
+            applyShiftPresetStyles('.btn-shift-preset-counter', 'btn-preset-counter-' + preset.replace('_', '-'));
 
             loadCounterTotalCollectionReport();
         }
