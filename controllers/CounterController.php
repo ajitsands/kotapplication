@@ -93,6 +93,15 @@ class CounterController extends Controller {
         $productModel = new Product();
         $products = $productModel->getAll();
 
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        $packs = $packModel->getPacksForMenu();
+
+        // Separate normal products from meal packs
+        $normalProducts = array_values(array_filter($products, function($p) {
+            return empty($p['is_pack']);
+        }));
+
         $orderModel = new Order();
         $tables = $orderModel->getTablesState();
 
@@ -121,7 +130,8 @@ class CounterController extends Controller {
         $this->render('counter_pos', [
             'settings'        => $settings,
             'categories'      => $categories,
-            'products'        => $products,
+            'products'        => $normalProducts,
+            'packs'           => $packs,
             'tables'          => $tables,
             'sessionId'       => $sessionId,
             'pendingApproval' => $pendingApproval,
@@ -172,6 +182,36 @@ class CounterController extends Controller {
 
         $cashierId = $_SESSION['user_id'] ?? null;
         $this->resolveActiveCounterSession();
+
+        // Resolve Pack items if submitted via pack_id
+        require_once __DIR__ . '/../models/Pack.php';
+        $packModel = new Pack();
+        foreach ($items as &$it) {
+            if (!empty($it['is_pack']) || !empty($it['pack_id'])) {
+                $packId = !empty($it['pack_id']) ? (int)$it['pack_id'] : 0;
+                $pInfo = $packId ? $packModel->getById($packId) : null;
+                if ($pInfo) {
+                    if (empty($it['product_id']) && !empty($pInfo['product_id'])) {
+                        $it['product_id'] = (int)$pInfo['product_id'];
+                    }
+                    if (!isset($it['price'])) {
+                        $it['price'] = (float)$pInfo['price'];
+                    }
+                }
+                if (!empty($it['pack_selections']) && is_array($it['pack_selections'])) {
+                    $parts = [];
+                    foreach ($it['pack_selections'] as $sel) {
+                        $q = !empty($sel['quantity']) ? (int)$sel['quantity'] : 1;
+                        $n = $sel['product_name'] ?? $sel['name'] ?? 'Item';
+                        $parts[] = "{$q}x {$n}";
+                    }
+                    if (!empty($parts)) {
+                        $it['notes'] = implode(', ', $parts);
+                    }
+                }
+            }
+        }
+        unset($it);
 
         // Process item prices based on platform markup
         require_once __DIR__ . '/../models/Product.php';

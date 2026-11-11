@@ -973,9 +973,16 @@
                 <div class="categories-scroll" id="categories-bar">
                     <button class="cat-chip active" onclick="selectCategory('all', this)">
                         <span>🍽️ All Items</span>
-                        <span style="font-size: 11px; opacity: 0.7;">(<?= count($products) ?>)</span>
+                        <span style="font-size: 11px; opacity: 0.7;">(<?= count($products) + count($packs ?? []) ?>)</span>
                     </button>
+                    <?php if (!empty($packs)): ?>
+                        <button class="cat-chip" onclick="selectCategory('packs', this)">
+                            <span>🍱 Meal Packs</span>
+                            <span style="font-size: 11px; opacity: 0.7;">(<?= count($packs) ?>)</span>
+                        </button>
+                    <?php endif; ?>
                     <?php foreach ($categories as $cat): ?>
+                        <?php if (in_array(strtolower($cat['name']), ['packs', 'meal packs', 'combo packs'])) continue; ?>
                         <?php 
                             $count = count(array_filter($products, function($p) use ($cat) {
                                 return (int)($p['category_id'] ?? 0) === (int)$cat['id'];
@@ -991,6 +998,47 @@
 
             <div class="products-scroll">
                 <div class="products-grid" id="products-grid">
+                    <?php if (!empty($packs)): ?>
+                        <?php foreach ($packs as $pack): ?>
+                            <?php 
+                                $packImg = !empty($pack['image_url']) ? '/' . ltrim(htmlspecialchars($pack['image_url']), '/') : null;
+                                $slotsSummary = [];
+                                if (!empty($pack['slots'])) {
+                                    foreach ($pack['slots'] as $s) {
+                                        $slotsSummary[] = ((int)$s['quantity']) . 'x ' . ($s['slot_name'] ?: $s['category_name']);
+                                    }
+                                }
+                            ?>
+                            <div class="product-card pack-card" 
+                                 data-id="pack-<?= $pack['id'] ?>"
+                                 data-name="<?= htmlspecialchars(strtolower($pack['name'])) ?>"
+                                 data-category="packs"
+                                 data-base-price="<?= (float)$pack['price'] ?>"
+                                 data-is-pack="1"
+                                 onclick="openPosPackBuilder(<?= (int)$pack['id'] ?>)"
+                                 style="border: 1.5px solid rgba(168, 85, 247, 0.4); background: linear-gradient(180deg, rgba(168, 85, 247, 0.08), var(--bg-card));">
+                                <div class="product-badge-qty" id="qty-badge-pack-<?= $pack['id'] ?>" style="background: #a855f7;">0</div>
+                                <?php if ($packImg): ?>
+                                    <img src="<?= $packImg ?>" class="product-thumb" alt="<?= htmlspecialchars($pack['name']) ?>" onerror="this.outerHTML='<div class=\'product-thumb-placeholder\' style=\'background:rgba(168,85,247,0.15);color:#c084fc;\'>🍱</div>'">
+                                <?php else: ?>
+                                    <div class="product-thumb-placeholder" style="background: rgba(168,85,247,0.15); color: #c084fc;">🍱</div>
+                                <?php endif; ?>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%;">
+                                    <span style="font-size: 9.5px; background: rgba(168,85,247,0.25); color: #c084fc; padding: 2px 6px; border-radius: 4px; font-weight: 800;">COMBO PACK</span>
+                                </div>
+                                <div class="product-name" style="color: var(--text-color); font-weight: 800;"><?= htmlspecialchars($pack['name']) ?></div>
+                                <div class="product-cat" style="color: #c084fc; font-weight: 600;">
+                                    <?= htmlspecialchars(implode(', ', $slotsSummary) ?: 'Customizable Meal') ?>
+                                </div>
+                                <div class="product-price-row">
+                                    <span class="product-price" id="prod-price-pack-<?= $pack['id'] ?>" data-base="<?= (float)$pack['price'] ?>">
+                                        <?= number_format((float)$pack['price'], 3, '.', '') ?> <?= htmlspecialchars($settings['currency_code']) ?>
+                                    </span>
+                                    <button type="button" class="btn-add-mini" style="background: linear-gradient(135deg, #a855f7, #6366f1); width: auto; padding: 0 10px; font-size: 11px; font-weight: 700; border-radius: 6px;" title="Build Pack">Build ➔</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                     <?php foreach ($products as $prod): ?>
                         <?php 
                             $isAvail = (int)($prod['is_available'] ?? 1) === 1;
@@ -1316,10 +1364,46 @@
         </div>
     </div>
 
+    <!-- POS Pack Builder Modal -->
+    <div id="pos-pack-builder-modal" class="modal" style="display:none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 720px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 22px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 14px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 10px; background: rgba(168,85,247,0.25); color: #c084fc; padding: 2px 7px; border-radius: 4px; font-weight: 800;">COMBO PACK</span>
+                        <h3 style="margin: 0; font-size: 19px; font-weight: 800; color: var(--text-color);" id="pos-builder-pack-name">Pack Name</h3>
+                    </div>
+                    <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted);" id="pos-builder-pack-desc">Description</p>
+                </div>
+                <button type="button" onclick="closePosPackBuilder()" style="background: none; border: none; font-size: 26px; color: var(--text-muted); cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
+            </div>
+
+            <!-- Slots list (scrollable) -->
+            <div style="flex: 1; overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 16px;" id="pos-builder-slots-container">
+                <!-- Dynamically populated via JS -->
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top: 14px; border-top: 1px solid var(--card-border); padding-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Fixed Pack Price:</div>
+                    <div style="font-size: 22px; font-weight: 900; color: var(--accent-green);" id="pos-builder-pack-price">0.000 BHD</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="closePosPackBuilder()" style="background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: var(--text-color); padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;">Cancel</button>
+                    <button type="button" id="pos-btn-add-pack-cart" onclick="addCurrentPosPackToCart()" style="background: linear-gradient(135deg, #a855f7, #6366f1); color: white; border: none; padding: 10px 24px; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s, transform 0.15s;" disabled>
+                        Add Pack to Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden audio chimes for dispatch feedback -->
     <audio id="audio-kot" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <script>
+        const posPacks = <?= json_encode($packs ?? []) ?>;
         const currencyCode = '<?= htmlspecialchars($settings['currency_code']) ?>';
         const taxType = '<?= htmlspecialchars($settings['tax_type'] ?? 'VAT') ?>';
         const vatPercent = parseFloat('<?= (float)($settings['vat_percent'] ?? 10) ?>');
@@ -1529,8 +1613,12 @@
             renderCart();
         }
 
-        function updateQuantity(productId, delta) {
-            const idx = cart.findIndex(i => i.id === productId);
+        function updateQuantity(cartKey, delta) {
+            updateCartQuantity(cartKey, delta);
+        }
+
+        function updateCartQuantity(cartKey, delta) {
+            const idx = cart.findIndex(i => String(i.cart_key || i.id) === String(cartKey));
             if (idx === -1) return;
 
             cart[idx].quantity += delta;
@@ -1540,11 +1628,244 @@
             renderCart();
         }
 
-        function updateItemNote(productId, note) {
-            const idx = cart.findIndex(i => i.id === productId);
+        function updateItemNote(cartKey, note) {
+            const idx = cart.findIndex(i => String(i.cart_key || i.id) === String(cartKey));
             if (idx > -1) {
                 cart[idx].notes = note;
             }
+        }
+
+        function updateItemPrice(cartKey, newPrice) {
+            if (currentOrderType !== 'online') return; // Only allowed for online orders
+            const idx = cart.findIndex(i => String(i.cart_key || i.id) === String(cartKey));
+            if (idx === -1) return;
+            const val = parseFloat(newPrice);
+            if (!isNaN(val) && val >= 0) {
+                cart[idx].price = val;
+                cart[idx].is_custom_price = true;
+            }
+            renderCart();
+        }
+
+        // ==========================================
+        // POS PACK BUILDER LOGIC
+        // ==========================================
+        let currentPosBuildingPack = null;
+        let currentPosPackSelections = {}; // slotId -> array of { product_id, name, quantity }
+
+        function openPosPackBuilder(packId) {
+            if (!Array.isArray(posPacks)) return;
+            const pack = posPacks.find(p => parseInt(p.id) === parseInt(packId));
+            if (!pack) return;
+
+            currentPosBuildingPack = pack;
+            currentPosPackSelections = {};
+
+            // Initialize selections per slot
+            (pack.slots || []).forEach(slot => {
+                currentPosPackSelections[slot.id] = [];
+            });
+
+            document.getElementById('pos-builder-pack-name').innerText = pack.name;
+            document.getElementById('pos-builder-pack-desc').innerText = pack.description || 'Customize your combo pack selection.';
+            document.getElementById('pos-builder-pack-price').innerText = parseFloat(pack.price || 0).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
+
+            renderPosPackSlots();
+            updatePosPackBuilderState();
+
+            document.getElementById('pos-pack-builder-modal').style.display = 'flex';
+        }
+
+        function closePosPackBuilder() {
+            document.getElementById('pos-pack-builder-modal').style.display = 'none';
+            currentPosBuildingPack = null;
+            currentPosPackSelections = {};
+        }
+
+        function renderPosPackSlots() {
+            const container = document.getElementById('pos-builder-slots-container');
+            if (!currentPosBuildingPack || !Array.isArray(currentPosBuildingPack.slots)) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            currentPosBuildingPack.slots.forEach(slot => {
+                const requiredQty = parseInt(slot.quantity) || 1;
+                const currentSelections = currentPosPackSelections[slot.id] || [];
+                const totalSelectedInSlot = currentSelections.reduce((sum, item) => sum + item.quantity, 0);
+                const isSlotComplete = (totalSelectedInSlot === requiredQty);
+
+                const slotTitle = slot.slot_name || slot.category_name || 'Category Slot';
+
+                let itemsGridHtml = '';
+                if (!Array.isArray(slot.products) || slot.products.length === 0) {
+                    itemsGridHtml = `<div style="font-size: 12px; color: var(--text-muted); font-style: italic; padding: 10px;">No available products in this category.</div>`;
+                } else {
+                    itemsGridHtml = slot.products.map(p => {
+                        const sel = currentSelections.find(s => parseInt(s.product_id) === parseInt(p.id));
+                        const isSelected = !!sel;
+                        const qtySelected = sel ? sel.quantity : 0;
+                        const pImg = p.image_url ? ('/' + p.image_url.replace(/^\/+/, '')) : null;
+
+                        return `
+                            <div class="pos-pack-item-card ${isSelected ? 'selected' : ''}" 
+                                 onclick="togglePosPackItem(${slot.id}, ${p.id}, ${requiredQty})"
+                                 style="border: 1.5px solid ${isSelected ? '#a855f7' : 'var(--card-border)'}; background: ${isSelected ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-card)'}; border-radius: 12px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px; position: relative; transition: all 0.15s;">
+                                ${pImg 
+                                    ? `<img src="${pImg}" style="width: 44px; height: 44px; border-radius: 8px; object-fit: cover;" onerror="this.outerHTML='<div style=\'width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:20px;\'>🍽️</div>'">` 
+                                    : `<div style="width: 44px; height: 44px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 20px;">🍽️</div>`
+                                }
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 700; font-size: 13px; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(p.name)}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Standard Choice</div>
+                                </div>
+                                <div style="width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid ${isSelected ? '#a855f7' : 'rgba(255,255,255,0.2)'}; background: ${isSelected ? '#a855f7' : 'transparent'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;">
+                                    ${isSelected ? '✓' : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                html += `
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <span style="font-size: 14px; font-weight: 800; color: var(--text-color);">${escapeHtml(slotTitle)}</span>
+                                <span style="font-size: 12px; color: var(--text-muted); margin-left: 6px;">(Choose ${requiredQty})</span>
+                            </div>
+                            <span style="font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: ${isSlotComplete ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isSlotComplete ? '#34d399' : '#f87171'}; border: 1px solid ${isSlotComplete ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'};">
+                                ${totalSelectedInSlot} / ${requiredQty} Selected
+                            </span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                            ${itemsGridHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function togglePosPackItem(slotId, productId, requiredQty) {
+            if (!currentPosBuildingPack) return;
+            const slot = currentPosBuildingPack.slots.find(s => parseInt(s.id) === parseInt(slotId));
+            if (!slot) return;
+            const product = slot.products.find(p => parseInt(p.id) === parseInt(productId));
+            if (!product) return;
+
+            let currentSelections = currentPosPackSelections[slotId] || [];
+            const existingIdx = currentSelections.findIndex(s => parseInt(s.product_id) === parseInt(productId));
+
+            if (existingIdx > -1) {
+                // Deselect
+                currentSelections.splice(existingIdx, 1);
+            } else {
+                const totalSelected = currentSelections.reduce((sum, item) => sum + item.quantity, 0);
+                if (totalSelected >= requiredQty) {
+                    if (requiredQty === 1) {
+                        // Replace single choice automatically
+                        currentSelections = [];
+                    } else {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: `Maximum ${requiredQty} items allowed for this slot.`,
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
+                        return;
+                    }
+                }
+                currentSelections.push({
+                    product_id: product.id,
+                    product_name: product.name,
+                    quantity: 1
+                });
+            }
+
+            currentPosPackSelections[slotId] = currentSelections;
+            renderPosPackSlots();
+            updatePosPackBuilderState();
+        }
+
+        function updatePosPackBuilderState() {
+            const addBtn = document.getElementById('pos-btn-add-pack-cart');
+            if (!addBtn || !currentPosBuildingPack) return;
+
+            let allSlotsSatisfied = true;
+            (currentPosBuildingPack.slots || []).forEach(slot => {
+                const req = parseInt(slot.quantity) || 1;
+                const sel = currentPosPackSelections[slot.id] || [];
+                const tot = sel.reduce((sum, item) => sum + item.quantity, 0);
+                if (tot !== req) {
+                    allSlotsSatisfied = false;
+                }
+            });
+
+            if (allSlotsSatisfied) {
+                addBtn.disabled = false;
+                addBtn.style.opacity = '1';
+                addBtn.style.cursor = 'pointer';
+            } else {
+                addBtn.disabled = true;
+                addBtn.style.opacity = '0.5';
+                addBtn.style.cursor = 'not-allowed';
+            }
+        }
+
+        function addCurrentPosPackToCart() {
+            if (!currentPosBuildingPack) return;
+
+            // Flatten selections & create notes summary
+            const parts = [];
+            const flatSelections = [];
+            (currentPosBuildingPack.slots || []).forEach(slot => {
+                const sel = currentPosPackSelections[slot.id] || [];
+                sel.forEach(item => {
+                    parts.push(`${item.quantity}x ${item.product_name}`);
+                    flatSelections.push({
+                        slot_id: slot.id,
+                        product_id: item.product_id,
+                        product_name: item.product_name,
+                        quantity: item.quantity
+                    });
+                });
+            });
+
+            const notesStr = parts.join(', ');
+            const cartKey = 'pack_' + currentPosBuildingPack.id + '_' + Date.now();
+            const packPrice = parseFloat(currentPosBuildingPack.price || 0);
+
+            cart.push({
+                id: currentPosBuildingPack.product_id,
+                cart_key: cartKey,
+                name: currentPosBuildingPack.name,
+                base_price: packPrice,
+                price: packPrice,
+                markup_percent: 0,
+                is_custom_price: false,
+                quantity: 1,
+                notes: notesStr,
+                is_pack: true,
+                pack_id: currentPosBuildingPack.id,
+                pack_selections: flatSelections
+            });
+
+            closePosPackBuilder();
+            renderCart();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `${currentPosBuildingPack.name} added to order!`,
+                showConfirmButton: false,
+                timer: 1800
+            });
         }
 
         function clearCart() {
@@ -1576,15 +1897,24 @@
             } else {
                 let html = '';
                 cart.forEach(item => {
+                    const cartKey = item.cart_key || item.id;
                     totalQty += item.quantity;
                     const itemTotal = item.price * item.quantity;
                     subtotal += itemTotal;
 
                     // Update product card badge
-                    const badge = document.getElementById('qty-badge-/' + item.id) || document.getElementById('qty-badge-' + item.id);
-                    if (badge) {
-                        badge.innerText = item.quantity;
-                        badge.style.display = 'block';
+                    if (item.is_pack) {
+                        const badge = document.getElementById('qty-badge-pack-' + item.pack_id);
+                        if (badge) {
+                            badge.innerText = (parseInt(badge.innerText || '0') + item.quantity);
+                            badge.style.display = 'block';
+                        }
+                    } else {
+                        const badge = document.getElementById('qty-badge-' + item.id);
+                        if (badge) {
+                            badge.innerText = item.quantity;
+                            badge.style.display = 'block';
+                        }
                     }
 
                     let priceSectionHtml = '';
@@ -1595,7 +1925,7 @@
                                 <div style="display: inline-flex; align-items: center; gap: 3px;">
                                     <input type="number" step="0.001" min="0" 
                                            value="${item.price.toFixed(window.PRICE_DECIMALS || 3)}" 
-                                           onchange="updateItemPrice(${item.id}, this.value)" 
+                                           onchange="updateItemPrice('${cartKey}', this.value)" 
                                            style="width: 76px; padding: 2px 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--card-border); background: var(--bg-card); color: var(--text-color); text-align: right;" 
                                            title="Edit item unit price (e.g. customized platform price)">
                                     <span style="font-size: 11px; color: var(--text-muted);">${currencyCode}</span>
@@ -1611,21 +1941,29 @@
                         `;
                     }
 
+                    const titleHtml = item.is_pack 
+                        ? `<div class="cart-item-title" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                               <span>${escapeHtml(item.name)}</span>
+                               <span style="font-size:9.5px; background:rgba(168,85,247,0.25); color:#c084fc; padding:1px 5px; border-radius:4px; font-weight:800;">🍱 COMBO</span>
+                           </div>
+                           ${item.notes ? `<div style="font-size:11px; color:var(--text-muted); font-style:italic; background:rgba(0,0,0,0.18); padding:3px 7px; border-radius:6px; margin:4px 0 2px; border-left:2.5px solid #a855f7; line-height:1.3;">${escapeHtml(item.notes)}</div>` : ''}`
+                        : `<div class="cart-item-title">${escapeHtml(item.name)}</div>`;
+
                     html += `
                         <div class="cart-item-card">
                             <div class="cart-item-top">
                                 <div style="flex: 1;">
-                                    <div class="cart-item-title">${escapeHtml(item.name)}</div>
+                                    ${titleHtml}
                                     ${priceSectionHtml}
                                 </div>
-                                <button onclick="updateQuantity(${item.id}, -${item.quantity})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 14px; padding: 4px;" title="Remove Item">🗑️</button>
+                                <button onclick="updateCartQuantity('${cartKey}', -${item.quantity})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 14px; padding: 4px;" title="Remove Item">🗑️</button>
                             </div>
-                            <input type="text" class="cart-item-note-input" placeholder="Notes (e.g. No onion)" value="${escapeHtml(item.notes)}" onchange="updateItemNote(${item.id}, this.value)">
+                            ${!item.is_pack ? `<input type="text" class="cart-item-note-input" placeholder="Notes (e.g. No onion)" value="${escapeHtml(item.notes)}" onchange="updateItemNote('${cartKey}', this.value)">` : ''}
                             <div class="cart-item-bottom">
                                 <div class="qty-controls">
-                                    <button type="button" class="qty-btn" onclick="updateQuantity(${item.id}, -1)">−</button>
+                                    <button type="button" class="qty-btn" onclick="updateCartQuantity('${cartKey}', -1)">−</button>
                                     <span class="qty-display">${item.quantity}</span>
-                                    <button type="button" class="qty-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                                    <button type="button" class="qty-btn" onclick="updateCartQuantity('${cartKey}', 1)">+</button>
                                 </div>
                                 <div class="cart-item-total">${itemTotal.toFixed(window.PRICE_DECIMALS || 3)} ${currencyCode}</div>
                             </div>
@@ -1800,10 +2138,13 @@
                         customer_mobile: result.value.mobile,
                         payment_type: result.value.payment_type,
                         items: cart.map(i => ({
-                            product_id: i.id,
+                            product_id: i.is_pack ? (i.product_id || i.id) : i.id,
                             quantity: i.quantity,
                             price: i.price,
-                            notes: i.notes || ''
+                            notes: i.notes || '',
+                            is_pack: i.is_pack ? 1 : 0,
+                            pack_id: i.is_pack ? i.pack_id : null,
+                            pack_selections: i.is_pack ? i.pack_selections : null
                         }))
                     };
 
@@ -1950,10 +2291,13 @@
             }
 
             const itemsPayload = cart.map(i => ({
-                product_id: i.id,
+                product_id: i.is_pack ? (i.product_id || i.id) : i.id,
                 quantity: i.quantity,
                 price: i.price,
-                notes: i.notes || null
+                notes: i.notes || null,
+                is_pack: i.is_pack ? 1 : 0,
+                pack_id: i.is_pack ? i.pack_id : null,
+                pack_selections: i.is_pack ? i.pack_selections : null
             }));
 
             // Get local station billing/counter printer config (e.g. 192.168.8.101)

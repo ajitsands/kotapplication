@@ -305,3 +305,4 @@ class Pack extends Model {
         return $formatted;
     }
 }
+

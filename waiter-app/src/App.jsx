@@ -23,6 +23,7 @@ function App() {
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [packs, setPacks] = useState([]);
   const [tables, setTables] = useState([]);
   
   // Navigation / View states
@@ -43,6 +44,10 @@ function App() {
   const [viewProduct, setViewProduct] = useState(null);
   const [modalQty, setModalQty] = useState(1);
   const [modalNotes, setModalNotes] = useState('');
+
+  // Pack Builder State
+  const [buildingPack, setBuildingPack] = useState(null);
+  const [packSelections, setPackSelections] = useState({}); // slotId -> array of { product_id, name, quantity }
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showSandsModal, setShowSandsModal] = useState(false);
@@ -108,10 +113,19 @@ function App() {
       .then(res => res.json())
       .then(data => setCategories(Array.isArray(data) ? data : []));
 
-    // Load Products
+    // Load Meal Packs
+    fetch(rootPath + '/api/packs')
+      .then(res => res.json())
+      .then(data => setPacks(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error loading packs:", err));
+
+    // Load Products (filter out packs from regular catalog)
     fetch(rootPath + '/api/products')
       .then(res => res.json())
-      .then(data => setProducts(Array.isArray(data) ? data : []));
+      .then(data => {
+        const list = Array.isArray(data) ? data.filter(p => !p.is_pack) : [];
+        setProducts(list);
+      });
 
     loadTablesState();
     loadNotifications();
@@ -293,47 +307,162 @@ function App() {
     setViewProduct(null);
   };
 
-  const changeBasketQty = (productId, amount) => {
+  const changeBasketQty = (itemKey, amount) => {
     setBasket(prev => {
-      const existing = prev[productId];
+      const existing = prev[itemKey];
       if (!existing) return prev;
 
       const newQty = existing.quantity + amount;
       if (newQty <= 0) {
         const copy = { ...prev };
-        delete copy[productId];
+        delete copy[itemKey];
         return copy;
       }
 
       return {
         ...prev,
-        [productId]: { ...existing, quantity: newQty }
+        [itemKey]: { ...existing, quantity: newQty }
       };
     });
   };
 
-  const removeFromBasket = (productId) => {
+  const removeFromBasket = (itemKey) => {
     setBasket(prev => {
       const copy = { ...prev };
-      delete copy[productId];
+      delete copy[itemKey];
       return copy;
     });
   };
 
-  const updateBasketNotes = (productId, notes) => {
+  const updateBasketNotes = (itemKey, notes) => {
     setBasket(prev => {
-      const existing = prev[productId];
+      const existing = prev[itemKey];
       if (!existing) return prev;
       return {
         ...prev,
-        [productId]: { ...existing, notes }
+        [itemKey]: { ...existing, notes }
       };
+    });
+  };
+
+  // Waiter Pack Builder operations
+  const openPackBuilder = (pack) => {
+    setBuildingPack(pack);
+    const initial = {};
+    (pack.slots || []).forEach(slot => {
+      initial[slot.id] = [];
+    });
+    setPackSelections(initial);
+  };
+
+  const closePackBuilder = () => {
+    setBuildingPack(null);
+    setPackSelections({});
+  };
+
+  const togglePackSlotItem = (slotId, product, requiredQty) => {
+    setPackSelections(prev => {
+      const current = prev[slotId] || [];
+      const existsIndex = current.findIndex(s => s.product_id === product.id);
+
+      let next;
+      if (existsIndex > -1) {
+        // Deselect
+        next = current.filter((_, idx) => idx !== existsIndex);
+      } else {
+        const totalSelected = current.reduce((sum, item) => sum + item.quantity, 0);
+        if (totalSelected >= requiredQty) {
+          if (requiredQty === 1) {
+            // Replace single selection automatically
+            next = [{ product_id: product.id, name: product.name, quantity: 1 }];
+          } else {
+            return prev;
+          }
+        } else {
+          next = [...current, { product_id: product.id, name: product.name, quantity: 1 }];
+        }
+      }
+
+      return {
+        ...prev,
+        [slotId]: next
+      };
+    });
+  };
+
+  const isPackBuilderComplete = () => {
+    if (!buildingPack || !Array.isArray(buildingPack.slots)) return false;
+    for (const slot of buildingPack.slots) {
+      const req = parseInt(slot.quantity) || 1;
+      const sel = packSelections[slot.id] || [];
+      const tot = sel.reduce((sum, item) => sum + item.quantity, 0);
+      if (tot !== req) return false;
+    }
+    return true;
+  };
+
+  const addPackToBasket = () => {
+    if (!buildingPack || !isPackBuilderComplete()) return;
+
+    const parts = [];
+    const flatSelections = [];
+    (buildingPack.slots || []).forEach(slot => {
+      const sel = packSelections[slot.id] || [];
+      sel.forEach(item => {
+        parts.push(`${item.quantity}x ${item.name}`);
+        flatSelections.push({
+          slot_id: slot.id,
+          product_id: item.product_id,
+          name: item.name,
+          quantity: item.quantity
+        });
+      });
+    });
+
+    const notesStr = parts.join(', ');
+    const basketKey = 'pack_' + buildingPack.id + '_' + Date.now();
+
+    setBasket(prev => ({
+      ...prev,
+      [basketKey]: {
+        product_id: buildingPack.product_id,
+        cart_key: basketKey,
+        name: buildingPack.name,
+        price: parseFloat(buildingPack.price),
+        quantity: 1,
+        notes: notesStr,
+        is_pack: 1,
+        pack_id: buildingPack.id,
+        pack_selections: flatSelections
+      }
+    }));
+
+    closePackBuilder();
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `${buildingPack.name} added to Table ${selectedTable}!`,
+      showConfirmButton: false,
+      timer: 2000,
+      background: theme === 'light' ? '#fff' : '#111827',
+      color: theme === 'light' ? '#1f2937' : '#f3f4f6'
     });
   };
 
   // Submit local basket to KOT
   const submitKot = (retryCount = 0) => {
-    const itemsList = Object.values(basket);
+    const itemsList = Object.values(basket).map(item => ({
+      product_id: item.is_pack ? (item.product_id || item.id) : item.product_id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      notes: item.notes || '',
+      is_pack: item.is_pack ? 1 : 0,
+      pack_id: item.is_pack ? item.pack_id : null,
+      pack_selections: item.is_pack ? item.pack_selections : null
+    }));
     if (itemsList.length === 0) return;
     if (submittingKot && retryCount === 0) return;
 
@@ -716,12 +845,59 @@ function App() {
 
               <div className="categories-scroll">
                 <button className={`cat-pill ${selectedCategory === 'all' ? 'active' : ''}`} onClick={() => setSelectedCategory('all')}>All</button>
-                {categories.map(cat => (
-                  <button key={cat.id} className={`cat-pill ${selectedCategory === cat.id ? 'active' : ''}`} onClick={() => setSelectedCategory(cat.id)}>
-                    {cat.name}
+                {packs && packs.length > 0 && (
+                  <button className={`cat-pill ${selectedCategory === 'packs' ? 'active' : ''}`} onClick={() => setSelectedCategory('packs')}>
+                    🍱 Meal Packs ({packs.length})
                   </button>
-                ))}
+                )}
+                {categories.map(cat => {
+                  if (['packs', 'meal packs', 'combo packs'].includes((cat.name || '').toLowerCase())) return null;
+                  return (
+                    <button key={cat.id} className={`cat-pill ${selectedCategory === cat.id ? 'active' : ''}`} onClick={() => setSelectedCategory(cat.id)}>
+                      {cat.name}
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Show Meal Packs if 'all' or 'packs' category is active */}
+              {(selectedCategory === 'all' || selectedCategory === 'packs') && packs && packs.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#c084fc', display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0 10px', textAlign: 'left' }}>
+                    <span>🍱</span> Value Packs &amp; Combos
+                  </div>
+                  {packs.map(pack => {
+                    const slotsSummary = (pack.slots || []).map(s => `${s.quantity}x ${s.slot_name || s.category_name}`).join(', ');
+                    return (
+                      <div 
+                        className="product-row-card" 
+                        key={`pack-${pack.id}`}
+                        style={{ border: '1.5px solid rgba(168, 85, 247, 0.4)', background: 'rgba(168, 85, 247, 0.06)', borderRadius: 14, marginBottom: 10, padding: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+                        onClick={() => openPackBuilder(pack)}
+                      >
+                        <div style={{ width: 44, height: 44, minWidth: 44, borderRadius: 10, background: 'rgba(168,85,247,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#c084fc' }}>
+                          🍱
+                        </div>
+                        <div className="product-info-col" style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                          <span style={{ fontSize: 9.5, background: 'rgba(168, 85, 247, 0.25)', color: '#c084fc', padding: '1px 5px', borderRadius: 4, fontWeight: 800 }}>COMBO PACK</span>
+                          <div className="product-row-name" style={{ fontWeight: 800, fontSize: 14.5, marginTop: 2, color: 'var(--text-color)' }}>{pack.name}</div>
+                          {slotsSummary && (
+                            <div style={{ fontSize: 11.5, color: '#c084fc', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{slotsSummary}</div>
+                          )}
+                          <div className="product-row-price" style={{ marginTop: 3 }}>{formatPrice(pack.price)} {currency}</div>
+                        </div>
+                        <button 
+                          type="button"
+                          style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          onClick={(e) => { e.stopPropagation(); openPackBuilder(pack); }}
+                        >
+                          Build ➔
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="products-list-scroll">
                 {filteredProducts.map(prod => (
@@ -873,6 +1049,122 @@ function App() {
           </div>
         )}
 
+        {/* Waiter Pack Builder Modal */}
+        {buildingPack && (
+          <div className="product-modal-overlay" onClick={closePackBuilder}>
+            <div className="product-modal-card" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+              <button type="button" className="btn-close-modal" onClick={closePackBuilder}>&times;</button>
+              
+              <div style={{ padding: '20px 20px 14px', borderBottom: '1px solid var(--card-border)' }}>
+                <span style={{ fontSize: 10, background: 'rgba(168, 85, 247, 0.25)', color: '#c084fc', padding: '2px 7px', borderRadius: 4, fontWeight: 800 }}>COMBO PACK</span>
+                <h3 style={{ margin: '6px 0 2px', fontSize: 18, fontWeight: 800, color: 'var(--text-color)', textAlign: 'left' }}>{buildingPack.name}</h3>
+                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-muted)', textAlign: 'left' }}>{buildingPack.description || 'Select choices for each category below.'}</p>
+              </div>
+
+              <div style={{ padding: '16px 20px', overflowY: 'auto', maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {(buildingPack.slots || []).map(slot => {
+                  const req = parseInt(slot.quantity) || 1;
+                  const currentSelections = packSelections[slot.id] || [];
+                  const totalSelected = currentSelections.reduce((sum, item) => sum + item.quantity, 0);
+                  const isDone = (totalSelected === req);
+
+                  return (
+                    <div key={slot.id} style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-color)' }}>{slot.slot_name || slot.category_name}</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-muted)', marginLeft: 6 }}>(Pick {req})</span>
+                        </div>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          background: isDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isDone ? '#34d399' : '#f87171',
+                          border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                        }}>
+                          {totalSelected} / {req} Chosen
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {(slot.products || []).map(p => {
+                          const isSelected = currentSelections.some(s => s.product_id === p.id);
+                          return (
+                            <div 
+                              key={p.id}
+                              onClick={() => togglePackSlotItem(slot.id, p, req)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 12px',
+                                borderRadius: 10,
+                                cursor: 'pointer',
+                                border: `1.5px solid ${isSelected ? '#a855f7' : 'var(--card-border)'}`,
+                                background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'transparent',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <div style={{ textAlign: 'left', flex: 1, marginRight: 10 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-color)' }}>{p.name}</div>
+                              </div>
+                              <div style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: '50%',
+                                border: `1.5px solid ${isSelected ? '#a855f7' : 'rgba(255,255,255,0.2)'}`,
+                                background: isSelected ? '#a855f7' : 'transparent',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 800
+                              }}>
+                                {isSelected ? '✓' : ''}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ padding: '14px 20px', borderTop: '1px solid var(--card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Pack Total:</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--accent-green)' }}>
+                    {formatPrice(buildingPack.price)} {currency}
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={addPackToBasket} 
+                  disabled={!isPackBuilderComplete()}
+                  style={{
+                    background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: 10,
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    cursor: isPackBuilderComplete() ? 'pointer' : 'not-allowed',
+                    opacity: isPackBuilderComplete() ? 1 : 0.5,
+                    boxShadow: isPackBuilderComplete() ? '0 4px 14px rgba(168, 85, 247, 0.4)' : 'none'
+                  }}
+                >
+                  Add Pack to Table
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* VIEW 3: Sticky Bottom Cart Drawer */}
@@ -895,41 +1187,57 @@ function App() {
           </div>
 
           <div className="checkout-body">
-            {Object.values(basket).map(item => (
-              <div className="checkout-item-card" key={item.product_id}>
-                <div className="checkout-item-meta">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <button 
-                      className="btn-remove-item" 
-                      onClick={() => removeFromBasket(item.product_id)}
-                      title="Remove item"
-                      style={{ padding: 4 }}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, textAlign: 'left' }}>{item.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 600, textAlign: 'left' }}>{formatPrice(item.price * item.quantity)} {currency}</div>
+            {Object.values(basket).map(item => {
+              const basketKey = item.cart_key || item.product_id;
+              return (
+                <div className="checkout-item-card" key={basketKey}>
+                  <div className="checkout-item-meta">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <button 
+                        className="btn-remove-item" 
+                        onClick={() => removeFromBasket(basketKey)}
+                        title="Remove item"
+                        style={{ padding: 4 }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 15, textAlign: 'left' }}>{item.name}</span>
+                          {item.is_pack && (
+                            <span style={{ fontSize: 9.5, background: 'rgba(168, 85, 247, 0.25)', color: '#c084fc', padding: '1px 5px', borderRadius: 4, fontWeight: 800 }}>COMBO</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 600, textAlign: 'left' }}>{formatPrice(item.price * item.quantity)} {currency}</div>
+                      </div>
+                    </div>
+                    <div className="cart-qty-control">
+                      <button className="btn-qty-mini" onClick={() => changeBasketQty(basketKey, -1)}>-</button>
+                      <span style={{ fontWeight: 'bold', fontSize: 14, minWidth: 20, textAlign: 'center' }}>{item.quantity}</span>
+                      <button className="btn-qty-mini" onClick={() => changeBasketQty(basketKey, 1)}>+</button>
                     </div>
                   </div>
-                  <div className="cart-qty-control">
-                    <button className="btn-qty-mini" onClick={() => changeBasketQty(item.product_id, -1)}>-</button>
-                    <span style={{ fontWeight: 'bold', fontSize: 14, minWidth: 20, textAlign: 'center' }}>{item.quantity}</span>
-                    <button className="btn-qty-mini" onClick={() => changeBasketQty(item.product_id, 1)}>+</button>
-                  </div>
+                  {item.is_pack ? (
+                    item.notes && (
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: 8, marginTop: 6, borderLeft: '3px solid #a855f7', textAlign: 'left' }}>
+                        {item.notes}
+                      </div>
+                    )
+                  ) : (
+                    <input 
+                      type="text" 
+                      className="item-notes-input" 
+                      placeholder="Kitchen instructions (e.g. no spice, extra hot)" 
+                      value={item.notes || ''}
+                      onChange={e => updateBasketNotes(basketKey, e.target.value)}
+                    />
+                  )}
                 </div>
-                <input 
-                  type="text" 
-                  className="item-notes-input" 
-                  placeholder="Kitchen instructions (e.g. no spice, extra hot)" 
-                  value={item.notes}
-                  onChange={e => updateBasketNotes(item.product_id, e.target.value)}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="checkout-footer">
