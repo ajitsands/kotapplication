@@ -6,14 +6,31 @@ require_once __DIR__ . '/../models/Setting.php';
 
 class ReportsController extends Controller {
 
+    /**
+     * Resolve start/end datetime parameters from query string.
+     */
+    private function resolveDateTimeFilter($shiftAwareDefault = false) {
+        if (!empty($_GET['startDateTime']) && !empty($_GET['endDateTime'])) {
+            return [$_GET['startDateTime'], $_GET['endDateTime']];
+        }
+        $defaultStart = date('Y-m-d');
+        if ($shiftAwareDefault && (int)date('G') < 4) {
+            $defaultStart = date('Y-m-d', strtotime('-1 day'));
+        }
+        $startDateVal = !empty($_GET['startDate']) ? $_GET['startDate'] : $defaultStart;
+        $endDateVal = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
+        $startTimeVal = !empty($_GET['startTime']) ? trim($_GET['startTime']) : '00:00:00';
+        $endTimeVal = !empty($_GET['endTime']) ? trim($_GET['endTime']) : '23:59:59';
+        if (strlen($startTimeVal) === 5) $startTimeVal .= ':00';
+        if (strlen($endTimeVal) === 5) $endTimeVal .= ':59';
+        return [$startDateVal . ' ' . $startTimeVal, $endDateVal . ' ' . $endTimeVal];
+    }
+
     public function chefKpiJson() {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(false);
 
         // Group by chef and summarize how many total items (or total value) they consumed
         // The value of consumed items = quantity * current selling_price of the inventory item
@@ -46,10 +63,7 @@ class ReportsController extends Controller {
             return;
         }
 
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(false);
         
         try {
             $sql = "SELECT DISTINCT k.kot_number, o.id as order_number, p.name as item_name, ki.quantity, p.price as selling_price, (ki.quantity * p.price) as total_revenue, t.created_at as time
@@ -76,10 +90,7 @@ class ReportsController extends Controller {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(false);
 
         // Get the average unit price for items supplied by different suppliers
         $sql = "SELECT s.name as supplier_name, i.name as item_name, AVG(t.unit_price) as avg_price, SUM(t.quantity) as total_supplied
@@ -102,10 +113,7 @@ class ReportsController extends Controller {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(false);
 
         $sql = "SELECT p.name as product_name, 
                        SUM(ki.quantity) as total_sold,
@@ -194,10 +202,7 @@ class ReportsController extends Controller {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
         
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(false);
 
         $sql = "SELECT p.name as product_name, 
                        SUM(ki.quantity) as total_sold,
@@ -249,10 +254,7 @@ class ReportsController extends Controller {
         $this->requireAuth('counter');
         $db = Database::getInstance()->getConnection();
         
-        $startDate = !empty($_GET['startDate']) ? $_GET['startDate'] : date('Y-m-d');
-        $endDate = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
-        $endDate = $endDate . ' 23:59:59';
-        $startDate = $startDate . ' 00:00:00';
+        list($startDate, $endDate) = $this->resolveDateTimeFilter(true);
 
         $settingsModel = new Setting();
         $settings = $settingsModel->getSettings();
@@ -407,12 +409,12 @@ class ReportsController extends Controller {
             } else {
                 // Default shift: 3:00 PM (15:00) to 4:00 AM next day
                 $curHour = (int)date('G');
-                if ($curHour < 4) {
+                if ($curHour < 15) {
                     $startDateTime = date('Y-m-d 15:00:00', strtotime('-1 day'));
-                    $endDateTime   = date('Y-m-d 04:00:00');
+                    $endDateTime   = date('Y-m-d 04:00:59');
                 } else {
                     $startDateTime = date('Y-m-d 15:00:00');
-                    $endDateTime   = date('Y-m-d 04:00:00', strtotime('+1 day'));
+                    $endDateTime   = date('Y-m-d 04:00:59', strtotime('+1 day'));
                 }
             }
         }

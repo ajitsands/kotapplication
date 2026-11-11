@@ -2067,15 +2067,15 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
-                        <input type="time" id="admin-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                        <input type="time" id="admin-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
-                        <input type="date" id="admin-tc-to-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 140px; margin-bottom: 0;">
+                        <input type="date" id="admin-tc-to-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 145px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
-                        <input type="time" id="admin-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                        <input type="time" id="admin-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">Cashier / Staff</label>
@@ -4627,9 +4627,13 @@
                 toTimeStr = '04:00';
             } else if (preset === 'yesterday_shift') {
                 const y1 = new Date(now);
-                y1.setDate(y1.getDate() - 2);
                 const y2 = new Date(now);
-                y2.setDate(y2.getDate() - 1);
+                if (curHour >= 15) {
+                    y1.setDate(y1.getDate() - 1);
+                } else {
+                    y1.setDate(y1.getDate() - 2);
+                    y2.setDate(y2.getDate() - 1);
+                }
                 fromDateStr = formatDate(y1);
                 toDateStr = formatDate(y2);
                 fromTimeStr = '15:00';

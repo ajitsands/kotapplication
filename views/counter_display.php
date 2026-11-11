@@ -554,6 +554,95 @@
             color: #1f2937;
         }
 
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-color);
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.06);
+        }
+
+        body.light-theme .form-input {
+            background: rgba(0, 0, 0, 0.03);
+            color: #1f2937;
+            border-color: rgba(0, 0, 0, 0.12);
+        }
+
+        body.light-theme .form-input:focus {
+            background: #ffffff;
+            border-color: #6366f1;
+        }
+
+        .btn-primary {
+            background: var(--primary-grad);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        body.light-theme .btn-secondary {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            color: #1f2937;
+        }
+
+        body.light-theme .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
         .dataTables_wrapper {
             color: var(--text-color) !important;
             margin-top: 15px;
@@ -978,6 +1067,16 @@
     </div>
 
 
+    <?php
+        $counterCurHour = (int)date('G');
+        // Active or most recent 3:00 PM - 4:00 AM shift window
+        $counterShiftStartDate = $counterCurHour < 15 ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+        $counterShiftEndDate = $counterCurHour < 15 ? date('Y-m-d') : date('Y-m-d', strtotime('+1 day'));
+        // Business day for date-only tabs rolls over at 4:00 AM instead of midnight
+        $counterBizDate = $counterCurHour < 4 ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+        $counterTodayDate = date('Y-m-d');
+        $counterSummaryStartDefault = (($_SESSION['user_role'] ?? '') === 'admin') ? $counterBizDate : $counterTodayDate;
+    ?>
     <div class="container">
         <?php if ($pendingApproval): ?>
             <!-- Beautiful Glassmorphic Pending Approval Card -->
@@ -1014,9 +1113,9 @@
                     </h2>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date Range:</span>
-                        <input type="date" id="summary-start-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= date('Y-m-d') ?>" onchange="fetchSummary()">
+                        <input type="date" id="summary-start-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= $counterSummaryStartDefault ?>" onchange="fetchSummary()">
                         <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">to</span>
-                        <input type="date" id="summary-end-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= date('Y-m-d') ?>" onchange="fetchSummary()">
+                        <input type="date" id="summary-end-date" class="discount-input" style="width: 150px; padding: 8px 12px;" value="<?= $counterTodayDate ?>" onchange="fetchSummary()">
                     </div>
                 </div>
 
@@ -1302,9 +1401,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date:</span>
-                        <input type="date" id="takeaway-live-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="takeaway-live-start-date" class="discount-input" style="width: auto;" value="<?= $counterBizDate ?>">
                         <span style="color: var(--text-muted); font-size: 13px;">to</span>
-                        <input type="date" id="takeaway-live-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="takeaway-live-end-date" class="discount-input" style="width: auto;" value="<?= $counterTodayDate ?>">
                         <button onclick="fetchTakeawayDeliveryQueue(false)" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Search</button>
                         <button onclick="resetTakeawayLiveDates()" class="btn-pay" style="padding: 8px 14px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid var(--card-border); font-weight: 600; cursor: pointer;">All Dates</button>
                     </div>
@@ -1356,9 +1455,9 @@
             <div id="takeaway-completed-section" class="panel-card" style="margin-bottom: 25px; display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="date" id="takeaway-start-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="takeaway-start-date" class="discount-input" value="<?= $counterBizDate ?>">
                         <span style="color: var(--text-muted); font-size: 13px;">to</span>
-                        <input type="date" id="takeaway-end-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="takeaway-end-date" class="discount-input" value="<?= $counterTodayDate ?>">
                         <button onclick="fetchCompletedTakeaways()" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none;">Search</button>
                     </div>
                     <div id="takeaway-summary-container" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 10px 15px; border-radius: 8px; display: flex; gap: 15px; font-size: 13px;">
@@ -1388,9 +1487,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Date:</span>
-                        <input type="date" id="refunds-live-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="refunds-live-start-date" class="discount-input" style="width: auto;" value="<?= $counterBizDate ?>">
                         <span style="color: var(--text-muted); font-size: 13px;">to</span>
-                        <input type="date" id="refunds-live-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="refunds-live-end-date" class="discount-input" style="width: auto;" value="<?= $counterTodayDate ?>">
                         <button onclick="fetchPendingRefunds(false)" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Search</button>
                         <button onclick="resetRefundsLiveDates()" class="btn-pay" style="padding: 8px 14px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid var(--card-border); font-weight: 600; cursor: pointer;">All Dates</button>
                     </div>
@@ -1422,9 +1521,9 @@
             <div id="takeaway-refunded-list-section" class="panel-card" style="margin-bottom: 25px; display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="date" id="refunded-start-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="refunded-start-date" class="discount-input" value="<?= $counterBizDate ?>">
                         <span style="color: var(--text-muted); font-size: 13px;">to</span>
-                        <input type="date" id="refunded-end-date" class="discount-input" value="<?= date('Y-m-d') ?>">
+                        <input type="date" id="refunded-end-date" class="discount-input" value="<?= $counterTodayDate ?>">
                         <button onclick="fetchRefundedItemsList()" class="btn-pay" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none;">Search</button>
                     </div>
                     <div id="refunded-summary-container" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); padding: 10px 15px; border-radius: 8px; display: flex; gap: 15px; font-size: 13px;">
@@ -1451,12 +1550,26 @@
 
             <!-- All Transactions Section -->
             <div id="takeaway-transactions-section" class="panel-card" style="margin-bottom: 25px; display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <input type="date" id="counter-trans-start-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
-                        <span style="color: var(--text-muted); font-size: 13px;">to</span>
-                        <input type="date" id="counter-trans-end-date" class="discount-input" style="width: auto;" value="<?= date('Y-m-d') ?>">
-                        <button onclick="loadCounterTransactionsReport()" class="btn-pay" style="padding: 8px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">Filter</button>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                        <div>
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">From Date</label>
+                            <input type="date" id="counter-trans-start-date" class="discount-input" style="width: auto;" value="<?= $counterShiftStartDate ?>">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">From Time</label>
+                            <input type="time" id="counter-trans-start-time" class="discount-input" style="width: 136px; min-width: 132px;" value="15:00">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">To Date</label>
+                            <input type="date" id="counter-trans-end-date" class="discount-input" style="width: auto;" value="<?= $counterShiftEndDate ?>">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">To Time</label>
+                            <input type="time" id="counter-trans-end-time" class="discount-input" style="width: 136px; min-width: 132px;" value="04:00">
+                        </div>
+                        <button onclick="loadCounterTransactionsReport()" class="btn-pay" style="padding: 9px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">🔍 Filter</button>
+                        <button type="button" onclick="resetCounterTransToShift()" class="btn-secondary" style="padding: 9px 12px; border-radius: 8px; font-size: 12px;">🌙 Current Shift</button>
                     </div>
                     
                     <div id="counter-trans-summary" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 10px 18px; border-radius: 10px; display: flex; gap: 20px; font-size: 13px; align-items: center;">
@@ -1528,7 +1641,7 @@
                 <!-- Shift Presets Bar -->
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--card-border);">
                     <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
-                    <button type="button" class="btn-shift-preset-counter active" id="btn-preset-counter-current" onclick="setCounterShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid rgba(99,102,241,0.3); background: rgba(99,102,241,0.15); color: #818cf8; cursor: pointer;">
+                    <button type="button" class="btn-shift-preset-counter active" id="btn-preset-counter-current" onclick="setCounterShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #6366f1; background: rgba(99,102,241,0.16); color: #6366f1; cursor: pointer;">
                         🌙 Shift (3:00 PM - 4:00 AM)
                     </button>
                     <button type="button" class="btn-shift-preset-counter" id="btn-preset-counter-yesterday-shift" onclick="setCounterShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
@@ -1543,24 +1656,24 @@
                 </div>
 
                 <!-- Custom Range Inputs Row -->
-                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 25px; background: rgba(255,255,255,0.01); padding: 14px; border-radius: 12px; border: 1px solid var(--card-border);">
+                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 22px; background: rgba(255,255,255,0.01); padding: 14px; border-radius: 12px; border: 1px solid var(--card-border);">
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Date</label>
-                        <input type="date" id="counter-tc-from-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 140px; margin-bottom: 0;">
+                        <input type="date" id="counter-tc-from-date" class="form-input" value="<?= $counterShiftStartDate ?>" style="padding: 8px 10px; font-size: 13px; width: 148px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
-                        <input type="time" id="counter-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                        <input type="time" id="counter-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
-                        <input type="date" id="counter-tc-to-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 140px; margin-bottom: 0;">
+                        <input type="date" id="counter-tc-to-date" class="form-input" value="<?= $counterShiftEndDate ?>" style="padding: 8px 10px; font-size: 13px; width: 148px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
-                        <input type="time" id="counter-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 110px; margin-bottom: 0;">
+                        <input type="time" id="counter-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
                     </div>
-                    <button type="button" onclick="loadCounterTotalCollectionReport()" class="btn-primary" style="padding: 9px 22px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: none;">
+                    <button type="button" onclick="loadCounterTotalCollectionReport()" class="btn-primary" style="padding: 9px 22px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: 0 4px 12px rgba(99,102,241,0.28);">
                         🔍 Filter Shift
                     </button>
                     <div id="counter-tc-period-badge" style="margin-left: auto; font-size: 12px; color: var(--text-muted); align-self: center; font-weight: 600;">
@@ -1569,7 +1682,7 @@
                 </div>
 
                 <!-- KPI Cards Row -->
-                <div class="grid-3" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div class="grid-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; margin-bottom: 24px;">
                     <!-- Cash KPI -->
                     <div class="panel-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 18px; border-radius: 14px; position: relative; overflow: hidden;">
                         <div style="font-size: 12px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
@@ -5265,19 +5378,40 @@ Thank you!`;
 
         let lastCounterTransJson = '';
 
+        function resetCounterTransToShift() {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const curHour = now.getHours();
+            const startD = new Date(now);
+            const endD = new Date(now);
+            if (curHour >= 15) {
+                endD.setDate(endD.getDate() + 1);
+            } else {
+                startD.setDate(startD.getDate() - 1);
+            }
+            document.getElementById('counter-trans-start-date').value = fmt(startD);
+            document.getElementById('counter-trans-start-time').value = '15:00';
+            document.getElementById('counter-trans-end-date').value = fmt(endD);
+            document.getElementById('counter-trans-end-time').value = '04:00';
+            loadCounterTransactionsReport(false);
+        }
+
         function loadCounterTransactionsReport(isBackgroundPoll = false) {
             let startDate = document.getElementById('counter-trans-start-date').value;
             let endDate = document.getElementById('counter-trans-end-date').value;
+            const startTimeEl = document.getElementById('counter-trans-start-time');
+            const endTimeEl = document.getElementById('counter-trans-end-time');
+            const startTime = startTimeEl && startTimeEl.value ? startTimeEl.value + ':00' : '00:00:00';
+            const endTime = endTimeEl && endTimeEl.value ? endTimeEl.value + ':59' : '23:59:59';
 
-            if(!startDate) {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('counter-trans-start-date').value = today;
-                document.getElementById('counter-trans-end-date').value = today;
-                startDate = today;
-                endDate = today;
+            if (!startDate) {
+                resetCounterTransToShift();
+                return;
             }
+            if (!endDate) endDate = startDate;
 
-            fetch(`${rootPath}/counter/reports/transactions?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&_=${Date.now()}`, {
+            fetch(`${rootPath}/counter/reports/transactions?startDate=${encodeURIComponent(startDate)}&startTime=${encodeURIComponent(startTime)}&endDate=${encodeURIComponent(endDate)}&endTime=${encodeURIComponent(endTime)}&_=${Date.now()}`, {
                 cache: 'no-store'
             })
                 .then(res => res.json())
@@ -5649,9 +5783,13 @@ Thank you!`;
                 toTimeStr = '04:00';
             } else if (preset === 'yesterday_shift') {
                 const y1 = new Date(now);
-                y1.setDate(y1.getDate() - 2);
                 const y2 = new Date(now);
-                y2.setDate(y2.getDate() - 1);
+                if (curHour >= 15) {
+                    y1.setDate(y1.getDate() - 1);
+                } else {
+                    y1.setDate(y1.getDate() - 2);
+                    y2.setDate(y2.getDate() - 1);
+                }
                 fromDateStr = formatDate(y1);
                 toDateStr = formatDate(y2);
                 fromTimeStr = '15:00';
@@ -5689,9 +5827,9 @@ Thank you!`;
             const activePresetBtn = document.getElementById('btn-preset-counter-' + preset.replace('_', '-'));
             if (activePresetBtn) {
                 activePresetBtn.classList.add('active');
-                activePresetBtn.style.borderColor = 'rgba(99,102,241,0.4)';
-                activePresetBtn.style.background = 'rgba(99,102,241,0.15)';
-                activePresetBtn.style.color = '#818cf8';
+                activePresetBtn.style.borderColor = '#6366f1';
+                activePresetBtn.style.background = 'rgba(99,102,241,0.16)';
+                activePresetBtn.style.color = document.body.classList.contains('light-theme') ? '#4338ca' : '#818cf8';
             }
 
             loadCounterTotalCollectionReport();
