@@ -2904,8 +2904,17 @@
             updateSplitTotals();
         }
 
+        function toggleModalOnlineProviderVisibility() {
+            const onlineSec = document.getElementById('modal-online-provider-section');
+            if (!onlineSec) return;
+            const splitOnlineVal = parseFloat(document.getElementById('modal-split-online')?.value || 0) || 0;
+            const show = (selectedPaymentMethod === 'online') || (selectedPaymentMethod === 'split' && splitOnlineVal > 0);
+            onlineSec.style.display = show ? 'block' : 'none';
+        }
+
         function onSplitAmountChanged() {
             updateSplitTotals();
+            toggleModalOnlineProviderVisibility();
         }
 
         function updateSplitTotals() {
@@ -2974,11 +2983,6 @@
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
             if (element) element.classList.add('selected');
 
-            const onlineSec = document.getElementById('modal-online-provider-section');
-            if (onlineSec) {
-                onlineSec.style.display = (method === 'online') ? 'block' : 'none';
-            }
-
             const splitSection = document.getElementById('modal-split-section');
             if (splitSection) {
                 if (method === 'split') {
@@ -2988,6 +2992,7 @@
                     splitSection.style.display = 'none';
                 }
             }
+            toggleModalOnlineProviderVisibility();
         }
 
         function confirmPayment() {
@@ -2997,8 +3002,11 @@
             const customerName = document.getElementById('modal-cust-name').value.trim();
             const customerMobile = document.getElementById('modal-cust-mobile').value.trim();
             const gender = document.getElementById('modal-cust-gender').value;
-            const platformId = (selectedPaymentMethod === 'online' || selectedPaymentMethod === 'split')
-                ? parseInt(document.getElementById('modal-online-platform-select')?.value || 0) : null;
+            const splitOnlineInput = parseFloat(document.getElementById('modal-split-online')?.value || 0) || 0;
+            const shouldAttachPlatform = (selectedPaymentMethod === 'online') || (selectedPaymentMethod === 'split' && splitOnlineInput > 0);
+            const platformId = shouldAttachPlatform
+                ? (parseInt(document.getElementById('modal-online-platform-select')?.value || 0) || null)
+                : null;
 
             const payload = { 
                 payment_method: selectedPaymentMethod,

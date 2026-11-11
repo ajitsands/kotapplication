@@ -210,18 +210,23 @@ class Bill extends Model {
                 $onlineAmount = 0.000;
             }
 
-            // Determine effective platform_id
-            $effectivePlatformId = $platformId ? (int)$platformId : (!empty($bill['platform_id']) ? (int)$bill['platform_id'] : null);
-            if (!$effectivePlatformId) {
-                $stmtOrdPlat = $this->db->prepare("SELECT platform_id FROM orders WHERE id = ?");
-                $stmtOrdPlat->execute([$bill['order_id']]);
-                $ordPlat = $stmtOrdPlat->fetchColumn();
-                if ($ordPlat) {
-                    $effectivePlatformId = (int)$ordPlat;
+            // Determine effective platform_id only when order or payment actually involves an online platform
+            $hasOnlineSplit = ($paymentMethod === 'split' && $onlineAmount > 0);
+            $isOnlineOrder  = (($bill['order_type'] ?? '') === 'online');
+            $effectivePlatformId = null;
+            if ($paymentMethod === 'online' || $hasOnlineSplit || $isOnlineOrder) {
+                $effectivePlatformId = $platformId ? (int)$platformId : (!empty($bill['platform_id']) ? (int)$bill['platform_id'] : null);
+                if (!$effectivePlatformId) {
+                    $stmtOrdPlat = $this->db->prepare("SELECT platform_id FROM orders WHERE id = ?");
+                    $stmtOrdPlat->execute([$bill['order_id']]);
+                    $ordPlat = $stmtOrdPlat->fetchColumn();
+                    if ($ordPlat) {
+                        $effectivePlatformId = (int)$ordPlat;
+                    }
+                } else {
+                    $stmtUpdOrdPlat = $this->db->prepare("UPDATE orders SET platform_id = ? WHERE id = ? AND (platform_id IS NULL OR platform_id = 0)");
+                    $stmtUpdOrdPlat->execute([$effectivePlatformId, $bill['order_id']]);
                 }
-            } else {
-                $stmtUpdOrdPlat = $this->db->prepare("UPDATE orders SET platform_id = ? WHERE id = ? AND (platform_id IS NULL OR platform_id = 0)");
-                $stmtUpdOrdPlat->execute([$effectivePlatformId, $bill['order_id']]);
             }
 
             // Update bill status, payment method, breakdown amounts, platform_id, discount, grand total, cashier_id, customer_id, and payment timestamp
@@ -766,12 +771,15 @@ class Bill extends Model {
         // Group by order first to calculate precise totals per order
         $sql = "SELECT 
                     o.id as order_id,
+                    o.order_type,
                     COALESCE(b.platform_id, o.platform_id) as platform_id,
                     COALESCE(op.name, 'Other Online') as platform_name,
                     COALESCE(b.delivery_fee, o.delivery_fee, 0.0) as delivery_fee,
                     COALESCE(b.service_fee, o.service_fee, 0.0) as service_fee,
                     COALESCE(b.discount_amount, o.discount_amount, 0.0) as discount_amount,
                     COALESCE(b.grand_total, 0.0) as bill_grand_total,
+                    COALESCE(b.payment_method, '') as payment_method,
+                    COALESCE(b.online_amount, 0.0) as bill_online_amount,
                     COALESCE(b.status, '') as bill_status,
                     COALESCE(SUM(COALESCE(ki.price, IF(op.markup_percent > 0, ROUND(p.price * (1 + op.markup_percent / 100), 3), p.price)) * ki.quantity), 0) as food_subtotal
                 FROM orders o
@@ -780,11 +788,11 @@ class Bill extends Model {
                 JOIN kots k ON k.order_id = o.id
                 JOIN kot_items ki ON ki.kot_id = k.id
                 JOIN products p ON ki.product_id = p.id
-                WHERE (o.order_type = 'online' OR b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0) OR o.platform_id IS NOT NULL) 
+                WHERE (o.order_type = 'online' OR b.payment_method = 'online' OR (b.payment_method = 'split' AND b.online_amount > 0)) 
                   AND o.status IN ('closed', 'completed') 
                   AND ki.status != 'cancelled'
                   AND COALESCE(b.created_at, o.created_at) BETWEEN ? AND ?
-                GROUP BY o.id, COALESCE(b.platform_id, o.platform_id), op.name, b.delivery_fee, o.delivery_fee, b.service_fee, o.service_fee, b.discount_amount, o.discount_amount, b.grand_total, b.status";
+                GROUP BY o.id, o.order_type, COALESCE(b.platform_id, o.platform_id), op.name, b.delivery_fee, o.delivery_fee, b.service_fee, o.service_fee, b.discount_amount, o.discount_amount, b.grand_total, b.payment_method, b.online_amount, b.status";
                 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$startBound, $endBound]);
@@ -815,12 +823,17 @@ class Bill extends Model {
             $deliveryFee = (float)$ord['delivery_fee'];
             $serviceFee = (float)$ord['service_fee'];
             $billGrand = (float)$ord['bill_grand_total'];
+            $isSplitOnlinePortion = (($ord['order_type'] ?? '') !== 'online' && ($ord['payment_method'] ?? '') === 'split' && (float)($ord['bill_online_amount'] ?? 0) > 0);
             
             // Formula confirmed from platform invoice:
             // Grand Total = Subtotal (Food) + Service Fee + Delivery Fee - Discount
             // Tax is included in item prices ("VAT (Incl.)")
             $tax = max(0.0, $foodSub - $discount) * ($taxPercent / (100.0 + $taxPercent));
-            $gross = ($billGrand > 0) ? $billGrand : max(0.0, ($foodSub - $discount) + $serviceFee + $deliveryFee);
+            if ($isSplitOnlinePortion) {
+                $gross = (float)$ord['bill_online_amount'];
+            } else {
+                $gross = ($billGrand > 0) ? $billGrand : max(0.0, ($foodSub - $discount) + $serviceFee + $deliveryFee);
+            }
             $net = $gross;
 
             if (!isset($platformsMap[$platName])) {
