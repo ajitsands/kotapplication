@@ -2458,31 +2458,130 @@
             </div>
 
             <!-- Waiter Orders Time Breakdown Modal -->
-            <div id="waiter-orders-modal" onclick="if(event.target === this) closeWaiterOrdersModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:16px;">
-                <div style="background:var(--card-bg, #111827); color:var(--text-main, #f3f4f6); border:1px solid rgba(148,163,184,0.25); border-radius:14px; width:100%; max-width:900px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.45);">
-                    <div style="padding:16px 20px; border-bottom:1px solid rgba(148,163,184,0.2); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <style>
+                #waiter-orders-modal .waiter-modal-card {
+                    background: #111827;
+                    color: #f3f4f6;
+                    border: 1px solid #374151;
+                    border-radius: 14px;
+                    width: 100%;
+                    max-width: 920px;
+                    max-height: 85vh;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-card {
+                    background: #ffffff;
+                    color: #111827;
+                    border: 1px solid #d1d5db;
+                }
+                #waiter-orders-modal .waiter-modal-header {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #374151;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-header {
+                    border-bottom-color: #e5e7eb;
+                }
+                #waiter-orders-modal .waiter-modal-period {
+                    font-size: 12px;
+                    color: #9ca3af;
+                    margin-top: 3px;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-period {
+                    color: #4b5563;
+                }
+                #waiter-orders-modal .waiter-modal-summary {
+                    padding: 10px 20px;
+                    background: #1f2937;
+                    color: #e5e7eb;
+                    border-bottom: 1px solid #374151;
+                    display: flex;
+                    gap: 20px;
+                    flex-wrap: wrap;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-summary {
+                    background: #eef2ff;
+                    color: #1e293b;
+                    border-bottom-color: #c7d2fe;
+                }
+                #waiter-orders-modal .waiter-modal-close-btn {
+                    padding: 7px 14px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    border-radius: 8px;
+                    border: 1px solid #4b5563;
+                    background: #374151;
+                    color: #f9fafb;
+                    cursor: pointer;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-close-btn {
+                    border-color: #d1d5db;
+                    background: #f3f4f6;
+                    color: #111827;
+                }
+                #waiter-orders-modal .waiter-modal-table th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 2;
+                    background: #1f2937;
+                    color: #e5e7eb;
+                    padding: 10px;
+                    font-size: 12px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.4px;
+                    border-bottom: 1px solid #374151;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-table th {
+                    background: #f3f4f6;
+                    color: #374151;
+                    border-bottom-color: #d1d5db;
+                }
+                #waiter-orders-modal .waiter-modal-table td {
+                    color: #f3f4f6;
+                    border-bottom: 1px solid #1f2937;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-table td {
+                    color: #111827;
+                    border-bottom-color: #e5e7eb;
+                }
+                body.light-theme #waiter-orders-modal .waiter-modal-table tbody tr:hover {
+                    background: #f9fafb;
+                }
+            </style>
+            <div id="waiter-orders-modal" onclick="if(event.target === this) closeWaiterOrdersModal()" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+                <div class="waiter-modal-card">
+                    <div class="waiter-modal-header">
                         <div>
                             <h3 id="waiter-orders-modal-title" style="margin:0; font-size:17px; font-weight:700;">🕒 Waiter Orders Timeline</h3>
-                            <div id="waiter-orders-modal-period" style="font-size:12px; color:var(--text-muted); margin-top:3px;"></div>
+                            <div id="waiter-orders-modal-period" class="waiter-modal-period"></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <button type="button" id="waiter-orders-sort-btn" onclick="toggleWaiterOrdersSort()" style="padding:7px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(99,102,241,0.5); background:rgba(99,102,241,0.15); color:#818cf8; cursor:pointer;">
+                            <button type="button" id="waiter-orders-sort-btn" onclick="toggleWaiterOrdersSort()" style="padding:7px 14px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #4f46e5; background:#4f46e5; color:#ffffff; cursor:pointer;">
                                 🔽 Time: Latest First (DESC)
                             </button>
-                            <button type="button" onclick="closeWaiterOrdersModal()" style="padding:7px 12px; font-size:12px; font-weight:700; border-radius:8px; border:1px solid rgba(148,163,184,0.3); background:transparent; color:inherit; cursor:pointer;">✕ Close</button>
+                            <button type="button" onclick="closeWaiterOrdersModal()" class="waiter-modal-close-btn">✕ Close</button>
                         </div>
                     </div>
-                    <div id="waiter-orders-modal-summary" style="padding:10px 20px; background:rgba(99,102,241,0.06); border-bottom:1px solid rgba(148,163,184,0.15); display:flex; gap:18px; flex-wrap:wrap; font-size:12px; font-weight:600;"></div>
+                    <div id="waiter-orders-modal-summary" class="waiter-modal-summary"></div>
                     <div style="padding:14px 20px; overflow:auto; flex:1;">
-                        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <table class="waiter-modal-table" style="width:100%; border-collapse:collapse; font-size:13px;">
                             <thead>
-                                <tr style="border-bottom:1px solid rgba(148,163,184,0.25); text-align:left;">
-                                    <th style="padding:8px 10px;">Order #</th>
-                                    <th style="padding:8px 10px;">Order Time</th>
-                                    <th style="padding:8px 10px;">Type / Table</th>
-                                    <th style="padding:8px 10px;">Order Status</th>
-                                    <th style="padding:8px 10px;">Payment</th>
-                                    <th style="padding:8px 10px; text-align:right;">Amount</th>
+                                <tr style="text-align:left;">
+                                    <th>Order #</th>
+                                    <th>Order Time</th>
+                                    <th>Type / Table</th>
+                                    <th>Order Status</th>
+                                    <th>Payment</th>
+                                    <th style="text-align:right;">Amount</th>
                                 </tr>
                             </thead>
                             <tbody id="waiter-orders-modal-body"></tbody>
