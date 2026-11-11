@@ -2364,32 +2364,74 @@
         </div>
 
         <!-- Waiter Performance Tab -->
+        <?php
+            $waiterHourNow = (int)date('G');
+            $waiterDefaultStartDate = $waiterHourNow >= 15 ? date('Y-m-d') : date('Y-m-d', strtotime('-1 day'));
+            $waiterDefaultEndDate = $waiterHourNow >= 15 ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d');
+        ?>
         <div id="waiter_report" class="tab-content">
             <div class="panel-card">
-                <h2 class="panel-title">🤵 Waiter Performance Report</h2>
-                
-                <!-- Filter Section -->
-                <div class="dt-header" style="margin-bottom: 20px; flex-wrap: wrap; gap: 15px; justify-content: space-between;">
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">Start Date</label>
-                            <input type="date" id="waiter-start-date" class="form-input" style="padding: 8px 12px; font-size: 13px; width: 140px; margin-bottom: 0;" value="<?= date('Y-m-d', strtotime('-30 days')) ?>">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">End Date</label>
-                            <input type="date" id="waiter-end-date" class="form-input" style="padding: 8px 12px; font-size: 13px; width: 140px; margin-bottom: 0;" value="<?= date('Y-m-d') ?>">
-                        </div>
-                        <button onclick="loadWaiterPerformanceReport()" class="btn-primary" style="padding: 9px 20px; font-size: 13px; margin-top: 15px; box-shadow: none;">
-                            Filter Report
-                        </button>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <h2 class="panel-title" style="margin-bottom:4px;">🤵 Waiter Performance Report</h2>
+                        <p style="font-size:12px; color:var(--text-muted); margin:0;">Filter by shift date &amp; time (e.g. 3:00 PM to next day 4:00 AM) and sort by order timestamps to separate evening and early-morning shifts.</p>
                     </div>
-                    <button onclick="exportWaiterPerformanceToExcel()" class="btn-checkout" style="padding: 9px 20px; font-size: 13px; margin-top: 15px; background: var(--accent-green); border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <button onclick="exportWaiterPerformanceToExcel()" class="btn-checkout" style="padding: 9px 18px; font-size: 13px; background: var(--accent-green); border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                         📥 Export to Excel (CSV)
                     </button>
                 </div>
 
+                <!-- Quick Shift Presets -->
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; padding:10px 12px; background:rgba(15,23,42,0.03); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
+                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">⚡ Quick Shifts:</span>
+                    <button type="button" class="waiter-shift-btn active" data-preset="current" onclick="setWaiterShiftPreset('current', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #6366f1; background:#6366f1; color:#fff; cursor:pointer;">🌙 Current Shift (3:00 PM - 4:00 AM)</button>
+                    <button type="button" class="waiter-shift-btn" data-preset="yesterday_shift" onclick="setWaiterShiftPreset('yesterday_shift', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">🌙 Yesterday Shift (3 PM - 4 AM)</button>
+                    <button type="button" class="waiter-shift-btn" data-preset="today" onclick="setWaiterShiftPreset('today', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">☀️ Today Full Day (00:00 - 23:59)</button>
+                    <button type="button" class="waiter-shift-btn" data-preset="yesterday" onclick="setWaiterShiftPreset('yesterday', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">📅 Yesterday Full Day</button>
+                    <button type="button" class="waiter-shift-btn" data-preset="last30" onclick="setWaiterShiftPreset('last30', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">📆 Last 30 Days</button>
+                </div>
+                
+                <!-- Filter Section -->
+                <div class="dt-header" style="margin-bottom: 16px; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end;">
+                    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">From Date</label>
+                            <input type="date" id="waiter-start-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 138px; margin-bottom: 0;" value="<?= $waiterDefaultStartDate ?>">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">From Time</label>
+                            <input type="time" id="waiter-start-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="15:00">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">To Date</label>
+                            <input type="date" id="waiter-end-date" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 138px; margin-bottom: 0;" value="<?= $waiterDefaultEndDate ?>">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">To Time</label>
+                            <input type="time" id="waiter-end-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="04:00">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">Sort By</label>
+                            <select id="waiter-table-sort" onchange="applyWaiterTableSort()" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 205px; margin-bottom: 0;">
+                                <option value="last_order_desc">🕒 Last Order Time (Latest First)</option>
+                                <option value="last_order_asc">🕒 Last Order Time (Oldest First)</option>
+                                <option value="first_order_asc">🕒 First Order Time (Earliest First)</option>
+                                <option value="first_order_desc">🕒 First Order Time (Latest First)</option>
+                                <option value="revenue_desc" selected>💰 Total Revenue (High → Low)</option>
+                                <option value="orders_desc">🧾 Orders Taken (High → Low)</option>
+                            </select>
+                        </div>
+                        <button onclick="loadWaiterPerformanceReport()" class="btn-primary" style="padding: 9px 20px; font-size: 13px; box-shadow: none;">
+                            🔍 Filter Report
+                        </button>
+                    </div>
+                    <div id="waiter-period-badge" style="font-size:12px; font-weight:600; color:var(--text-muted); padding:7px 12px; border-radius:8px; border:1px dashed rgba(148,163,184,0.35);">
+                        📅 <?= $waiterDefaultStartDate ?> 15:00:00 → <?= $waiterDefaultEndDate ?> 04:00:59
+                    </div>
+                </div>
+
                 <!-- Report Table -->
-                <div style="overflow-x: auto; margin-top: 15px;">
+                <div style="overflow-x: auto; margin-top: 10px;">
                     <table id="waiter-performance-table" style="width:100%; border-collapse: collapse;">
                         <thead>
                             <tr>
@@ -2399,15 +2441,53 @@
                                 <th style="text-align: center;">Status</th>
                                 <th style="text-align: right;">Orders Taken</th>
                                 <th style="text-align: right;">Paid Orders</th>
+                                <th style="text-align: right;">Cancelled</th>
+                                <th style="text-align: center;">First Order Time</th>
+                                <th style="text-align: center;">Last Order Time</th>
                                 <th style="text-align: right;">Total Revenue</th>
+                                <th style="text-align: center;">Time Log</th>
                             </tr>
                         </thead>
                         <tbody id="waiter-performance-table-body">
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">Please select a date range and click filter to generate report.</td>
+                                <td colspan="11" style="text-align: center; padding: 30px; color: var(--text-muted);">Please select a shift date &amp; time range and click filter to generate report.</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Waiter Orders Time Breakdown Modal -->
+            <div id="waiter-orders-modal" onclick="if(event.target === this) closeWaiterOrdersModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+                <div style="background:var(--card-bg, #111827); color:var(--text-main, #f3f4f6); border:1px solid rgba(148,163,184,0.25); border-radius:14px; width:100%; max-width:900px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.45);">
+                    <div style="padding:16px 20px; border-bottom:1px solid rgba(148,163,184,0.2); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <div>
+                            <h3 id="waiter-orders-modal-title" style="margin:0; font-size:17px; font-weight:700;">🕒 Waiter Orders Timeline</h3>
+                            <div id="waiter-orders-modal-period" style="font-size:12px; color:var(--text-muted); margin-top:3px;"></div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" id="waiter-orders-sort-btn" onclick="toggleWaiterOrdersSort()" style="padding:7px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(99,102,241,0.5); background:rgba(99,102,241,0.15); color:#818cf8; cursor:pointer;">
+                                🔽 Time: Latest First (DESC)
+                            </button>
+                            <button type="button" onclick="closeWaiterOrdersModal()" style="padding:7px 12px; font-size:12px; font-weight:700; border-radius:8px; border:1px solid rgba(148,163,184,0.3); background:transparent; color:inherit; cursor:pointer;">✕ Close</button>
+                        </div>
+                    </div>
+                    <div id="waiter-orders-modal-summary" style="padding:10px 20px; background:rgba(99,102,241,0.06); border-bottom:1px solid rgba(148,163,184,0.15); display:flex; gap:18px; flex-wrap:wrap; font-size:12px; font-weight:600;"></div>
+                    <div style="padding:14px 20px; overflow:auto; flex:1;">
+                        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid rgba(148,163,184,0.25); text-align:left;">
+                                    <th style="padding:8px 10px;">Order #</th>
+                                    <th style="padding:8px 10px;">Order Time</th>
+                                    <th style="padding:8px 10px;">Type / Table</th>
+                                    <th style="padding:8px 10px;">Order Status</th>
+                                    <th style="padding:8px 10px;">Payment</th>
+                                    <th style="padding:8px 10px; text-align:right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="waiter-orders-modal-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5425,18 +5505,142 @@
 
         let waiterPerformanceTable = null;
         let waiterPerformanceDataGlobal = null;
+        let waiterOrdersModalState = { waiterId: 0, waiterName: '', sortDir: 'DESC' };
+
+        function formatWaiterLocalYmd(d) {
+            const yr = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, '0');
+            const dy = String(d.getDate()).padStart(2, '0');
+            return `${yr}-${mo}-${dy}`;
+        }
+
+        function setWaiterShiftPreset(preset, btnEl) {
+            const now = new Date();
+            const startInput = document.getElementById('waiter-start-date');
+            const startTimeInput = document.getElementById('waiter-start-time');
+            const endInput = document.getElementById('waiter-end-date');
+            const endTimeInput = document.getElementById('waiter-end-time');
+
+            document.querySelectorAll('.waiter-shift-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'transparent';
+                b.style.color = 'inherit';
+                b.style.borderColor = 'rgba(148,163,184,0.35)';
+            });
+            if (btnEl) {
+                btnEl.classList.add('active');
+                btnEl.style.background = '#6366f1';
+                btnEl.style.color = '#fff';
+                btnEl.style.borderColor = '#6366f1';
+            }
+
+            if (preset === 'current') {
+                const startD = new Date(now);
+                const endD = new Date(now);
+                if (now.getHours() >= 15) {
+                    endD.setDate(endD.getDate() + 1);
+                } else {
+                    startD.setDate(startD.getDate() - 1);
+                }
+                startInput.value = formatWaiterLocalYmd(startD);
+                startTimeInput.value = '15:00';
+                endInput.value = formatWaiterLocalYmd(endD);
+                endTimeInput.value = '04:00';
+            } else if (preset === 'yesterday_shift') {
+                const startD = new Date(now);
+                const endD = new Date(now);
+                if (now.getHours() >= 15) {
+                    startD.setDate(startD.getDate() - 1);
+                } else {
+                    startD.setDate(startD.getDate() - 2);
+                    endD.setDate(endD.getDate() - 1);
+                }
+                startInput.value = formatWaiterLocalYmd(startD);
+                startTimeInput.value = '15:00';
+                endInput.value = formatWaiterLocalYmd(endD);
+                endTimeInput.value = '04:00';
+            } else if (preset === 'today') {
+                const todayStr = formatWaiterLocalYmd(now);
+                startInput.value = todayStr;
+                startTimeInput.value = '00:00';
+                endInput.value = todayStr;
+                endTimeInput.value = '23:59';
+            } else if (preset === 'yesterday') {
+                const yest = new Date(now);
+                yest.setDate(yest.getDate() - 1);
+                const yestStr = formatWaiterLocalYmd(yest);
+                startInput.value = yestStr;
+                startTimeInput.value = '00:00';
+                endInput.value = yestStr;
+                endTimeInput.value = '23:59';
+            } else if (preset === 'last30') {
+                const s30 = new Date(now);
+                s30.setDate(s30.getDate() - 30);
+                startInput.value = formatWaiterLocalYmd(s30);
+                startTimeInput.value = '00:00';
+                endInput.value = formatWaiterLocalYmd(now);
+                endTimeInput.value = '23:59';
+            }
+
+            loadWaiterPerformanceReport();
+        }
+
+        function formatWaiterOrderTimestamp(dtStr) {
+            if (!dtStr) return { html: '<span style="color:var(--text-muted);">—</span>', orderVal: 0, plain: '—' };
+            const parsed = new Date(dtStr.replace(' ', 'T'));
+            const ts = isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+            const datePart = dtStr.slice(0, 10);
+            const timePart = isNaN(parsed.getTime())
+                ? dtStr.slice(11, 19)
+                : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            return {
+                html: `<div style="line-height:1.25;"><div style="font-weight:600; font-size:12px;">${timePart}</div><div style="font-size:11px; color:var(--text-muted);">${datePart}</div></div>`,
+                orderVal: ts,
+                plain: `${datePart} ${timePart}`
+            };
+        }
+
+        function getWaiterSortOrderArray() {
+            const sortVal = document.getElementById('waiter-table-sort') ? document.getElementById('waiter-table-sort').value : 'revenue_desc';
+            switch (sortVal) {
+                case 'last_order_desc': return [[8, 'desc'], [9, 'desc']];
+                case 'last_order_asc': return [[8, 'asc'], [9, 'desc']];
+                case 'first_order_asc': return [[7, 'asc'], [9, 'desc']];
+                case 'first_order_desc': return [[7, 'desc'], [9, 'desc']];
+                case 'orders_desc': return [[4, 'desc'], [9, 'desc']];
+                case 'revenue_desc':
+                default: return [[9, 'desc'], [8, 'desc']];
+            }
+        }
+
+        function applyWaiterTableSort() {
+            if (waiterPerformanceTable) {
+                waiterPerformanceTable.order(getWaiterSortOrderArray()).draw();
+            }
+        }
+
+        function escapeWaiterHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+        }
 
         function loadWaiterPerformanceReport() {
             const startDate = document.getElementById('waiter-start-date').value;
+            const startTime = document.getElementById('waiter-start-time').value || '15:00';
             const endDate = document.getElementById('waiter-end-date').value;
+            const endTime = document.getElementById('waiter-end-time').value || '04:00';
             const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
 
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const query = `start_date=${encodeURIComponent(startDate)}&start_time=${encodeURIComponent(startTime)}&end_date=${encodeURIComponent(endDate)}&end_time=${encodeURIComponent(endTime)}`;
 
-            fetch(basePath + '/waiter-performance/json?start_date=' + startDate + '&end_date=' + endDate)
+            fetch(basePath + '/waiter-performance/json?' + query)
                 .then(res => res.json())
                 .then(data => {
                     waiterPerformanceDataGlobal = (data.success && data.report) ? data.report : [];
+
+                    if (data.period && document.getElementById('waiter-period-badge')) {
+                        document.getElementById('waiter-period-badge').textContent = `📅 ${data.period.start} → ${data.period.end}`;
+                    }
 
                     if ($.fn.DataTable.isDataTable('#waiter-performance-table')) {
                         $('#waiter-performance-table').DataTable().destroy();
@@ -5450,16 +5654,31 @@
                             const statusLabel = parseInt(row.is_active) === 1 
                                 ? '<span style="background:rgba(16,185,129,0.15); color:var(--accent-green); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">Active</span>' 
                                 : '<span style="background:rgba(239,68,68,0.15); color:var(--accent-red); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">Deactivated</span>';
+
+                            const firstFmt = formatWaiterOrderTimestamp(row.first_order_at);
+                            const lastFmt = formatWaiterOrderTimestamp(row.last_order_at);
+                            const totalOrders = parseInt(row.total_orders || 0);
+                            const paidOrders = parseInt(row.paid_orders || 0);
+                            const cancelledOrders = parseInt(row.cancelled_orders || 0);
+                            const safeName = escapeWaiterHtml(row.waiter_name);
+                            const safeUser = escapeWaiterHtml(row.username);
+                            const viewBtn = totalOrders > 0
+                                ? `<button type="button" onclick="viewWaiterOrdersByTime(${parseInt(row.waiter_id)}, '${safeName.replace(/'/g, "\\'")}', 'DESC')" style="padding:5px 10px; font-size:11px; font-weight:600; border-radius:6px; border:1px solid rgba(99,102,241,0.45); background:rgba(99,102,241,0.12); color:#818cf8; cursor:pointer;">🕒 Orders (${totalOrders})</button>`
+                                : `<span style="font-size:11px; color:var(--text-muted);">No orders</span>`;
                             
                             tbody.innerHTML += `
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                     <td style="padding: 12px; font-weight:600;">#${row.waiter_id}</td>
-                                    <td style="padding: 12px; font-weight:600;">${row.waiter_name}</td>
-                                    <td style="padding: 12px; color:var(--text-muted);">${row.username}</td>
+                                    <td style="padding: 12px; font-weight:600;">${safeName}</td>
+                                    <td style="padding: 12px; color:var(--text-muted);">${safeUser}</td>
                                     <td style="padding: 12px; text-align:center;">${statusLabel}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700;">${row.total_orders}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-orange);">${row.paid_orders}</td>
-                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${parseFloat(row.total_revenue).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700;">${totalOrders}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-orange);">${paidOrders}</td>
+                                    <td style="padding: 12px; text-align:right; font-weight:600; color:${cancelledOrders > 0 ? 'var(--accent-red)' : 'var(--text-muted)'};">${cancelledOrders}</td>
+                                    <td data-order="${firstFmt.orderVal}" style="padding: 10px 12px; text-align:center;">${firstFmt.html}</td>
+                                    <td data-order="${lastFmt.orderVal}" style="padding: 10px 12px; text-align:center;">${lastFmt.html}</td>
+                                    <td data-order="${parseFloat(row.total_revenue || 0)}" style="padding: 12px; text-align:right; font-weight:700; color:var(--accent-green);">${parseFloat(row.total_revenue || 0).toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                                    <td style="padding: 10px 12px; text-align:center;">${viewBtn}</td>
                                 </tr>
                             `;
                         });
@@ -5472,15 +5691,111 @@
                         pageLength: 10,
                         lengthChange: true,
                         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                        order: [[6, 'desc']],
+                        order: getWaiterSortOrderArray(),
+                        columnDefs: [{ orderable: false, targets: [10] }],
                         language: {
                             search: "🔍 Search:",
                             lengthMenu: "Show _MENU_ entries",
-                            emptyTable: "No waiter performance records found"
+                            emptyTable: "No waiter performance records found for selected time window"
                         }
                     });
                 })
                 .catch(err => console.error('Error fetching waiter performance report:', err));
+        }
+
+        function viewWaiterOrdersByTime(waiterId, waiterName, sortDir) {
+            waiterOrdersModalState = {
+                waiterId: waiterId,
+                waiterName: waiterName,
+                sortDir: (sortDir === 'ASC' ? 'ASC' : 'DESC')
+            };
+
+            const modal = document.getElementById('waiter-orders-modal');
+            const titleEl = document.getElementById('waiter-orders-modal-title');
+            const periodEl = document.getElementById('waiter-orders-modal-period');
+            const summaryEl = document.getElementById('waiter-orders-modal-summary');
+            const bodyEl = document.getElementById('waiter-orders-modal-body');
+            const sortBtn = document.getElementById('waiter-orders-sort-btn');
+
+            titleEl.textContent = `🕒 Orders by ${waiterName} (#${waiterId})`;
+            sortBtn.textContent = waiterOrdersModalState.sortDir === 'ASC'
+                ? '🔼 Time: Oldest First (ASC)'
+                : '🔽 Time: Latest First (DESC)';
+            bodyEl.innerHTML = '<tr><td colspan="6" style="padding:24px; text-align:center; color:var(--text-muted);">Loading orders...</td></tr>';
+            summaryEl.innerHTML = '';
+            modal.style.display = 'flex';
+
+            const startDate = document.getElementById('waiter-start-date').value;
+            const startTime = document.getElementById('waiter-start-time').value || '15:00';
+            const endDate = document.getElementById('waiter-end-date').value;
+            const endTime = document.getElementById('waiter-end-time').value || '04:00';
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
+            const query = `start_date=${encodeURIComponent(startDate)}&start_time=${encodeURIComponent(startTime)}&end_date=${encodeURIComponent(endDate)}&end_time=${encodeURIComponent(endTime)}&waiter_id=${encodeURIComponent(waiterId)}&sort=${encodeURIComponent(waiterOrdersModalState.sortDir)}`;
+
+            fetch(basePath + '/waiter-performance/json?' + query)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.period) {
+                        periodEl.textContent = `Shift Window: ${data.period.start} → ${data.period.end}`;
+                    }
+                    const orders = (data.success && Array.isArray(data.orders)) ? data.orders : [];
+                    if (orders.length === 0) {
+                        bodyEl.innerHTML = '<tr><td colspan="6" style="padding:24px; text-align:center; color:var(--text-muted);">No orders found in this time range.</td></tr>';
+                        summaryEl.innerHTML = '<span>Orders: 0</span>';
+                        return;
+                    }
+
+                    let paidCount = 0;
+                    let totalRev = 0;
+                    bodyEl.innerHTML = '';
+                    orders.forEach(o => {
+                        const fmt = formatWaiterOrderTimestamp(o.created_at);
+                        const amt = parseFloat(o.grand_total || 0);
+                        if (o.bill_status === 'paid') {
+                            paidCount++;
+                            totalRev += amt;
+                        }
+                        const statusColor = o.order_status === 'cancelled'
+                            ? 'var(--accent-red)'
+                            : (o.bill_status === 'paid' ? 'var(--accent-green)' : 'var(--accent-orange)');
+                        const tableLabel = o.table_number ? `${escapeWaiterHtml(o.order_type || 'dine_in')} (${escapeWaiterHtml(o.table_number)})` : escapeWaiterHtml(o.order_type || '—');
+                        const payLabel = o.bill_status === 'paid'
+                            ? `<span style="color:var(--accent-green); font-weight:600;">${escapeWaiterHtml(o.payment_method || 'Paid')}</span>`
+                            : `<span style="color:var(--text-muted);">${escapeWaiterHtml(o.bill_status || 'Unpaid')}</span>`;
+
+                        bodyEl.innerHTML += `
+                            <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
+                                <td style="padding:9px 10px; font-weight:700;">#${o.order_id}</td>
+                                <td style="padding:9px 10px;">${fmt.html}</td>
+                                <td style="padding:9px 10px;">${tableLabel}</td>
+                                <td style="padding:9px 10px; font-weight:600; color:${statusColor}; text-transform:capitalize;">${escapeWaiterHtml(o.order_status || '—')}</td>
+                                <td style="padding:9px 10px;">${payLabel}</td>
+                                <td style="padding:9px 10px; text-align:right; font-weight:700;">${amt.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</td>
+                            </tr>
+                        `;
+                    });
+
+                    summaryEl.innerHTML = `
+                        <span>🧾 Orders in Shift: <strong>${orders.length}</strong></span>
+                        <span>✅ Paid Orders: <strong>${paidCount}</strong></span>
+                        <span>💰 Shift Revenue: <strong style="color:var(--accent-green);">${totalRev.toFixed(window.PRICE_DECIMALS || 3)} ${cur}</strong></span>
+                    `;
+                })
+                .catch(err => {
+                    console.error('Error loading waiter order breakdown:', err);
+                    bodyEl.innerHTML = '<tr><td colspan="6" style="padding:24px; text-align:center; color:var(--accent-red);">Failed to load order details.</td></tr>';
+                });
+        }
+
+        function toggleWaiterOrdersSort() {
+            const nextDir = waiterOrdersModalState.sortDir === 'ASC' ? 'DESC' : 'ASC';
+            viewWaiterOrdersByTime(waiterOrdersModalState.waiterId, waiterOrdersModalState.waiterName, nextDir);
+        }
+
+        function closeWaiterOrdersModal() {
+            const modal = document.getElementById('waiter-orders-modal');
+            if (modal) modal.style.display = 'none';
         }
 
         function exportWaiterPerformanceToExcel() {
@@ -5495,19 +5810,25 @@
                 return;
             }
 
+            const startDate = document.getElementById('waiter-start-date').value || 'report';
+            const startTime = document.getElementById('waiter-start-time').value || '15:00';
+            const endDate = document.getElementById('waiter-end-date').value || 'report';
+            const endTime = document.getElementById('waiter-end-time').value || '04:00';
+
             let csvContent = "";
-            csvContent += '"Waiter ID","Waiter Name","Username","Status","Orders Taken","Paid Orders","Total Revenue"\n';
+            csvContent += `"Shift Period","${startDate} ${startTime} to ${endDate} ${endTime}"\n`;
+            csvContent += '"Waiter ID","Waiter Name","Username","Status","Orders Taken","Paid Orders","Cancelled Orders","First Order Time","Last Order Time","Total Revenue"\n';
 
             waiterPerformanceDataGlobal.forEach(row => {
                 const statusText = parseInt(row.is_active) === 1 ? "Active" : "Deactivated";
-                const wName = row.waiter_name.replace(/"/g, '""');
-                const uName = row.username.replace(/"/g, '""');
-                csvContent += `"${row.waiter_id}","${wName}","${uName}","${statusText}","${row.total_orders}","${row.paid_orders}","${parseFloat(row.total_revenue).toFixed(window.PRICE_DECIMALS || 3)}"\n`;
+                const wName = (row.waiter_name || '').replace(/"/g, '""');
+                const uName = (row.username || '').replace(/"/g, '""');
+                const firstAt = row.first_order_at || '';
+                const lastAt = row.last_order_at || '';
+                csvContent += `"${row.waiter_id}","${wName}","${uName}","${statusText}","${row.total_orders}","${row.paid_orders}","${row.cancelled_orders || 0}","${firstAt}","${lastAt}","${parseFloat(row.total_revenue || 0).toFixed(window.PRICE_DECIMALS || 3)}"\n`;
             });
 
-            const start = document.getElementById('waiter-start-date').value || 'report';
-            const end = document.getElementById('waiter-end-date').value || 'report';
-            const filename = `Waiter_Performance_Report_${start}_to_${end}.csv`;
+            const filename = `Waiter_Performance_${startDate}_${startTime.replace(':', '')}_to_${endDate}_${endTime.replace(':', '')}.csv`;
 
             const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
             const link = document.createElement("a");

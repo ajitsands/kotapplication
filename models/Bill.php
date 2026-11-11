@@ -548,23 +548,72 @@ class Bill extends Model {
         return $stmt->fetchAll();
     }
 
-    public function getWaiterPerformance($startDate, $endDate) {
+    /**
+     * Normalize date/datetime bounds for waiter performance range queries.
+     */
+    private function normalizeDateTimeBounds($startDateTime, $endDateTime) {
+        $start = trim((string)$startDateTime);
+        $end = trim((string)$endDateTime);
+        if (strlen($start) === 10) {
+            $start .= ' 00:00:00';
+        } elseif (strlen($start) === 16) {
+            $start .= ':00';
+        }
+        if (strlen($end) === 10) {
+            $end .= ' 23:59:59';
+        } elseif (strlen($end) === 16) {
+            $end .= ':59';
+        }
+        return [$start, $end];
+    }
+
+    public function getWaiterPerformance($startDateTime, $endDateTime) {
+        list($start, $end) = $this->normalizeDateTimeBounds($startDateTime, $endDateTime);
         $sql = "SELECT 
                     u.id as waiter_id,
                     u.name as waiter_name,
                     u.username,
                     u.is_active,
                     COUNT(DISTINCT o.id) as total_orders,
+                    COUNT(DISTINCT CASE WHEN o.status = 'cancelled' THEN o.id END) as cancelled_orders,
                     COUNT(DISTINCT b.id) as paid_orders,
-                    COALESCE(SUM(b.grand_total), 0) as total_revenue
+                    COALESCE(SUM(b.grand_total), 0) as total_revenue,
+                    MIN(o.created_at) as first_order_at,
+                    MAX(o.created_at) as last_order_at
                 FROM users u
-                LEFT JOIN orders o ON o.waiter_id = u.id AND DATE(o.created_at) BETWEEN ? AND ?
+                LEFT JOIN orders o ON o.waiter_id = u.id AND o.created_at BETWEEN ? AND ?
                 LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'paid'
                 WHERE u.role = 'waiter' OR o.waiter_id IS NOT NULL
                 GROUP BY u.id
-                ORDER BY total_revenue DESC";
+                ORDER BY total_revenue DESC, last_order_at DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$startDate, $endDate]);
+        $stmt->execute([$start, $end]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get individual orders taken by a waiter within an exact date/time range, sorted by order time.
+     */
+    public function getWaiterOrdersInRange($waiterId, $startDateTime, $endDateTime, $sortDir = 'DESC') {
+        list($start, $end) = $this->normalizeDateTimeBounds($startDateTime, $endDateTime);
+        $dir = strtoupper((string)$sortDir) === 'ASC' ? 'ASC' : 'DESC';
+        $sql = "SELECT 
+                    o.id as order_id,
+                    o.table_number,
+                    o.order_type,
+                    o.status as order_status,
+                    o.created_at,
+                    b.id as bill_id,
+                    b.status as bill_status,
+                    b.payment_method,
+                    COALESCE(b.grand_total, 0) as grand_total
+                FROM orders o
+                LEFT JOIN bills b ON b.order_id = o.id AND b.status = 'paid'
+                WHERE o.waiter_id = ?
+                  AND o.created_at BETWEEN ? AND ?
+                ORDER BY o.created_at {$dir}, o.id {$dir}";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([(int)$waiterId, $start, $end]);
         return $stmt->fetchAll();
     }
 

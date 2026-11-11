@@ -343,15 +343,74 @@ class AdminController extends Controller {
         $this->json(['success' => true, 'report' => $report]);
     }
 
+    /**
+     * Resolve start and end datetimes for waiter performance (defaults to 3:00 PM - 4:00 AM shift).
+     */
+    private function resolveWaiterReportRange() {
+        $startDt = trim((string)($_GET['start_datetime'] ?? ''));
+        $endDt = trim((string)($_GET['end_datetime'] ?? ''));
+
+        if ($startDt !== '' && $endDt !== '') {
+            if (strlen($startDt) === 16) $startDt .= ':00';
+            if (strlen($endDt) === 16) $endDt .= ':59';
+            return [$startDt, $endDt];
+        }
+
+        $startDate = trim((string)($_GET['start_date'] ?? ''));
+        $endDate = trim((string)($_GET['end_date'] ?? ''));
+        $startTime = trim((string)($_GET['start_time'] ?? ''));
+        $endTime = trim((string)($_GET['end_time'] ?? ''));
+
+        if ($startDate === '' && $endDate === '') {
+            $hour = (int)date('G');
+            if ($hour >= 15) {
+                $startDate = date('Y-m-d');
+                $endDate = date('Y-m-d', strtotime('+1 day'));
+            } else {
+                $startDate = date('Y-m-d', strtotime('-1 day'));
+                $endDate = date('Y-m-d');
+            }
+            $startTime = $startTime !== '' ? $startTime : '15:00';
+            $endTime = $endTime !== '' ? $endTime : '04:00';
+        } else {
+            if ($startDate === '') $startDate = date('Y-m-d', strtotime('-30 days'));
+            if ($endDate === '') $endDate = date('Y-m-d');
+            $startTime = $startTime !== '' ? $startTime : '00:00';
+            $endTime = $endTime !== '' ? $endTime : '23:59';
+        }
+
+        $startFull = $startDate . ' ' . (strlen($startTime) === 5 ? $startTime . ':00' : $startTime);
+        $endFull = $endDate . ' ' . (strlen($endTime) === 5 ? $endTime . ':59' : $endTime);
+        return [$startFull, $endFull];
+    }
+
     public function waiterPerformanceJson() {
-        $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
-        $endDate = $_GET['end_date'] ?? date('Y-m-d');
+        list($startDateTime, $endDateTime) = $this->resolveWaiterReportRange();
 
         require_once __DIR__ . '/../models/Bill.php';
         $billModel = new Bill();
-        $report = $billModel->getWaiterPerformance($startDate, $endDate);
 
-        $this->json(['success' => true, 'report' => $report]);
+        $waiterId = isset($_GET['waiter_id']) ? (int)$_GET['waiter_id'] : 0;
+        if ($waiterId > 0) {
+            $sortDir = strtoupper((string)($_GET['sort'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+            $orders = $billModel->getWaiterOrdersInRange($waiterId, $startDateTime, $endDateTime, $sortDir);
+            $this->json([
+                'success' => true,
+                'waiter_id' => $waiterId,
+                'sort' => $sortDir,
+                'period' => ['start' => $startDateTime, 'end' => $endDateTime],
+                'orders' => $orders
+            ]);
+            return;
+        }
+
+        $report = $billModel->getWaiterPerformance($startDateTime, $endDateTime);
+
+        $this->json([
+            'success' => true,
+            'period' => ['start' => $startDateTime, 'end' => $endDateTime],
+            'report' => $report
+        ]);
     }
 
     public function savePlatform() {
