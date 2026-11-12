@@ -22,11 +22,9 @@ import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 public class MainActivity extends Activity {
     private WebView webView;
-    private SwipeRefreshLayout swipeRefresh;
     private SharedPreferences prefs;
     private static final String PREF_SERVER_URL = "waiter_server_url";
 
@@ -40,22 +38,15 @@ public class MainActivity extends Activity {
         // Keep screen awake during active table service
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Layout container with SwipeRefreshLayout (full-screen MATCH_PARENT)
-        swipeRefresh = new SwipeRefreshLayout(this);
-        swipeRefresh.setLayoutParams(new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-        swipeRefresh.setFitsSystemWindows(true);
+        // Direct full-screen WebView (no SwipeRefreshLayout so nested item lists scroll smoothly without accidental reloads)
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        webView.setFitsSystemWindows(true);
         webView.setBackgroundColor(0xFF1E1E24);
-        swipeRefresh.addView(webView);
-        swipeRefresh.setOnChildScrollUpCallback((parent, child) -> webView.getScrollY() > 0);
-        setContentView(swipeRefresh);
+        setContentView(webView);
 
         // Enable isolated WebView cookies & persistence
         CookieManager cookieManager = CookieManager.getInstance();
@@ -73,12 +64,22 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        swipeRefresh.setOnRefreshListener(() -> webView.reload());
-
         webView.addJavascriptInterface(new Object() {
             @android.webkit.JavascriptInterface
             public void openSettings() {
                 runOnUiThread(() -> showServerUrlDialog());
+            }
+
+            @android.webkit.JavascriptInterface
+            public void retryLoad() {
+                runOnUiThread(() -> {
+                    String saved = prefs.getString(PREF_SERVER_URL, "");
+                    if (!saved.isEmpty()) {
+                        webView.loadUrl(saved);
+                    } else {
+                        showServerUrlDialog();
+                    }
+                });
             }
         }, "WaiterAppBridge");
 
@@ -107,14 +108,12 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                swipeRefresh.setRefreshing(false);
                 CookieManager.getInstance().flush();
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
-                swipeRefresh.setRefreshing(false);
 
                 if (request.isForMainFrame()) {
                     String failedUrl = request.getUrl().toString();
@@ -125,7 +124,6 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
                 super.onReceivedHttpError(view, request, errorResponse);
-                swipeRefresh.setRefreshing(false);
 
                 if (request.isForMainFrame() && errorResponse != null && errorResponse.getStatusCode() >= 400) {
                     String failedUrl = request.getUrl().toString();
@@ -139,8 +137,10 @@ public class MainActivity extends Activity {
                     + "<h2 style='font-size:22px;margin-bottom:8px;color:#f87171;'>" + title + "</h2>"
                     + "<p style='color:#cbd5e1;font-size:14px;line-height:1.5;margin-bottom:15px;'>" + subtitle + "</p>"
                     + "<p style='color:#64748b;font-size:12px;word-break:break-all;margin-bottom:25px;background:#1e293b;padding:8px 12px;border-radius:8px;'>" + failedUrl + "</p>"
-                    + "<button onclick='WaiterAppBridge.openSettings()' style='background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(99,102,241,0.4);'>⚙️ Configure Server Domain</button>"
-                    + "</body></html>";
+                    + "<div style='display:flex;gap:10px;justify-content:center;flex-wrap:wrap;'>"
+                    + "<button onclick='WaiterAppBridge.retryLoad()' style='background:#10b981;color:#fff;border:none;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;'>🔄 Retry</button>"
+                    + "<button onclick='WaiterAppBridge.openSettings()' style='background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(99,102,241,0.4);'>⚙️ Server Domain</button>"
+                    + "</div></body></html>";
                 view.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
             }
         });
