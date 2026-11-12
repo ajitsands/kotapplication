@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JsResult;
@@ -39,10 +40,21 @@ public class MainActivity extends Activity {
         // Keep screen awake during active table service
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Layout container with SwipeRefreshLayout
+        // Layout container with SwipeRefreshLayout (full-screen MATCH_PARENT)
         swipeRefresh = new SwipeRefreshLayout(this);
+        swipeRefresh.setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        swipeRefresh.setFitsSystemWindows(true);
         webView = new WebView(this);
+        webView.setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        webView.setBackgroundColor(0xFF1E1E24);
         swipeRefresh.addView(webView);
+        swipeRefresh.setOnChildScrollUpCallback((parent, child) -> webView.getScrollY() > 0);
         setContentView(swipeRefresh);
 
         // Enable isolated WebView cookies & persistence
@@ -58,7 +70,7 @@ public class MainActivity extends Activity {
         settings.setAllowFileAccess(true);
         settings.setLoadsImagesAutomatically(true);
         settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
+        settings.setLoadWithOverviewMode(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         swipeRefresh.setOnRefreshListener(() -> webView.reload());
