@@ -45,6 +45,7 @@ define('DB_NAME', $dbName);
 
 // Configure local session directory and robust cookie parameters
 if (session_status() === PHP_SESSION_NONE) {
+    @ini_set('session.gc_maxlifetime', 86400 * 30);
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
         || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) 
         || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');

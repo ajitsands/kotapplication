@@ -48,6 +48,8 @@ $router->add('GET', '/download/driver-apk', 'HomeController@downloadDriverApk');
 $router->add('GET', '/download-driver', 'HomeController@downloadDriverApk');
 $router->add('GET', '/download/admin-apk', 'HomeController@downloadAdminApk');
 $router->add('GET', '/download-admin', 'HomeController@downloadAdminApk');
+$router->add('GET', '/download/waiter-apk', 'HomeController@downloadWaiterApk');
+$router->add('GET', '/download-waiter', 'HomeController@downloadWaiterApk');
 
 // Waiter App & Driver Direct Routes
 $router->add('GET', '/waiter-app', function() {
