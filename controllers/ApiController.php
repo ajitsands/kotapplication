@@ -7,7 +7,7 @@ require_once __DIR__ . '/../models/Order.php';
 require_once __DIR__ . '/../models/Kot.php';
 
 class ApiController extends Controller {
-    private function getWaiterAuthToken() {
+    private function getWaiterAuthToken($data = null) {
         $token = '';
         if (!empty($_SERVER['HTTP_X_WAITER_TOKEN'])) {
             $token = trim((string)$_SERVER['HTTP_X_WAITER_TOKEN']);
@@ -27,14 +27,20 @@ class ApiController extends Controller {
                 }
             }
         }
+        if ($token === '' && is_array($data) && !empty($data['waiter_token'])) {
+            $token = trim((string)$data['waiter_token']);
+        }
+        if ($token === '' && !empty($_GET['waiter_token'])) {
+            $token = trim((string)$_GET['waiter_token']);
+        }
         return $token;
     }
 
-    private function resolveWaiterAuth() {
+    private function resolveWaiterAuth($data = null) {
         if (!empty($_SESSION['user_id'])) {
             return true;
         }
-        $token = $this->getWaiterAuthToken();
+        $token = $this->getWaiterAuthToken($data);
         if ($token === '') {
             return false;
         }
@@ -195,8 +201,8 @@ class ApiController extends Controller {
 
     // Place an order (waiter or customer)
     public function createOrder() {
-        $this->resolveWaiterAuth();
         $data = $this->getJsonInput();
+        $this->resolveWaiterAuth($data);
         $tableNumber = (int)($data['table_number'] ?? 0);
         $orderType = $data['order_type'] ?? 'dine_in';
         $customerName = $data['customer_name'] ?? null;
@@ -209,13 +215,14 @@ class ApiController extends Controller {
             $tableNumber = 0;
         }
 
-        $isWaiterApp = (!empty($data['source']) && $data['source'] === 'waiter_app') || ($this->getWaiterAuthToken() !== '');
+        $roleLower = strtolower(trim((string)($_SESSION['user_role'] ?? '')));
+        $isWaiterApp = (!empty($data['source']) && $data['source'] === 'waiter_app') || ($this->getWaiterAuthToken($data) !== '');
         if ($isWaiterApp) {
             if ($orderType === 'take_away') {
                 $this->json(['error' => 'Take Away orders must be placed from the browser.'], 403);
                 return;
             }
-            if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'waiter') {
+            if (empty($_SESSION['user_id']) || !in_array($roleLower, ['waiter', 'admin', 'superadmin', 'counter'], true)) {
                 $this->json(['error' => 'Waiter session expired. Please log in again.', 'auth_expired' => true], 401);
                 return;
             }
@@ -263,7 +270,7 @@ class ApiController extends Controller {
         if ($orderType === 'take_away') {
             $waiterId = null;
         } else {
-            $waiterId = isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'waiter' ? (int)$_SESSION['user_id'] : null;
+            $waiterId = (!empty($_SESSION['user_id']) && ($isWaiterApp || $roleLower === 'waiter')) ? (int)$_SESSION['user_id'] : null;
         }
 
         $orderModel = new Order();

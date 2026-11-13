@@ -23,7 +23,7 @@ class Controller {
         $json = json_encode($data, JSON_UNESCAPED_UNICODE);
         header("Access-Control-Allow-Origin: *");
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Waiter-Token, X-Requested-With, Accept, Origin");
         header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
         header("Pragma: no-cache");
         header("Content-Type: application/json; charset=utf-8");

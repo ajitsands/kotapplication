@@ -79,8 +79,9 @@ function App() {
     const headers = { ...(options.headers || {}) };
     if (token) {
       headers['X-Waiter-Token'] = token;
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    return fetch(url, { ...options, headers }).then(res => {
+    return fetch(url, { credentials: 'include', ...options, headers }).then(res => {
       if (res.status === 401) {
         localStorage.removeItem(WAITER_TOKEN_KEY);
         setUser(null);
@@ -506,6 +507,7 @@ function App() {
       body: JSON.stringify({
         table_number: selectedTable,
         source: 'waiter_app',
+        waiter_token: localStorage.getItem(WAITER_TOKEN_KEY) || '',
         items: itemsList
       })
     })
