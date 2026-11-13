@@ -120,7 +120,7 @@
 </div>
 
 <!-- Item Modal -->
-<div class="modal" id="inventoryModal">
+<div class="modal" id="inventoryModal" style="z-index: 10050;">
     <div class="modal-content" style="max-width: 600px; padding: 0; overflow: hidden;">
         <div style="background: var(--primary-grad); padding: 25px 30px; display: flex; align-items: center; justify-content: space-between;">
             <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;" id="inventoryModalTitle">
@@ -243,12 +243,17 @@
                 </div>
             </div>
             
-            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <label class="form-label" style="font-weight: 600; color: var(--text-color); margin: 0;">Items Received <span style="color: #ef4444;">*</span></label>
-                <button type="button" class="btn-primary" style="padding: 8px 16px; font-size: 13px; height: auto;" onclick="addStockItemRow()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Add Item
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn-primary" style="padding: 8px 14px; font-size: 13px; height: auto; background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); box-shadow: none;" onclick="openQuickNewItemFromStock()">
+                        + New Inventory Item
+                    </button>
+                    <button type="button" class="btn-primary" style="padding: 8px 16px; font-size: 13px; height: auto;" onclick="addStockItemRow()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Add Row
+                    </button>
+                </div>
             </div>
             
             <div style="max-height: 350px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--card-border); border-radius: 8px; padding: 15px; background: #f9fafb;" id="stock_items_container">
@@ -695,26 +700,77 @@ function loadInventory() {
     populateItemSelect();
 }
 
-function populateItemSelect() {
+function populateItemSelect(cb) {
     $.get('/admin/inventory/items/list', function(res) {
         let r = typeof res === 'string' ? JSON.parse(res) : res;
-        window.inventoryItemsList = r.data; // Store for dynamic rows
+        window.inventoryItemsList = r.data || []; // Store for dynamic rows
+        if (typeof cb === 'function') cb(window.inventoryItemsList);
     });
 }
 
-function addStockItemRow() {
-    if (!window.inventoryItemsList) return;
-    
+function buildStockItemOptions(selectedVal) {
     let options = '<option value="">Select Item</option>';
-    window.inventoryItemsList.forEach(function(item) {
-        options += `<option value="${item.id}" data-unit="${item.unit}">${item.name}</option>`;
+    options += '<option value="__add_new__" style="font-weight: 700; color: #6366f1;">+ Add New Item...</option>';
+    (window.inventoryItemsList || []).forEach(function(item) {
+        const safeName = $('<div>').text(item.name).html();
+        const safeUnit = $('<div>').text(item.unit || '').html();
+        const sel = (selectedVal !== undefined && String(selectedVal) === String(item.id)) ? ' selected' : '';
+        options += `<option value="${item.id}" data-unit="${safeUnit}"${sel}>${safeName}${safeUnit ? ' (' + safeUnit + ')' : ''}</option>`;
     });
+    return options;
+}
+
+function refreshStockItemSelects(autoSelectItemId) {
+    $('#stock_items_container .stock-item-select').each(function() {
+        const $sel = $(this);
+        let curVal = $sel.val();
+        if (window._pendingStockSelect && this === window._pendingStockSelect && autoSelectItemId) {
+            curVal = String(autoSelectItemId);
+        } else if (curVal === '__add_new__') {
+            curVal = '';
+        }
+        $sel.html(buildStockItemOptions(curVal));
+    });
+    if (autoSelectItemId && !window._pendingStockSelect && $('#stockModal').is(':visible')) {
+        const $empty = $('#stock_items_container .stock-item-select').filter(function() { return !$(this).val(); }).first();
+        if ($empty.length) {
+            $empty.val(String(autoSelectItemId));
+        } else {
+            addStockItemRow(autoSelectItemId);
+        }
+    }
+    window._pendingStockSelect = null;
+}
+
+function openQuickNewItemFromStock(selectEl) {
+    window._pendingStockSelect = selectEl || null;
+    if (typeof loadInventoryMeta === 'function') loadInventoryMeta();
+    $('#inventoryForm')[0].reset();
+    $('#inv_id').val('');
+    $('#inventoryModalTitle').html('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Add Inventory Item');
+    $('#inventoryModal').css('display', 'flex').hide().fadeIn();
+}
+
+function handleStockItemSelectChange(selectEl) {
+    if (selectEl && selectEl.value === '__add_new__') {
+        selectEl.value = '';
+        openQuickNewItemFromStock(selectEl);
+    }
+}
+
+function addStockItemRow(preselectId) {
+    if (!window.inventoryItemsList) {
+        populateItemSelect(function() { addStockItemRow(preselectId); });
+        return;
+    }
+    
+    let options = buildStockItemOptions(preselectId);
 
     let rowHtml = `
         <div class="stock-item-row" style="display: grid; grid-template-columns: 2fr 1fr 1.5fr 1.5fr 40px; gap: 15px; margin-bottom: 15px; align-items: end; background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--card-border); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
             <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label" style="font-size: 12px;">Item <span style="color: #ef4444;">*</span></label>
-                <select name="inventory_item_id[]" class="form-input stock-item-select" style="cursor: pointer;" required>
+                <select name="inventory_item_id[]" class="form-input stock-item-select" style="cursor: pointer;" onchange="handleStockItemSelectChange(this)" required>
                     ${options}
                 </select>
             </div>
@@ -757,6 +813,10 @@ $('#inventoryForm').on('submit', function(e) {
         if (response.status === 'success') {
             $('#inventoryModal').fadeOut();
             loadInventory();
+            const newItemId = response.item ? response.item.id : null;
+            populateItemSelect(function() {
+                refreshStockItemSelects(newItemId);
+            });
             $('#inventoryForm')[0].reset();
             $('#inv_id').val('');
             

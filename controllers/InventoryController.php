@@ -318,12 +318,27 @@ class InventoryController extends Controller {
         if ($id) {
             $stmt = $db->prepare("UPDATE inventory_items SET name = ?, category = ?, unit = ?, buying_price_per_unit = ?, selling_price = ?, min_stock_level = ? WHERE id = ?");
             $stmt->execute([$name, $category, $unit, $buying_price_per_unit, $selling_price, $min_stock_level, $id]);
-            $this->json(['status' => 'success', 'message' => 'Item updated successfully']);
+            $savedId = (int)$id;
+            $msg = 'Item updated successfully';
         } else {
             $stmt = $db->prepare("INSERT INTO inventory_items (name, category, unit, buying_price_per_unit, selling_price, min_stock_level) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([$name, $category, $unit, $buying_price_per_unit, $selling_price, $min_stock_level]);
-            $this->json(['status' => 'success', 'message' => 'Item added successfully']);
+            $savedId = (int)$db->lastInsertId();
+            $msg = 'Item added successfully';
         }
+        $this->json([
+            'status' => 'success',
+            'message' => $msg,
+            'item' => [
+                'id' => $savedId,
+                'name' => $name,
+                'category' => $category,
+                'unit' => $unit,
+                'buying_price_per_unit' => $buying_price_per_unit,
+                'selling_price' => $selling_price,
+                'min_stock_level' => $min_stock_level
+            ]
+        ]);
     }
     public function markDamage() {
         $this->requireAuth('admin');
