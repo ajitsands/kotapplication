@@ -864,6 +864,9 @@
             if (targetPane) targetPane.classList.add('active');
             // Save state
             localStorage.setItem('admin_active_tab', id);
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', '#' + id);
+            }
             // Update dropdown items
             document.querySelectorAll('.nav-dropdown-item').forEach(el => el.classList.remove('active'));
             const targetItem = document.getElementById('item-' + id);
@@ -920,12 +923,14 @@
             kpi:           { icon: '📈', label: 'Profit & KPI' }
         };
 
-        // Restore active tab from localStorage
-        (function() {
-            const saved = localStorage.getItem('admin_active_tab') || 'catalog';
-            const meta = TAB_MAP[saved] || TAB_MAP['catalog'];
-            selectSection(saved, meta.icon, meta.label);
-        })();
+        // Restore active tab after DOM & section scripts are loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const hashTab = (window.location.hash || '').replace('#', '').trim();
+            const saved = (hashTab && TAB_MAP[hashTab]) ? hashTab : (localStorage.getItem('admin_active_tab') || 'catalog');
+            const validTab = TAB_MAP[saved] ? saved : 'catalog';
+            const meta = TAB_MAP[validTab];
+            selectSection(validTab, meta.icon, meta.label);
+        });
     </script>
     <header>
         <div style="display: flex; align-items: center; gap: 16px;">
