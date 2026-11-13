@@ -77,6 +77,10 @@ class User extends Model {
             if (empty($cols2)) {
                 $this->db->exec("ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP NULL DEFAULT NULL AFTER is_logged_in");
             }
+            $cols3 = $this->db->query("SHOW COLUMNS FROM users LIKE 'api_token'")->fetchAll();
+            if (empty($cols3)) {
+                $this->db->exec("ALTER TABLE users ADD COLUMN api_token VARCHAR(128) NULL DEFAULT NULL AFTER last_active_at");
+            }
         } catch (Exception $e) {
             // Ignore schema errors if already updated or permissions
         }
@@ -94,6 +98,38 @@ class User extends Model {
     public function touchActivity($userId) {
         try {
             $stmt = $this->db->prepare("UPDATE users SET last_active_at = NOW() WHERE id = ?");
+            return $stmt->execute([(int)$userId]);
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    public function getOrCreateApiToken($userId) {
+        $stmt = $this->db->prepare("SELECT api_token FROM users WHERE id = ?");
+        $stmt->execute([(int)$userId]);
+        $existing = $stmt->fetchColumn();
+        if (!empty($existing)) {
+            return $existing;
+        }
+        $token = bin2hex(random_bytes(32));
+        $upd = $this->db->prepare("UPDATE users SET api_token = ? WHERE id = ?");
+        $upd->execute([$token, (int)$userId]);
+        return $token;
+    }
+
+    public function findByApiToken($token) {
+        $token = trim((string)$token);
+        if ($token === '' || strlen($token) < 32) {
+            return false;
+        }
+        $stmt = $this->db->prepare("SELECT id, username, name, role, is_active, api_token FROM users WHERE api_token = ? AND is_active = 1 LIMIT 1");
+        $stmt->execute([$token]);
+        return $stmt->fetch();
+    }
+
+    public function clearApiToken($userId) {
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET api_token = NULL WHERE id = ?");
             return $stmt->execute([(int)$userId]);
         } catch (Exception $e) {
             return false;

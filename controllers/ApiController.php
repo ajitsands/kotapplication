@@ -7,6 +7,53 @@ require_once __DIR__ . '/../models/Order.php';
 require_once __DIR__ . '/../models/Kot.php';
 
 class ApiController extends Controller {
+    private function getWaiterAuthToken() {
+        $token = '';
+        if (!empty($_SERVER['HTTP_X_WAITER_TOKEN'])) {
+            $token = trim((string)$_SERVER['HTTP_X_WAITER_TOKEN']);
+        } elseif (!empty($_SERVER['HTTP_AUTHORIZATION']) && stripos($_SERVER['HTTP_AUTHORIZATION'], 'Bearer ') === 0) {
+            $token = trim(substr($_SERVER['HTTP_AUTHORIZATION'], 7));
+        } elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) && stripos($_SERVER['REDIRECT_HTTP_AUTHORIZATION'], 'Bearer ') === 0) {
+            $token = trim(substr($_SERVER['REDIRECT_HTTP_AUTHORIZATION'], 7));
+        } elseif (function_exists('getallheaders')) {
+            foreach (getallheaders() as $k => $v) {
+                $lk = strtolower((string)$k);
+                if ($lk === 'x-waiter-token') {
+                    $token = trim((string)$v);
+                    break;
+                } elseif ($lk === 'authorization' && stripos((string)$v, 'Bearer ') === 0) {
+                    $token = trim(substr((string)$v, 7));
+                    break;
+                }
+            }
+        }
+        return $token;
+    }
+
+    private function resolveWaiterAuth() {
+        if (!empty($_SESSION['user_id'])) {
+            return true;
+        }
+        $token = $this->getWaiterAuthToken();
+        if ($token === '') {
+            return false;
+        }
+        $userModel = new User();
+        $user = $userModel->findByApiToken($token);
+        if (!$user) {
+            return false;
+        }
+        $name = preg_replace('/^waiter\s+/i', '', (string)$user['name']);
+        $_SESSION['user_id'] = (int)$user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['user_role'] = $user['role'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['user_name'] = $name;
+        $_SESSION['name'] = $name;
+        $userModel->setLoggedIn($user['id'], 1);
+        return true;
+    }
+
     // API Authentication
     public function login() {
         $data = $this->getJsonInput();
@@ -41,30 +88,37 @@ class ApiController extends Controller {
             $_SESSION['name'] = $name;
             $user['name'] = $name;
 
-            // Track login status
+            // Track login status & issue persistent Waiter App token
             $userModel->setLoggedIn($user['id'], 1);
+            $token = $userModel->getOrCreateApiToken($user['id']);
 
-            $this->json(['success' => true, 'user' => $user]);
+            $this->json(['success' => true, 'user' => $user, 'token' => $token]);
         } else {
             $this->json(['error' => 'Invalid credentials'], 401);
         }
     }
 
     public function logout() {
+        $this->resolveWaiterAuth();
         if (isset($_SESSION['user_id'])) {
             $userModel = new User();
             $userModel->setLoggedIn($_SESSION['user_id'], 0);
+            $userModel->clearApiToken($_SESSION['user_id']);
         }
         session_destroy();
         $this->json(['success' => true]);
     }
 
     public function user() {
+        $this->resolveWaiterAuth();
         if (!isset($_SESSION['user_id'])) {
             $this->json(['logged_in' => false]);
         }
+        $userModel = new User();
+        $token = $userModel->getOrCreateApiToken($_SESSION['user_id']);
         $this->json([
             'logged_in' => true,
+            'token' => $token,
             'user' => [
                 'id' => $_SESSION['user_id'],
                 'username' => $_SESSION['username'],
@@ -141,6 +195,7 @@ class ApiController extends Controller {
 
     // Place an order (waiter or customer)
     public function createOrder() {
+        $this->resolveWaiterAuth();
         $data = $this->getJsonInput();
         $tableNumber = (int)($data['table_number'] ?? 0);
         $orderType = $data['order_type'] ?? 'dine_in';
@@ -152,6 +207,18 @@ class ApiController extends Controller {
         if ($tableNumber <= 0 || $orderType === 'takeaway') {
             $orderType = 'take_away';
             $tableNumber = 0;
+        }
+
+        $isWaiterApp = (!empty($data['source']) && $data['source'] === 'waiter_app') || ($this->getWaiterAuthToken() !== '');
+        if ($isWaiterApp) {
+            if ($orderType === 'take_away') {
+                $this->json(['error' => 'Take Away orders must be placed from the browser.'], 403);
+                return;
+            }
+            if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'waiter') {
+                $this->json(['error' => 'Waiter session expired. Please log in again.', 'auth_expired' => true], 401);
+                return;
+            }
         }
 
         if (empty($items)) {
@@ -344,6 +411,7 @@ class ApiController extends Controller {
     // Get notifications for waiter (marked ready but not dispatched)
     public function getWaiterNotifications() {
         // Must be logged in as waiter
+        $this->resolveWaiterAuth();
         $waiterId = $_SESSION['user_id'] ?? null;
         if (!$waiterId) {
             $this->json(['notifications' => []]);

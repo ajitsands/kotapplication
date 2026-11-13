@@ -72,6 +72,23 @@ function App() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  const WAITER_TOKEN_KEY = 'sands_waiter_token';
+
+  const authFetch = (url, options = {}) => {
+    const token = localStorage.getItem(WAITER_TOKEN_KEY) || '';
+    const headers = { ...(options.headers || {}) };
+    if (token) {
+      headers['X-Waiter-Token'] = token;
+    }
+    return fetch(url, { ...options, headers }).then(res => {
+      if (res.status === 401) {
+        localStorage.removeItem(WAITER_TOKEN_KEY);
+        setUser(null);
+      }
+      return res;
+    });
+  };
+
   // Check login session on load
   useEffect(() => {
     fetch(rootPath + '/api/settings')
@@ -79,12 +96,17 @@ function App() {
       .then(data => setSettings(data))
       .catch(err => console.error("Failed to load settings on startup", err));
 
-    fetch(rootPath + '/api/user')
+    authFetch(rootPath + '/api/user')
       .then(res => res.json())
       .then(data => {
         if (data.logged_in) {
+          if (data.token) {
+            localStorage.setItem(WAITER_TOKEN_KEY, data.token);
+          }
           setUser(data.user);
           loadAppData();
+        } else {
+          localStorage.removeItem(WAITER_TOKEN_KEY);
         }
       })
       .catch(err => console.error("Session check failed", err));
@@ -153,7 +175,7 @@ function App() {
   };
 
   const loadNotifications = () => {
-    fetch(rootPath + '/api/notifications')
+    authFetch(rootPath + '/api/notifications')
       .then(res => res.json())
       .then(data => {
         setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
@@ -163,6 +185,7 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
+    setLoginError('');
     fetch(rootPath + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -174,6 +197,9 @@ function App() {
     })
     .then(data => {
       if (data.success) {
+        if (data.token) {
+          localStorage.setItem(WAITER_TOKEN_KEY, data.token);
+        }
         setUser(data.user);
         loadAppData();
       }
@@ -184,10 +210,13 @@ function App() {
   };
 
   const handleLogout = () => {
-    fetch(rootPath + '/logout').then(() => {
-      setUser(null);
-      setActiveView('tables');
-    });
+    authFetch(rootPath + '/api/logout', { method: 'POST' })
+      .catch(() => {})
+      .finally(() => {
+        localStorage.removeItem(WAITER_TOKEN_KEY);
+        setUser(null);
+        setActiveView('tables');
+      });
   };
 
   const changePasswordPrompt = () => {
@@ -467,7 +496,7 @@ function App() {
     if (submittingKot && retryCount === 0) return;
 
     setSubmittingKot(true);
-    fetch(rootPath + '/api/orders', {
+    authFetch(rootPath + '/api/orders', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -476,6 +505,7 @@ function App() {
       cache: 'no-cache',
       body: JSON.stringify({
         table_number: selectedTable,
+        source: 'waiter_app',
         items: itemsList
       })
     })
