@@ -1571,10 +1571,17 @@
                         <div id="printer-test-result" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 12px;"></div>
                     </div>
 
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label class="form-label">Custom Inventory Units (Comma Separated)</label>
-                        <input class="form-input" type="text" name="custom_units" value="<?= htmlspecialchars($settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML') ?>" placeholder="e.g. Nos, Box, Packet, Gram, KG, Litre, ML" required>
-                        <small style="color: var(--text-muted); display: block; margin-top: 5px;">These units will appear in the Add Inventory dropdown.</small>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                        <div class="form-group">
+                            <label class="form-label">Custom Inventory Units (Comma Separated)</label>
+                            <input class="form-input" type="text" name="custom_units" id="settings-custom-units" value="<?= htmlspecialchars($settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML') ?>" placeholder="e.g. Nos, Box, Packet, Gram, KG, Litre, ML" required>
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px;">These units appear in the Inventory Stock dropdown.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Custom Inventory Categories (Comma Separated, Optional)</label>
+                            <input class="form-input" type="text" name="custom_inventory_categories" id="settings-custom-inv-categories" value="<?= htmlspecialchars($settings['custom_inventory_categories'] ?? '') ?>" placeholder="e.g. Vegetables, Meat, Dairy, Packaging">
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px;">Optional categories for grouping Inventory Stock items.</small>
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">

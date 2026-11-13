@@ -14,6 +14,7 @@ class Setting extends Model {
                 'currency_code' => 'BHD',
                 'time_zone' => 'Asia/Bahrain',
                 'custom_units' => 'Nos, Box, Packet, Gram, KG, Litre, ML',
+                'custom_inventory_categories' => '',
                 'tax_type' => 'VAT',
                 'vat_percent' => 10.00,
                 'cgst_percent' => 2.50,
@@ -56,6 +57,9 @@ class Setting extends Model {
             $cols = $this->db->query("SHOW COLUMNS FROM settings")->fetchAll(PDO::FETCH_COLUMN);
             if (!in_array('custom_units', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN custom_units VARCHAR(255) DEFAULT 'Nos, Box, Packet, Gram, KG, Litre, ML' AFTER currency_code");
+            }
+            if (!in_array('custom_inventory_categories', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN custom_inventory_categories TEXT NULL AFTER custom_units");
             }
             if (!in_array('software_expiry_date', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN software_expiry_date DATE DEFAULT '2027-12-31' AFTER logo_path");
@@ -124,6 +128,7 @@ class Setting extends Model {
                 currency_code = ?, 
                 time_zone = ?, 
                 custom_units = ?,
+                custom_inventory_categories = COALESCE(?, custom_inventory_categories),
                 tax_type = ?, 
                 vat_percent = ?, 
                 cgst_percent = ?, 
@@ -147,6 +152,7 @@ class Setting extends Model {
             $data['currency_code'] ?? 'BHD',
             $data['time_zone'] ?? 'Asia/Bahrain',
             $data['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML',
+            array_key_exists('custom_inventory_categories', $data) ? $data['custom_inventory_categories'] : null,
             $data['tax_type'] ?? 'VAT',
             $data['vat_percent'] ?? 10.00,
             $data['cgst_percent'] ?? 2.50,

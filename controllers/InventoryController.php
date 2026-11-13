@@ -3,6 +3,135 @@
 require_once 'core/Controller.php';
 
 class InventoryController extends Controller {
+    private function ensureInventorySchema($db) {
+        try {
+            $cols = $db->query("SHOW COLUMNS FROM inventory_items LIKE 'category'")->fetchAll();
+            if (empty($cols)) {
+                $db->exec("ALTER TABLE inventory_items ADD COLUMN category VARCHAR(100) NULL DEFAULT NULL AFTER name");
+            }
+        } catch (Exception $e) {
+            // ignore if already present or insufficient permissions
+        }
+    }
+
+    private function parseCommaList($raw) {
+        $items = [];
+        $seen = [];
+        foreach (explode(',', (string)$raw) as $part) {
+            $val = trim($part);
+            if ($val !== '') {
+                $key = strtolower($val);
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $items[] = $val;
+                }
+            }
+        }
+        return $items;
+    }
+
+    private function getInventoryMeta($db) {
+        require_once __DIR__ . '/../models/Setting.php';
+        $settingModel = new Setting();
+        $settings = $settingModel->getSettings();
+
+        $units = $this->parseCommaList($settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML');
+        $categories = $this->parseCommaList($settings['custom_inventory_categories'] ?? '');
+
+        return ['units' => $units, 'categories' => $categories];
+    }
+
+    private function saveSettingsMetaColumn($db, $column, $list) {
+        require_once __DIR__ . '/../models/Setting.php';
+        $settingModel = new Setting();
+        $settingModel->getSettings(); // ensures columns exist
+        $joined = implode(', ', $list);
+        $stmt = $db->prepare("UPDATE settings SET {$column} = ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$joined]);
+    }
+
+    public function metaJson() {
+        $this->requireAuth('admin');
+        $db = Database::getInstance()->getConnection();
+        $this->ensureInventorySchema($db);
+        $meta = $this->getInventoryMeta($db);
+        $this->json(['status' => 'success', 'units' => $meta['units'], 'categories' => $meta['categories']]);
+    }
+
+    public function addUnit() {
+        $this->requireAuth('admin');
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '') {
+            $this->json(['status' => 'error', 'message' => 'Unit name is required']);
+            return;
+        }
+        $db = Database::getInstance()->getConnection();
+        $meta = $this->getInventoryMeta($db);
+        $units = $meta['units'];
+        foreach ($units as $u) {
+            if (strcasecmp($u, $name) === 0) {
+                $this->json(['status' => 'success', 'units' => $units, 'unit' => $u, 'message' => 'Unit already exists']);
+                return;
+            }
+        }
+        $units[] = $name;
+        $this->saveSettingsMetaColumn($db, 'custom_units', $units);
+        $this->json(['status' => 'success', 'units' => $units, 'unit' => $name, 'message' => 'Unit added successfully']);
+    }
+
+    public function deleteUnit() {
+        $this->requireAuth('admin');
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '') {
+            $this->json(['status' => 'error', 'message' => 'Unit name is required']);
+            return;
+        }
+        $db = Database::getInstance()->getConnection();
+        $meta = $this->getInventoryMeta($db);
+        $units = array_values(array_filter($meta['units'], function($u) use ($name) {
+            return strcasecmp($u, $name) !== 0;
+        }));
+        $this->saveSettingsMetaColumn($db, 'custom_units', $units);
+        $this->json(['status' => 'success', 'units' => $units, 'message' => 'Unit removed']);
+    }
+
+    public function addCategory() {
+        $this->requireAuth('admin');
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '') {
+            $this->json(['status' => 'error', 'message' => 'Category name is required']);
+            return;
+        }
+        $db = Database::getInstance()->getConnection();
+        $meta = $this->getInventoryMeta($db);
+        $categories = $meta['categories'];
+        foreach ($categories as $c) {
+            if (strcasecmp($c, $name) === 0) {
+                $this->json(['status' => 'success', 'categories' => $categories, 'category' => $c, 'message' => 'Category already exists']);
+                return;
+            }
+        }
+        $categories[] = $name;
+        $this->saveSettingsMetaColumn($db, 'custom_inventory_categories', $categories);
+        $this->json(['status' => 'success', 'categories' => $categories, 'category' => $name, 'message' => 'Category added successfully']);
+    }
+
+    public function deleteCategory() {
+        $this->requireAuth('admin');
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '') {
+            $this->json(['status' => 'error', 'message' => 'Category name is required']);
+            return;
+        }
+        $db = Database::getInstance()->getConnection();
+        $meta = $this->getInventoryMeta($db);
+        $categories = array_values(array_filter($meta['categories'], function($c) use ($name) {
+            return strcasecmp($c, $name) !== 0;
+        }));
+        $this->saveSettingsMetaColumn($db, 'custom_inventory_categories', $categories);
+        $this->json(['status' => 'success', 'categories' => $categories, 'message' => 'Category removed']);
+    }
+
     public function index() {
         $this->requireAuth('admin');
         $this->view('admin/inventory');
@@ -11,6 +140,7 @@ class InventoryController extends Controller {
     public function itemsListJson() {
         $this->requireAuth('admin');
         $db = Database::getInstance()->getConnection();
+        $this->ensureInventorySchema($db);
         
         $query = "
             SELECT i.*, 
@@ -169,8 +299,11 @@ class InventoryController extends Controller {
     public function saveItem() {
         $this->requireAuth('admin');
         $id = $_POST['id'] ?? null;
-        $name = $_POST['name'] ?? '';
-        $unit = $_POST['unit'] ?? 'Nos';
+        $name = trim((string)($_POST['name'] ?? ''));
+        $category = trim((string)($_POST['category'] ?? ''));
+        $category = $category !== '' ? $category : null;
+        $unit = trim((string)($_POST['unit'] ?? 'Nos'));
+        if ($unit === '') $unit = 'Nos';
         $buying_price_per_unit = $_POST['buying_price_per_unit'] ?? 0;
         $selling_price = $_POST['selling_price'] ?? 0;
         $min_stock_level = $_POST['min_stock_level'] ?? 0;
@@ -181,13 +314,14 @@ class InventoryController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
+        $this->ensureInventorySchema($db);
         if ($id) {
-            $stmt = $db->prepare("UPDATE inventory_items SET name = ?, unit = ?, buying_price_per_unit = ?, selling_price = ?, min_stock_level = ? WHERE id = ?");
-            $stmt->execute([$name, $unit, $buying_price_per_unit, $selling_price, $min_stock_level, $id]);
+            $stmt = $db->prepare("UPDATE inventory_items SET name = ?, category = ?, unit = ?, buying_price_per_unit = ?, selling_price = ?, min_stock_level = ? WHERE id = ?");
+            $stmt->execute([$name, $category, $unit, $buying_price_per_unit, $selling_price, $min_stock_level, $id]);
             $this->json(['status' => 'success', 'message' => 'Item updated successfully']);
         } else {
-            $stmt = $db->prepare("INSERT INTO inventory_items (name, unit, buying_price_per_unit, selling_price, min_stock_level) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $unit, $buying_price_per_unit, $selling_price, $min_stock_level]);
+            $stmt = $db->prepare("INSERT INTO inventory_items (name, category, unit, buying_price_per_unit, selling_price, min_stock_level) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $category, $unit, $buying_price_per_unit, $selling_price, $min_stock_level]);
             $this->json(['status' => 'success', 'message' => 'Item added successfully']);
         }
     }

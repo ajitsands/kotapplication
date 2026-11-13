@@ -83,6 +83,9 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     Import Stock
                 </button>
+                <button class="btn-primary" onclick="openInventoryMetaModal();" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: none; font-size: 13px; padding: 6px 12px; height: auto;">
+                    ⚙ Units &amp; Categories
+                </button>
                 <button class="btn-primary" onclick="fetchSuppliersForSelect(); $('#inventoryForm')[0].reset(); $('#inv_id').val(''); $('#inventoryModalTitle').html('<svg width=\'22\' height=\'22\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z\'></path><line x1=\'7\' y1=\'7\' x2=\'7.01\' y2=\'7\'></line></svg> Add Inventory Item'); $('#inventoryModal').css('display', 'flex').hide().fadeIn();" style="margin-left: 10px;">Add New Item</button>
                 <button class="btn-primary" style="background:#10b981;" onclick="fetchSuppliersForSelect(); $('#stock_items_container').empty(); addStockItemRow(); $('#stockModal').css('display', 'flex').hide().fadeIn();">Add Stock (Purchase)</button>
                 <button class="btn-primary" style="background:#ef4444; margin-left: 10px;" onclick="openDamageReportModal();">Damage Report</button>
@@ -93,6 +96,7 @@
                 <tr>
                     <th>ID</th>
                     <th>Name</th>
+                    <th>Category</th>
                     <th>Stock</th>
                     <th>Min Qty</th>
                     <th>Unit</th>
@@ -106,7 +110,7 @@
             <tbody></tbody>
             <tfoot>
                 <tr>
-                    <th colspan="7" style="text-align: right; font-weight: bold;">Grand Total Value:</th>
+                    <th colspan="8" style="text-align: right; font-weight: bold;">Grand Total Value:</th>
                     <th id="grandTotalValue" style="text-align: right; font-weight: bold; color: #3b82f6;">0.000</th>
                     <th colspan="2"></th>
                 </tr>
@@ -134,25 +138,48 @@
         <form id="inventoryForm" style="padding: 30px;">
             <input type="hidden" name="id" id="inv_id">
             
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label class="form-label" style="font-weight: 600; color: var(--text-color);">Item Name <span style="color: #ef4444;">*</span></label>
-                <input type="text" name="name" id="inv_name" class="form-input" placeholder="e.g. Tomato, Burger Bun, Milk" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Item Name <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="name" id="inv_name" class="form-input" placeholder="e.g. Tomato, Burger Bun, Milk" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600; color: var(--text-color);">Category <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">(Optional)</span></label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select name="category" id="inv_category" class="form-input" style="cursor: pointer; flex: 1;">
+                            <option value="">-- No Category (Optional) --</option>
+                            <?php
+                                $customInvCats = explode(',', $settings['custom_inventory_categories'] ?? '');
+                                foreach ($customInvCats as $cat) {
+                                    $cat = trim($cat);
+                                    if ($cat !== '') {
+                                        echo "<option value=\"" . htmlspecialchars($cat) . "\">" . htmlspecialchars($cat) . "</option>";
+                                    }
+                                }
+                            ?>
+                        </select>
+                        <button type="button" onclick="quickAddInventoryCategory()" class="btn-primary" style="padding: 8px 12px; font-size: 12px; white-space: nowrap; height: auto;" title="Add New Category">+ Add</button>
+                    </div>
+                </div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
                 <div class="form-group">
                     <label class="form-label" style="font-weight: 600; color: var(--text-color);">Unit of Measurement</label>
-                    <select name="unit" id="inv_unit" class="form-input" style="cursor: pointer;">
-                        <?php
-                            $customUnits = explode(',', $settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML');
-                            foreach ($customUnits as $u) {
-                                $u = trim($u);
-                                if ($u !== '') {
-                                    echo "<option value=\"" . htmlspecialchars($u) . "\">" . htmlspecialchars($u) . "</option>";
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select name="unit" id="inv_unit" class="form-input" style="cursor: pointer; flex: 1;">
+                            <?php
+                                $customUnits = explode(',', $settings['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML');
+                                foreach ($customUnits as $u) {
+                                    $u = trim($u);
+                                    if ($u !== '') {
+                                        echo "<option value=\"" . htmlspecialchars($u) . "\">" . htmlspecialchars($u) . "</option>";
+                                    }
                                 }
-                            }
-                        ?>
-                    </select>
+                            ?>
+                        </select>
+                        <button type="button" onclick="quickAddInventoryUnit()" class="btn-primary" style="padding: 8px 12px; font-size: 12px; white-space: nowrap; height: auto;" title="Add New Unit">+ Add</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label" style="font-weight: 600; color: var(--text-color);">Minimum Qty Level <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">(Optional)</span></label>
@@ -469,9 +496,45 @@
     </div>
 </div>
 
+<!-- Manage Inventory Units & Categories Modal -->
+<div class="modal" id="inventoryMetaModal">
+    <div class="modal-content" style="width: 92%; max-width: 720px; padding: 0; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 22px 28px; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 18px;">
+                ⚙ Manage Inventory Units &amp; Categories
+            </h3>
+            <button type="button" onclick="$('#inventoryMetaModal').fadeOut();" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div style="padding: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px;">
+            <div style="border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; background: rgba(255,255,255,0.02);">
+                <h4 style="margin: 0 0 12px 0; font-size: 15px; color: var(--text-color);">Units of Measurement</h4>
+                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                    <input type="text" id="new_meta_unit_input" class="form-input" placeholder="e.g. Tray, Dozen, Can" style="margin-bottom: 0; flex: 1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addInventoryMeta('unit');}">
+                    <button type="button" class="btn-primary" style="padding: 8px 14px; font-size: 13px; white-space: nowrap;" onclick="addInventoryMeta('unit')">Add</button>
+                </div>
+                <div id="inv_units_chip_list" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+            <div style="border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; background: rgba(255,255,255,0.02);">
+                <h4 style="margin: 0 0 12px 0; font-size: 15px; color: var(--text-color);">Inventory Categories <span style="font-weight: 400; font-size: 12px; color: var(--text-muted);">(Optional)</span></h4>
+                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                    <input type="text" id="new_meta_cat_input" class="form-input" placeholder="e.g. Vegetables, Meat, Dairy" style="margin-bottom: 0; flex: 1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addInventoryMeta('category');}">
+                    <button type="button" class="btn-primary" style="padding: 8px 14px; font-size: 13px; white-space: nowrap;" onclick="addInventoryMeta('category')">Add</button>
+                </div>
+                <div id="inv_cats_chip_list" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+        </div>
+        <div style="padding: 15px 25px; border-top: 1px solid var(--card-border); display: flex; justify-content: flex-end;">
+            <button type="button" class="modal-close" onclick="$('#inventoryMetaModal').fadeOut();" style="margin: 0; padding: 10px 24px; border-radius: 10px; font-weight: 600;">Done</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let inventoryTable;
 function loadInventory() {
+    loadInventoryMeta();
     if ($.fn.DataTable.isDataTable('#inventoryTable')) {
         $('#inventoryTable').DataTable().ajax.reload();
         populateItemSelect();
@@ -489,13 +552,20 @@ function loadInventory() {
             }, 0);
             
             // Update footer
-            $(api.column(7).footer()).html(
+            $(api.column(8).footer()).html(
                 total.toFixed(3)
             );
         },
         columns: [
             { data: 'id' },
             { data: 'name' },
+            {
+                data: 'category',
+                render: function(data) {
+                    if (!data) return '<span style="color: var(--text-muted);">-</span>';
+                    return `<span style="background: rgba(99, 102, 241, 0.12); color: #818cf8; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">${$('<div>').text(data).html()}</span>`;
+                }
+            },
             { 
                 data: 'current_stock',
                 render: function(data, type, row) {
@@ -738,11 +808,155 @@ $('#stockForm').on('submit', function(e) {
 
 
 
+function renderInventoryMeta(units, categories) {
+    const curUnit = $('#inv_unit').val();
+    const curCat = $('#inv_category').val();
+
+    let unitOpts = '';
+    (units || []).forEach(u => {
+        const safe = $('<div>').text(u).html();
+        unitOpts += `<option value="${safe}">${safe}</option>`;
+    });
+    if (unitOpts) $('#inv_unit').html(unitOpts);
+    if (curUnit && $('#inv_unit option[value="' + curUnit.replace(/"/g, '\\"') + '"]').length) {
+        $('#inv_unit').val(curUnit);
+    }
+
+    let catOpts = '<option value="">-- No Category (Optional) --</option>';
+    (categories || []).forEach(c => {
+        const safe = $('<div>').text(c).html();
+        catOpts += `<option value="${safe}">${safe}</option>`;
+    });
+    $('#inv_category').html(catOpts);
+    if (curCat && $('#inv_category option[value="' + curCat.replace(/"/g, '\\"') + '"]').length) {
+        $('#inv_category').val(curCat);
+    }
+
+    if ($('#settings-custom-units').length) {
+        $('#settings-custom-units').val((units || []).join(', '));
+    }
+    if ($('#settings-custom-inv-categories').length) {
+        $('#settings-custom-inv-categories').val((categories || []).join(', '));
+    }
+
+    let unitChips = '';
+    (units || []).forEach(u => {
+        const safe = $('<div>').text(u).html();
+        const jsSafe = u.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        unitChips += `<span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(99, 102, 241, 0.14); color: var(--text-color); font-size: 12.5px; font-weight: 600;">${safe}<button type="button" onclick="deleteInventoryMeta('unit', '${jsSafe}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: 800; padding: 0 2px; line-height: 1;" title="Remove">&times;</button></span>`;
+    });
+    $('#inv_units_chip_list').html(unitChips || '<span style="color: var(--text-muted); font-size: 12px;">No units configured.</span>');
+
+    let catChips = '';
+    (categories || []).forEach(c => {
+        const safe = $('<div>').text(c).html();
+        const jsSafe = c.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        catChips += `<span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.14); color: var(--text-color); font-size: 12.5px; font-weight: 600;">${safe}<button type="button" onclick="deleteInventoryMeta('category', '${jsSafe}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-weight: 800; padding: 0 2px; line-height: 1;" title="Remove">&times;</button></span>`;
+    });
+    $('#inv_cats_chip_list').html(catChips || '<span style="color: var(--text-muted); font-size: 12px;">No categories yet. Add one above if required.</span>');
+}
+
+function loadInventoryMeta(cb) {
+    $.get('/admin/inventory/meta', function(res) {
+        let data = typeof res === 'string' ? JSON.parse(res) : res;
+        if (data.status === 'success') {
+            window._invMeta = { units: data.units || [], categories: data.categories || [] };
+            renderInventoryMeta(window._invMeta.units, window._invMeta.categories);
+            if (typeof cb === 'function') cb(window._invMeta);
+        }
+    });
+}
+
+function openInventoryMetaModal() {
+    loadInventoryMeta(function() {
+        $('#inventoryMetaModal').css('display', 'flex').hide().fadeIn();
+    });
+}
+
+function addInventoryMeta(type, nameOverride, selectTargetId) {
+    const inputEl = type === 'unit' ? $('#new_meta_unit_input') : $('#new_meta_cat_input');
+    const name = (nameOverride !== undefined ? nameOverride : inputEl.val()).trim();
+    if (!name) return;
+    const url = type === 'unit' ? '/admin/inventory/units/add' : '/admin/inventory/categories/add';
+    $.post(url, { name: name }, function(res) {
+        let data = typeof res === 'string' ? JSON.parse(res) : res;
+        if (data.status === 'success') {
+            if (nameOverride === undefined) inputEl.val('');
+            const prevUnits = window._invMeta?.units || [];
+            const prevCats = window._invMeta?.categories || [];
+            window._invMeta = {
+                units: data.units || prevUnits,
+                categories: data.categories || prevCats
+            };
+            renderInventoryMeta(window._invMeta.units, window._invMeta.categories);
+            if (selectTargetId) {
+                $(selectTargetId).val(type === 'unit' ? (data.unit || name) : (data.category || name));
+            }
+            Swal.fire({ icon: 'success', title: data.message || 'Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Failed to save' });
+        }
+    });
+}
+
+function deleteInventoryMeta(type, name) {
+    const url = type === 'unit' ? '/admin/inventory/units/delete' : '/admin/inventory/categories/delete';
+    $.post(url, { name: name }, function(res) {
+        let data = typeof res === 'string' ? JSON.parse(res) : res;
+        if (data.status === 'success') {
+            const prevUnits = window._invMeta?.units || [];
+            const prevCats = window._invMeta?.categories || [];
+            window._invMeta = {
+                units: data.units || prevUnits,
+                categories: data.categories || prevCats
+            };
+            renderInventoryMeta(window._invMeta.units, window._invMeta.categories);
+        }
+    });
+}
+
+function quickAddInventoryUnit() {
+    Swal.fire({
+        title: 'Add New Unit',
+        input: 'text',
+        inputPlaceholder: 'e.g. Tray, Dozen, Pack',
+        showCancelButton: true,
+        confirmButtonText: 'Add Unit',
+        inputValidator: (v) => !v || !v.trim() ? 'Please enter a unit name' : null
+    }).then((result) => {
+        if (result.isConfirmed) {
+            addInventoryMeta('unit', result.value.trim(), '#inv_unit');
+        }
+    });
+}
+
+function quickAddInventoryCategory() {
+    Swal.fire({
+        title: 'Add Inventory Category',
+        input: 'text',
+        inputPlaceholder: 'e.g. Vegetables, Meat, Dairy',
+        showCancelButton: true,
+        confirmButtonText: 'Add Category',
+        inputValidator: (v) => !v || !v.trim() ? 'Please enter a category name' : null
+    }).then((result) => {
+        if (result.isConfirmed) {
+            addInventoryMeta('category', result.value.trim(), '#inv_category');
+        }
+    });
+}
+
 function editInventoryItem(id) {
     let row = inventoryTable.row(function(idx, data) { return data.id == id; }).data();
     if (row) {
         $('#inv_id').val(row.id);
         $('#inv_name').val(row.name);
+        if (row.category && $('#inv_category option').filter(function(){ return $(this).val() === row.category; }).length === 0) {
+            $('#inv_category').append($('<option>', { value: row.category, text: row.category }));
+        }
+        $('#inv_category').val(row.category || '');
+        if (row.unit && $('#inv_unit option').filter(function(){ return $(this).val() === row.unit; }).length === 0) {
+            $('#inv_unit').append($('<option>', { value: row.unit, text: row.unit }));
+        }
         $('#inv_unit').val(row.unit);
         $('#inv_buy').val(row.buying_price_per_unit);
         $('#inv_sell').val(row.selling_price);
