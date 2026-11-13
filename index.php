@@ -55,6 +55,8 @@ $router->add('GET', '/download-waiter', 'HomeController@downloadWaiterApk');
 $router->add('GET', '/waiter-app', function() {
     $file = file_exists(__DIR__ . '/waiter-app-dist/index.html') ? __DIR__ . '/waiter-app-dist/index.html' : __DIR__ . '/waiter-app/dist/index.html';
     header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
     readfile($file);
     exit;
 });

@@ -122,7 +122,7 @@ class User extends Model {
         if ($token === '' || strlen($token) < 32) {
             return false;
         }
-        $stmt = $this->db->prepare("SELECT id, username, name, role, is_active, api_token FROM users WHERE api_token = ? AND is_active = 1 LIMIT 1");
+        $stmt = $this->db->prepare("SELECT id, username, name, role, is_active, api_token FROM users WHERE api_token = ? AND (is_active = 1 OR is_active IS NULL) LIMIT 1");
         $stmt->execute([$token]);
         return $stmt->fetch();
     }

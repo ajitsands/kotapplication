@@ -222,8 +222,12 @@ class ApiController extends Controller {
                 $this->json(['error' => 'Take Away orders must be placed from the browser.'], 403);
                 return;
             }
-            if (empty($_SESSION['user_id']) || !in_array($roleLower, ['waiter', 'admin', 'superadmin', 'counter'], true)) {
+            if (empty($_SESSION['user_id'])) {
                 $this->json(['error' => 'Waiter session expired. Please log in again.', 'auth_expired' => true], 401);
+                return;
+            }
+            if ($roleLower !== '' && !in_array($roleLower, ['waiter', 'admin', 'superadmin', 'counter', 'cashier', 'staff', 'manager', 'captain'], true)) {
+                $this->json(['error' => 'Your account role (' . $roleLower . ') cannot send Waiter KOT orders.'], 403);
                 return;
             }
         }
