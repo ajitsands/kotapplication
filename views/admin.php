@@ -1923,6 +1923,14 @@
                             <button class="btn btn-primary" onclick="loadTransactionsReport()" style="padding: 9px 20px; height: 38px;">Filter</button>
                         </div>
                     </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                        <button type="button" onclick="exportTransactionsToExcel()" class="btn-checkout" style="padding: 9px 18px; font-size: 13px; background: #059669; border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(5,150,105,0.3);">
+                            <span>📥</span> Export to Excel (.xlsx)
+                        </button>
+                        <button type="button" onclick="exportTransactionsToPDF()" class="btn-checkout" style="padding: 9px 18px; font-size: 13px; background: #dc2626; border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(220,38,38,0.3);">
+                            <span>📄</span> PDF Report
+                        </button>
+                    </div>
                 </div>
 
                 <div class="transactions-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border);">
@@ -3589,6 +3597,28 @@
             renderTransactionsTable();
         }
 
+        function getFilteredTransactionsData() {
+            if (currentTransCat === 'cancelled') {
+                return currentTransactionsData.filter(t => t.is_cancelled || (t.status || '').toLowerCase() === 'cancelled');
+            }
+            if (currentTransCat === 'all') {
+                return currentTransactionsData.filter(t => !t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled');
+            }
+            return currentTransactionsData.filter(t => (!t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled') && t.category === currentTransCat);
+        }
+
+        function getTransCategoryLabel(cat) {
+            const labels = {
+                all: 'All Active Orders',
+                self_order: 'Self Orders',
+                waiter_order: 'Waiter Orders',
+                takeaway: 'Takeaway',
+                online: 'Online Orders',
+                cancelled: 'Cancelled Orders'
+            };
+            return labels[cat] || 'All Orders';
+        }
+
         function renderTransactionsTable() {
             if (transactionsReportTable) {
                 transactionsReportTable.destroy();
@@ -3604,14 +3634,7 @@
             const badgeEl = document.getElementById('trans-cancelled-badge');
             if (badgeEl) badgeEl.innerText = cancelledCount;
 
-            let filteredData = [];
-            if (currentTransCat === 'cancelled') {
-                filteredData = currentTransactionsData.filter(t => t.is_cancelled || (t.status || '').toLowerCase() === 'cancelled');
-            } else if (currentTransCat === 'all') {
-                filteredData = currentTransactionsData.filter(t => !t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled');
-            } else {
-                filteredData = currentTransactionsData.filter(t => (!t.is_cancelled && (t.status || '').toLowerCase() !== 'cancelled') && t.category === currentTransCat);
-            }
+            const filteredData = getFilteredTransactionsData();
 
             let totalSum = 0;
 
@@ -4142,6 +4165,208 @@
                     }
                 })
                 .catch(err => console.error(err));
+        }
+
+        function exportTransactionsToExcel() {
+            const rows = getFilteredTransactionsData();
+            if (!rows || rows.length === 0) {
+                Swal.fire({
+                    title: 'No Data',
+                    text: 'No transactions found to export for the selected filter.',
+                    icon: 'warning',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+            const dec = window.PRICE_DECIMALS || 3;
+            const startDate = document.getElementById('trans-start-date')?.value || '';
+            const endDate = document.getElementById('trans-end-date')?.value || '';
+            const tabLabel = getTransCategoryLabel(currentTransCat);
+            const totalSum = rows.reduce((acc, r) => acc + parseFloat(r.total || 0), 0);
+
+            const wsData = [
+                ['ALL TRANSACTIONS REPORT - ' + tabLabel.toUpperCase()],
+                ['Period:', (startDate || '-') + ' to ' + (endDate || '-')],
+                ['Generated At:', new Date().toLocaleString()],
+                ['Total Transactions:', rows.length, 'Total Amount (' + cur + '):', totalSum.toFixed(dec)],
+                [],
+                ['Order ID', 'Date & Time', 'Type', 'Category', 'Details', 'Status', 'Payment Method', 'Cash (' + cur + ')', 'Card (' + cur + ')', 'QR (' + cur + ')', 'Online (' + cur + ')', 'Total Amount (' + cur + ')']
+            ];
+
+            rows.forEach(r => {
+                const st = (r.status || '').toLowerCase();
+                const isCancelled = r.is_cancelled || st === 'cancelled';
+                let detailsText = r.details || '';
+                if (isCancelled && r.cancellation_reason) {
+                    detailsText += ' [Cancelled: ' + r.cancellation_reason + ']';
+                }
+                wsData.push([
+                    '#' + r.order_id,
+                    r.created_at || '',
+                    (r.order_type || '').replace('_', ' ').toUpperCase(),
+                    (r.category || '').replace('_', ' ').toUpperCase(),
+                    detailsText,
+                    isCancelled ? 'CANCELLED' : (r.status || 'Unknown'),
+                    r.payment_method || 'Pending',
+                    parseFloat(r.cash_amount || 0).toFixed(dec),
+                    parseFloat(r.card_amount || 0).toFixed(dec),
+                    parseFloat(r.qr_amount || 0).toFixed(dec),
+                    parseFloat(r.online_amount || 0).toFixed(dec),
+                    parseFloat(r.total || 0).toFixed(dec)
+                ]);
+            });
+
+            wsData.push([]);
+            wsData.push(['TOTAL', '', '', '', '', rows.length + ' orders', '', '', '', '', '', totalSum.toFixed(dec)]);
+
+            const safeTab = currentTransCat.replace(/[^a-z0-9_-]/gi, '_');
+            const baseFilename = `All_Transactions_${safeTab}_${startDate || 'all'}_to_${endDate || 'all'}`;
+
+            if (typeof XLSX !== 'undefined') {
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                ws['!cols'] = [
+                    { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 15 },
+                    { wch: 36 }, { wch: 14 }, { wch: 16 },
+                    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }
+                ];
+                XLSX.utils.book_append_sheet(wb, ws, 'All_Transactions');
+                XLSX.writeFile(wb, baseFilename + '.xlsx');
+            } else {
+                const csv = wsData.map(row => row.map(cell => '"' + String(cell ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+                const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = baseFilename + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function exportTransactionsToPDF() {
+            const rows = getFilteredTransactionsData();
+            if (!rows || rows.length === 0) {
+                Swal.fire({
+                    title: 'No Data',
+                    text: 'No transactions found to generate PDF for the selected filter.',
+                    icon: 'warning',
+                    background: document.body.classList.contains('light-theme') ? '#fff' : '#111827',
+                    color: document.body.classList.contains('light-theme') ? '#1f2937' : '#f3f4f6'
+                });
+                return;
+            }
+
+            const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
+            const dec = window.PRICE_DECIMALS || 3;
+            const restaurantName = <?= json_encode($settings['restaurant_name'] ?? 'Restaurant') ?>;
+            const startDate = document.getElementById('trans-start-date')?.value || '-';
+            const endDate = document.getElementById('trans-end-date')?.value || '-';
+            const tabLabel = getTransCategoryLabel(currentTransCat);
+            const totalSum = rows.reduce((acc, r) => acc + parseFloat(r.total || 0), 0);
+
+            const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+            let tableRowsHtml = '';
+            rows.forEach(r => {
+                const st = (r.status || '').toLowerCase();
+                const isCancelled = r.is_cancelled || st === 'cancelled';
+                let detailsText = esc(r.details || '');
+                if (isCancelled && r.cancellation_reason) {
+                    detailsText += `<div style="color:#dc2626;font-size:10px;margin-top:2px;">Cancelled: ${esc(r.cancellation_reason)}</div>`;
+                }
+                const amtText = isCancelled
+                    ? `<span style="text-decoration:line-through;color:#dc2626;margin-right:4px;">${parseFloat(r.original_total || 0).toFixed(dec)}</span> 0.000`
+                    : parseFloat(r.total || 0).toFixed(dec);
+
+                tableRowsHtml += `
+                    <tr>
+                        <td>#${esc(r.order_id)}</td>
+                        <td>${esc(r.created_at)}</td>
+                        <td>${esc((r.order_type || '').replace('_', ' ').toUpperCase())}</td>
+                        <td>${detailsText}</td>
+                        <td>${esc(isCancelled ? 'CANCELLED' : (r.status || 'Unknown'))}</td>
+                        <td>${esc(r.payment_method || 'Pending')}</td>
+                        <td style="text-align:right;font-weight:700;">${amtText} ${esc(cur)}</td>
+                    </tr>
+                `;
+            });
+
+            const printWin = window.open('', '_blank', 'width=1050,height=800');
+            if (!printWin) {
+                Swal.fire({ icon: 'error', title: 'Popup Blocked', text: 'Please allow popups to generate the PDF report.' });
+                return;
+            }
+            printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>All Transactions Report - ${esc(tabLabel)}</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; color: #111827; margin: 24px; font-size: 12px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 12px; margin-bottom: 16px; }
+        .header h1 { margin: 0 0 4px 0; font-size: 20px; }
+        .header p { margin: 2px 0; color: #4b5563; font-size: 12px; }
+        .summary { display: flex; gap: 20px; margin-bottom: 16px; background: #f3f4f6; padding: 10px 14px; border-radius: 6px; }
+        .summary div strong { display: block; font-size: 15px; color: #111827; }
+        .summary div span { font-size: 11px; color: #4b5563; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: left; vertical-align: top; }
+        th { background: #1f2937; color: #ffffff; font-size: 11px; text-transform: uppercase; }
+        tr:nth-child(even) { background: #f9fafb; }
+        tfoot td { font-weight: 800; background: #e5e7eb; font-size: 13px; }
+        @media print {
+            body { margin: 10mm; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>${esc(restaurantName)} — All Transactions Report</h1>
+            <p><strong>Filter:</strong> ${esc(tabLabel)} &nbsp;|&nbsp; <strong>Period:</strong> ${esc(startDate)} to ${esc(endDate)}</p>
+        </div>
+        <div style="text-align:right;">
+            <p><strong>Generated:</strong> ${esc(new Date().toLocaleString())}</p>
+            <button class="no-print" onclick="window.print()" style="margin-top:6px;padding:6px 14px;background:#2563eb;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:700;">Print / Save as PDF</button>
+        </div>
+    </div>
+    <div class="summary">
+        <div><span>Total Transactions</span><strong>${rows.length}</strong></div>
+        <div><span>Total Amount</span><strong>${totalSum.toFixed(dec)} ${esc(cur)}</strong></div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date &amp; Time</th>
+                <th>Type</th>
+                <th>Details</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th style="text-align:right;">Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>${tableRowsHtml}</tbody>
+        <tfoot>
+            <tr>
+                <td colspan="6" style="text-align:right;">GRAND TOTAL (${rows.length} Orders):</td>
+                <td style="text-align:right;">${totalSum.toFixed(dec)} ${esc(cur)}</td>
+            </tr>
+        </tfoot>
+    </table>
+    <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 250); };
+    <\/script>
+</body>
+</html>`);
+            printWin.document.close();
         }
 
         let taxReportsTable = null;
