@@ -1971,17 +1971,26 @@
                 <h2 class="panel-title">🗂️ All Transactions (Billing, Online, Takeaway, Waiter, Self Orders)</h2>
                 
                 <div class="dt-header" style="margin-bottom: 20px; flex-wrap: wrap; gap: 15px; justify-content: space-between;">
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                         <div>
                             <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Start Date</label>
-                            <input type="date" id="trans-start-date" class="form-input" style="width: auto; padding: 8px 12px;">
+                            <input type="date" id="trans-start-date" class="form-input" style="width: auto; padding: 8px 12px;" value="<?= htmlspecialchars($shopShiftWin['start_date']) ?>">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Start Time</label>
+                            <input type="time" id="trans-start-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px;" value="<?= htmlspecialchars($shopShiftCfg['start_time']) ?>">
                         </div>
                         <div>
                             <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">End Date</label>
-                            <input type="date" id="trans-end-date" class="form-input" style="width: auto; padding: 8px 12px;">
+                            <input type="date" id="trans-end-date" class="form-input" style="width: auto; padding: 8px 12px;" value="<?= htmlspecialchars($shopShiftWin['end_date']) ?>">
                         </div>
-                        <div style="align-self: flex-end;">
+                        <div>
+                            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">End Time</label>
+                            <input type="time" id="trans-end-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px;" value="<?= htmlspecialchars($shopShiftCfg['end_time']) ?>">
+                        </div>
+                        <div style="align-self: flex-end; display: flex; gap: 8px;">
                             <button class="btn btn-primary" onclick="loadTransactionsReport()" style="padding: 9px 20px; height: 38px;">Filter</button>
+                            <button type="button" class="btn" onclick="resetTransactionsToShift()" style="padding: 9px 14px; height: 38px; background: rgba(99,102,241,0.14); color: #818cf8; border: 1px solid rgba(99,102,241,0.35); border-radius: 8px; font-weight: 600; cursor: pointer;">🌙 Shift (<?= htmlspecialchars($shopShiftCfg['label']) ?>)</button>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
@@ -4201,20 +4210,41 @@
             });
         }
 
+        function resetTransactionsToShift() {
+            const win = window.getShopShiftWindow('current');
+            const sDate = document.getElementById('trans-start-date');
+            const sTime = document.getElementById('trans-start-time');
+            const eDate = document.getElementById('trans-end-date');
+            const eTime = document.getElementById('trans-end-time');
+            if (sDate) sDate.value = win.startDate;
+            if (sTime) sTime.value = win.startTime;
+            if (eDate) eDate.value = win.endDate;
+            if (eTime) eTime.value = win.endTime;
+            loadTransactionsReport();
+        }
+
         function loadTransactionsReport() {
+            const win = window.getShopShiftWindow('current');
             let startDate = document.getElementById('trans-start-date').value;
             let endDate = document.getElementById('trans-end-date').value;
-            
-            if(!startDate) {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('trans-start-date').value = today;
-                document.getElementById('trans-end-date').value = today;
-                startDate = today;
-                endDate = today;
+            let startTime = document.getElementById('trans-start-time')?.value || '';
+            let endTime = document.getElementById('trans-end-time')?.value || '';
+
+            if (!startDate || !endDate) {
+                startDate = win.startDate;
+                endDate = win.endDate;
+                startTime = win.startTime;
+                endTime = win.endTime;
+                document.getElementById('trans-start-date').value = startDate;
+                document.getElementById('trans-end-date').value = endDate;
+                if (document.getElementById('trans-start-time')) document.getElementById('trans-start-time').value = startTime;
+                if (document.getElementById('trans-end-time')) document.getElementById('trans-end-time').value = endTime;
             }
+            if (!startTime) startTime = '00:00';
+            if (!endTime) endTime = '23:59';
 
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
-            fetch(basePath + '/reports/transactions?startDate=' + encodeURIComponent(startDate) + '&endDate=' + encodeURIComponent(endDate) + '&_=' + Date.now(), {
+            fetch(basePath + '/reports/transactions?startDate=' + encodeURIComponent(startDate) + '&endDate=' + encodeURIComponent(endDate) + '&startTime=' + encodeURIComponent(startTime) + '&endTime=' + encodeURIComponent(endTime) + '&_=' + Date.now(), {
                 cache: 'no-store'
             })
                 .then(res => res.json())
@@ -4243,13 +4273,15 @@
             const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
             const dec = window.PRICE_DECIMALS || 3;
             const startDate = document.getElementById('trans-start-date')?.value || '';
+            const startTime = document.getElementById('trans-start-time')?.value || '00:00';
             const endDate = document.getElementById('trans-end-date')?.value || '';
+            const endTime = document.getElementById('trans-end-time')?.value || '23:59';
             const tabLabel = getTransCategoryLabel(currentTransCat);
             const totalSum = rows.reduce((acc, r) => acc + parseFloat(r.total || 0), 0);
 
             const wsData = [
                 ['ALL TRANSACTIONS REPORT - ' + tabLabel.toUpperCase()],
-                ['Period:', (startDate || '-') + ' to ' + (endDate || '-')],
+                ['Period:', (startDate ? startDate + ' ' + startTime : '-') + ' to ' + (endDate ? endDate + ' ' + endTime : '-')],
                 ['Generated At:', new Date().toLocaleString()],
                 ['Total Transactions:', rows.length, 'Total Amount (' + cur + '):', totalSum.toFixed(dec)],
                 [],
@@ -4326,7 +4358,9 @@
             const dec = window.PRICE_DECIMALS || 3;
             const restaurantName = <?= json_encode($settings['restaurant_name'] ?? 'Restaurant') ?>;
             const startDate = document.getElementById('trans-start-date')?.value || '-';
+            const startTime = document.getElementById('trans-start-time')?.value || '00:00';
             const endDate = document.getElementById('trans-end-date')?.value || '-';
+            const endTime = document.getElementById('trans-end-time')?.value || '23:59';
             const tabLabel = getTransCategoryLabel(currentTransCat);
             const totalSum = rows.reduce((acc, r) => acc + parseFloat(r.total || 0), 0);
 
@@ -4390,7 +4424,7 @@
     <div class="header">
         <div>
             <h1>${esc(restaurantName)} — All Transactions Report</h1>
-            <p><strong>Filter:</strong> ${esc(tabLabel)} &nbsp;|&nbsp; <strong>Period:</strong> ${esc(startDate)} to ${esc(endDate)}</p>
+            <p><strong>Filter:</strong> ${esc(tabLabel)} &nbsp;|&nbsp; <strong>Period:</strong> ${esc(startDate)} ${esc(startTime)} to ${esc(endDate)} ${esc(endTime)}</p>
         </div>
         <div style="text-align:right;">
             <p><strong>Generated:</strong> ${esc(new Date().toLocaleString())}</p>
