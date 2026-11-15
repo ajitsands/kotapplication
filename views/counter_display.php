@@ -3823,9 +3823,10 @@
                                 }
 
                                 const gross = parseFloat(o.gross_total || 0);
+                                const servFee = parseFloat(o.service_fee || 0);
                                 let feeBadges = '';
                                 if (servFee > 0) {
-                                    feeBadges += `<span style="font-size:10px; color:#a855f7; display:inline-block; margin-right:4px;">+Serv: ${servFee.toFixed(3)}</span>`;
+                                    feeBadges += `<span style="font-size:10px; color:#a855f7; display:inline-block; margin-right:4px;">+Serv: ${servFee.toFixed(window.PRICE_DECIMALS || 3)}</span>`;
                                 }
                                 if (parseFloat(o.delivery_fee || 0) > 0) {
                                     feeBadges += `<span style="font-size:10px; color:#38bdf8; display:inline-block; margin-right:4px;">+Del: ${parseFloat(o.delivery_fee).toFixed(3)}</span>`;
