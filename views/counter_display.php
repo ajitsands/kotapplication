@@ -2832,12 +2832,15 @@
             document.getElementById('modal-discount-amount-label').innerText = '0.000 ' + currencyCode;
             document.getElementById('modal-net-payable-label').innerText = parseFloat(bill.grand_total).toFixed(window.PRICE_DECIMALS || 3) + ' ' + currencyCode;
 
-            // Reset customer loyalty fields
-            document.getElementById('modal-cust-mobile').value = '';
-            document.getElementById('modal-cust-name').value = '';
+            // Pre-fill customer loyalty fields from order/bill if already collected (e.g. by Waiter App)
+            document.getElementById('modal-cust-mobile').value = bill.customer_mobile || '';
+            document.getElementById('modal-cust-name').value = bill.customer_name || '';
             document.getElementById('modal-cust-gender').value = '';
             document.getElementById('modal-loyalty-info').style.display = 'none';
             customerLoyaltyData = null;
+            if ((bill.customer_mobile || '').trim().length >= 4) {
+                lookupCustomerLoyalty();
+            }
 
             // Reset button highlights
             document.querySelectorAll('.pay-method-btn').forEach(btn => btn.classList.remove('selected'));
