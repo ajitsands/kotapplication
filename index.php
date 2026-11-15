@@ -268,6 +268,7 @@ $router->add('GET', '/api/tables', 'ApiController@tables');
 $router->add('GET', '/api/orders/active/:table', 'ApiController@getActiveOrder');
 $router->add('POST', '/api/orders', 'ApiController@createOrder');
 $router->add('POST', '/api/orders/close/:id', 'ApiController@closeOrder');
+$router->add('POST', '/api/orders/customer/:id', 'ApiController@updateOrderCustomer');
 $router->add('POST', '/api/orders/cancel/:id', 'ApiController@cancelOrder');
 $router->add('GET', '/api/notifications', 'ApiController@getWaiterNotifications');
 $router->add('POST', '/api/notifications/dispatch', 'ApiController@dispatchKotItem');

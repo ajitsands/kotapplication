@@ -406,10 +406,43 @@ class ApiController extends Controller {
         $this->json(['success' => $success]);
     }
 
+    // Update customer name / mobile on an active order (optional)
+    public function updateOrderCustomer($params) {
+        $this->resolveWaiterAuth();
+        $orderId = (int)($params['id'] ?? 0);
+        if ($orderId <= 0) {
+            $this->json(['error' => 'Invalid order ID'], 400);
+            return;
+        }
+        $data = $this->getJsonInput();
+        $customerName = isset($data['customer_name']) ? mb_substr(trim((string)$data['customer_name']), 0, 95) : null;
+        $customerMobile = isset($data['customer_mobile']) ? mb_substr(trim((string)$data['customer_mobile']), 0, 20) : null;
+
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("UPDATE orders SET customer_name = ?, customer_mobile = ? WHERE id = ?");
+        $ok = $stmt->execute([
+            ($customerName !== '' ? $customerName : null),
+            ($customerMobile !== '' ? $customerMobile : null),
+            $orderId
+        ]);
+        $this->json([
+            'success' => (bool)$ok,
+            'customer_name' => ($customerName !== '' ? $customerName : null),
+            'customer_mobile' => ($customerMobile !== '' ? $customerMobile : null)
+        ]);
+    }
+
     // Request billing/close order
     public function closeOrder($params) {
         $orderId = (int)($params['id'] ?? 0);
+        $data = $this->getJsonInput();
         $orderModel = new Order();
+
+        $customerName = isset($data['customer_name']) ? trim((string)$data['customer_name']) : '';
+        $customerMobile = isset($data['customer_mobile']) ? trim((string)$data['customer_mobile']) : '';
+        if ($customerName !== '' || $customerMobile !== '') {
+            $orderModel->updateCustomerInfo($orderId, $customerName, $customerMobile);
+        }
         
         $success = $orderModel->closeOrder($orderId);
         if ($success) {

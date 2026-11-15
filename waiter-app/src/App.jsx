@@ -52,6 +52,7 @@ function App() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showSandsModal, setShowSandsModal] = useState(false);
   const [submittingKot, setSubmittingKot] = useState(false);
+  const [tableCustomers, setTableCustomers] = useState({}); // { [tableNumber]: { name, mobile } }
 
 
   useEffect(() => {
@@ -497,6 +498,7 @@ function App() {
     if (itemsList.length === 0) return;
     if (submittingKot && retryCount === 0) return;
 
+    const custInfo = getCurrentTableCustomer();
     setSubmittingKot(true);
     authFetch(rootPath + '/api/orders', {
       method: 'POST',
@@ -509,6 +511,8 @@ function App() {
         table_number: selectedTable,
         source: 'waiter_app',
         waiter_token: localStorage.getItem(WAITER_TOKEN_KEY) || '',
+        customer_name: custInfo.name || null,
+        customer_mobile: custInfo.mobile || null,
         items: itemsList
       })
     })
@@ -574,23 +578,142 @@ function App() {
     });
   };
 
+  const getCurrentTableCustomer = () => {
+    const orderName = activeOrder?.order?.customer_name || '';
+    const orderMobile = activeOrder?.order?.customer_mobile || '';
+    const localInfo = tableCustomers[selectedTable] || {};
+    return {
+      name: (orderName || localInfo.name || '').trim(),
+      mobile: (orderMobile || localInfo.mobile || '').trim()
+    };
+  };
+
+  const escapeHtmlAttr = (str) => String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const openCustomerInfoModal = () => {
+    const cur = getCurrentTableCustomer();
+    const isLight = theme === 'light';
+    const inputStyle = `width:100%;padding:10px 12px;border-radius:10px;border:1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.15)'};background:${isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)'};color:${isLight ? '#111827' : '#f3f4f6'};font-size:14px;box-sizing:border-box;outline:none;`;
+    Swal.fire({
+      title: `Customer Info — Table ${selectedTable}`,
+      html: `
+        <div style="text-align:left;display:flex;flex-direction:column;gap:12px;margin-top:6px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;opacity:0.8;">Customer Name (Optional)</label>
+            <input id="swal-cust-name" type="text" value="${escapeHtmlAttr(cur.name)}" placeholder="Enter customer name" style="${inputStyle}">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;opacity:0.8;">Mobile Number (Optional)</label>
+            <input id="swal-cust-mobile" type="tel" value="${escapeHtmlAttr(cur.mobile)}" placeholder="Enter mobile number" style="${inputStyle}">
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Save Details',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#4b5563',
+      background: isLight ? '#fff' : '#111827',
+      color: isLight ? '#1f2937' : '#f3f4f6',
+      preConfirm: () => ({
+        name: (document.getElementById('swal-cust-name')?.value || '').trim(),
+        mobile: (document.getElementById('swal-cust-mobile')?.value || '').trim()
+      })
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      const { name, mobile } = result.value;
+      setTableCustomers(prev => ({ ...prev, [selectedTable]: { name, mobile } }));
+      if (activeOrder?.order?.id) {
+        authFetch(rootPath + `/api/orders/customer/${activeOrder.order.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customer_name: name, customer_mobile: mobile })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setActiveOrder(prev => prev ? {
+                ...prev,
+                order: { ...prev.order, customer_name: data.customer_name, customer_mobile: data.customer_mobile }
+              } : prev);
+            }
+          })
+          .catch(err => console.error("Error saving customer info", err));
+      }
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: (name || mobile) ? 'Customer details saved' : 'Customer details cleared',
+        showConfirmButton: false,
+        timer: 1800,
+        background: isLight ? '#fff' : '#111827',
+        color: isLight ? '#1f2937' : '#f3f4f6'
+      });
+    });
+  };
+
   // Request billing / close dining ticket
   const requestBilling = (orderId) => {
+    const cur = getCurrentTableCustomer();
+    const hasCustomer = Boolean(cur.name || cur.mobile);
+    const isLight = theme === 'light';
+    const inputStyle = `width:100%;padding:10px 12px;border-radius:10px;border:1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.15)'};background:${isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)'};color:${isLight ? '#111827' : '#f3f4f6'};font-size:14px;box-sizing:border-box;outline:none;`;
+
     Swal.fire({
-      title: 'Close Table?',
-      text: 'Are you sure you want to close this table ticket? This will lock the table and generate the final bill.',
-      icon: 'warning',
+      title: 'Close Table & Bill?',
+      html: hasCustomer
+        ? `<div style="font-size:13px;opacity:0.85;">Close Table ${selectedTable} and generate the final bill?<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(99,102,241,0.12);font-weight:600;">👤 ${escapeHtmlAttr(cur.name || 'Customer')}${cur.mobile ? ' • ' + escapeHtmlAttr(cur.mobile) : ''}</div></div>`
+        : `<div style="text-align:left;">
+            <p style="font-size:13px;opacity:0.85;margin:0 0 12px 0;text-align:center;">Collect customer details if available (Optional) and close Table ${selectedTable}.</p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;opacity:0.8;">Customer Name (Optional)</label>
+                <input id="swal-close-cust-name" type="text" placeholder="Enter customer name" style="${inputStyle}">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;opacity:0.8;">Mobile Number (Optional)</label>
+                <input id="swal-close-cust-mobile" type="tel" placeholder="Enter mobile number" style="${inputStyle}">
+              </div>
+            </div>
+          </div>`,
+      icon: hasCustomer ? 'warning' : undefined,
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#4b5563',
-      confirmButtonText: 'Yes, close it',
-      background: theme === 'light' ? '#fff' : '#111827',
-      color: theme === 'light' ? '#1f2937' : '#f3f4f6'
+      confirmButtonText: 'Close & Bill',
+      cancelButtonText: 'Cancel',
+      background: isLight ? '#fff' : '#111827',
+      color: isLight ? '#1f2937' : '#f3f4f6',
+      preConfirm: () => {
+        if (hasCustomer) return { name: cur.name, mobile: cur.mobile };
+        return {
+          name: (document.getElementById('swal-close-cust-name')?.value || '').trim(),
+          mobile: (document.getElementById('swal-close-cust-mobile')?.value || '').trim()
+        };
+      }
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(rootPath + `/api/orders/close/${orderId}`, { method: 'POST' })
+        const payload = result.value || { name: '', mobile: '' };
+        authFetch(rootPath + `/api/orders/close/${orderId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: payload.name || '',
+            customer_mobile: payload.mobile || ''
+          })
+        })
           .then(res => res.json())
           .then(data => {
+            setTableCustomers(prev => {
+              const next = { ...prev };
+              delete next[selectedTable];
+              return next;
+            });
             setActiveView('tables');
             loadTablesState();
           })
@@ -811,10 +934,41 @@ function App() {
         )}
 
         {/* VIEW 2: Order & Item Selection Screen */}
-        {activeView === 'order' && (
+        {activeView === 'order' && (() => {
+          const tableCust = getCurrentTableCustomer();
+          const hasCust = Boolean(tableCust.name || tableCust.mobile);
+          const custBtnLabel = tableCust.name || tableCust.mobile || 'Customer';
+          return (
           <div>
-            <div className="table-header-row">
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-color)' }}>Table {selectedTable} Details</h2>
+            <div className="table-header-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-color)', margin: 0 }}>Table {selectedTable} Details</h2>
+                <button
+                  type="button"
+                  onClick={openCustomerInfoModal}
+                  style={{
+                    padding: '6px 11px',
+                    borderRadius: 999,
+                    border: hasCust ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(99, 102, 241, 0.35)',
+                    background: hasCust ? 'rgba(16, 185, 129, 0.14)' : 'rgba(99, 102, 241, 0.12)',
+                    color: hasCust ? '#10b981' : '#818cf8',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    maxWidth: 180,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Collect Customer Name & Mobile (Optional)"
+                >
+                  <span>👤</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{custBtnLabel}</span>
+                </button>
+              </div>
               <button className="btn-back" onClick={() => setActiveView('tables')}>Back to Map</button>
             </div>
 
@@ -991,7 +1145,8 @@ function App() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Item Details & Ingredients Modal */}
         {viewProduct && (

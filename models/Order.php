@@ -81,6 +81,9 @@ class Order extends Model {
             // Check if there is already an active order for this table
             $existing = $this->getActiveOrderByTable($tableNumber);
             if ($existing) {
+                if (($customerName !== null && $customerName !== '') || ($customerMobile !== null && $customerMobile !== '')) {
+                    $this->updateCustomerInfo($existing['id'], $customerName, $customerMobile);
+                }
                 return $existing['id'];
             }
         }
@@ -215,6 +218,21 @@ class Order extends Model {
             $this->db->rollBack();
             return false;
         }
+    }
+
+    public function updateCustomerInfo($orderId, $customerName = null, $customerMobile = null) {
+        $name = ($customerName !== null && trim((string)$customerName) !== '') ? mb_substr(trim((string)$customerName), 0, 95) : null;
+        $mobile = ($customerMobile !== null && trim((string)$customerMobile) !== '') ? mb_substr(trim((string)$customerMobile), 0, 20) : null;
+        if ($name === null && $mobile === null) {
+            return true;
+        }
+        $stmt = $this->db->prepare("
+            UPDATE orders 
+            SET customer_name = COALESCE(?, customer_name),
+                customer_mobile = COALESCE(?, customer_mobile)
+            WHERE id = ?
+        ");
+        return $stmt->execute([$name, $mobile, (int)$orderId]);
     }
 
     public function closeOrder($orderId) {
