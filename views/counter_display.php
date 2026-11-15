@@ -1819,7 +1819,7 @@
 
     <!-- Collect Payment Modal -->
     <div id="payment-modal" class="modal">
-        <div class="modal-content" style="max-width: 520px; width: 95%; max-height: 92vh; overflow-y: auto;">
+        <div class="modal-content" style="max-width: 620px; width: 95%; max-height: 92vh; overflow-y: auto;">
             <h3>Collect Payment</h3>
             <p style="color: var(--text-muted); font-size:14px; margin-top:5px;" id="modal-table-label">Table 0</p>
             
