@@ -15,6 +15,8 @@ class Setting extends Model {
                 'time_zone' => 'Asia/Bahrain',
                 'custom_units' => 'Nos, Box, Packet, Gram, KG, Litre, ML',
                 'custom_inventory_categories' => '',
+                'shift_start_time' => '15:00',
+                'shift_end_time' => '04:00',
                 'tax_type' => 'VAT',
                 'vat_percent' => 10.00,
                 'cgst_percent' => 2.50,
@@ -60,6 +62,12 @@ class Setting extends Model {
             }
             if (!in_array('custom_inventory_categories', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN custom_inventory_categories TEXT NULL AFTER custom_units");
+            }
+            if (!in_array('shift_start_time', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN shift_start_time VARCHAR(5) NOT NULL DEFAULT '15:00' AFTER custom_inventory_categories");
+            }
+            if (!in_array('shift_end_time', $cols)) {
+                $this->db->exec("ALTER TABLE settings ADD COLUMN shift_end_time VARCHAR(5) NOT NULL DEFAULT '04:00' AFTER shift_start_time");
             }
             if (!in_array('software_expiry_date', $cols)) {
                 $this->db->exec("ALTER TABLE settings ADD COLUMN software_expiry_date DATE DEFAULT '2027-12-31' AFTER logo_path");
@@ -129,6 +137,8 @@ class Setting extends Model {
                 time_zone = ?, 
                 custom_units = ?,
                 custom_inventory_categories = COALESCE(?, custom_inventory_categories),
+                shift_start_time = COALESCE(?, shift_start_time),
+                shift_end_time = COALESCE(?, shift_end_time),
                 tax_type = ?, 
                 vat_percent = ?, 
                 cgst_percent = ?, 
@@ -153,6 +163,8 @@ class Setting extends Model {
             $data['time_zone'] ?? 'Asia/Bahrain',
             $data['custom_units'] ?? 'Nos, Box, Packet, Gram, KG, Litre, ML',
             array_key_exists('custom_inventory_categories', $data) ? $data['custom_inventory_categories'] : null,
+            (isset($data['shift_start_time']) && preg_match('/^\d{2}:\d{2}$/', trim($data['shift_start_time']))) ? trim($data['shift_start_time']) : null,
+            (isset($data['shift_end_time']) && preg_match('/^\d{2}:\d{2}$/', trim($data['shift_end_time']))) ? trim($data['shift_end_time']) : null,
             $data['tax_type'] ?? 'VAT',
             $data['vat_percent'] ?? 10.00,
             $data['cgst_percent'] ?? 2.50,

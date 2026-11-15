@@ -13,10 +13,7 @@ class ReportsController extends Controller {
         if (!empty($_GET['startDateTime']) && !empty($_GET['endDateTime'])) {
             return [$_GET['startDateTime'], $_GET['endDateTime']];
         }
-        $defaultStart = date('Y-m-d');
-        if ($shiftAwareDefault && (int)date('G') < 4) {
-            $defaultStart = date('Y-m-d', strtotime('-1 day'));
-        }
+        $defaultStart = $shiftAwareDefault ? getShopBusinessDate() : date('Y-m-d');
         $startDateVal = !empty($_GET['startDate']) ? $_GET['startDate'] : $defaultStart;
         $endDateVal = !empty($_GET['endDate']) ? $_GET['endDate'] : date('Y-m-d');
         $startTimeVal = !empty($_GET['startTime']) ? trim($_GET['startTime']) : '00:00:00';
@@ -407,15 +404,10 @@ class ReportsController extends Controller {
                 $startDateTime = $startDate . ' ' . ($startTime ?: '00:00:00');
                 $endDateTime   = $endDate . ' ' . ($endTime ?: '23:59:59');
             } else {
-                // Default shift: 3:00 PM (15:00) to 4:00 AM next day
-                $curHour = (int)date('G');
-                if ($curHour < 15) {
-                    $startDateTime = date('Y-m-d 15:00:00', strtotime('-1 day'));
-                    $endDateTime   = date('Y-m-d 04:00:59');
-                } else {
-                    $startDateTime = date('Y-m-d 15:00:00');
-                    $endDateTime   = date('Y-m-d 04:00:59', strtotime('+1 day'));
-                }
+                // Default shift from Admin Settings
+                $shiftWin = getShopShiftWindow('today');
+                $startDateTime = $shiftWin['start_datetime'];
+                $endDateTime   = $shiftWin['end_datetime'];
             }
         }
         return [$startDateTime, $endDateTime];

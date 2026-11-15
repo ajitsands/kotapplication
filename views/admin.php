@@ -843,6 +843,49 @@
             document.body.classList.add('light-theme');
         }
 
+        <?php
+            $shopShiftCfg = getShopShiftConfig($settings);
+            $shopShiftWin = getShopShiftWindow('today', $settings);
+        ?>
+        window.SHOP_SHIFT = <?= json_encode($shopShiftCfg) ?>;
+        window.getShopShiftWindow = function(preset) {
+            const cfg = window.SHOP_SHIFT || { start_time: '15:00', end_time: '04:00', is_overnight: true };
+            const startStr = cfg.start_time || '15:00';
+            const endStr = cfg.end_time || '04:00';
+            const [sh, sm] = startStr.split(':').map(n => parseInt(n, 10) || 0);
+            const [eh, em] = endStr.split(':').map(n => parseInt(n, 10) || 0);
+            const startMin = sh * 60 + sm;
+            const endMin = eh * 60 + em;
+            const isOvernight = endMin <= startMin;
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+
+            const startD = new Date(now);
+            const endD = new Date(now);
+            if (isOvernight) {
+                if (nowMin < startMin) {
+                    startD.setDate(startD.getDate() - 1);
+                } else {
+                    endD.setDate(endD.getDate() + 1);
+                }
+                if (preset === 'yesterday_shift') {
+                    startD.setDate(startD.getDate() - 1);
+                    endD.setDate(endD.getDate() - 1);
+                }
+            } else if (preset === 'yesterday_shift') {
+                startD.setDate(startD.getDate() - 1);
+                endD.setDate(endD.getDate() - 1);
+            }
+            return {
+                startDate: fmt(startD),
+                endDate: fmt(endD),
+                startTime: startStr,
+                endTime: endStr
+            };
+        };
+
         function toggleTheme() {
             if (document.body.classList.contains('light-theme')) {
                 document.body.classList.remove('light-theme');
@@ -1576,6 +1619,24 @@
                         <div id="printer-test-result" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 12px;"></div>
                     </div>
 
+                    <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 16px; margin-top: 15px;">
+                        <div style="font-weight: 700; font-size: 14px; color: var(--text-color); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                            <span>🕒</span> Shop Shift Timing
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Shift Start Time</label>
+                                <input class="form-input" type="time" name="shift_start_time" value="<?= htmlspecialchars($shopShiftCfg['start_time']) ?>" required style="margin-bottom: 0;">
+                                <small style="color: var(--text-muted); display: block; margin-top: 5px;">When the shop opens (e.g. 15:00 for 3:00 PM, 16:00 for 4:00 PM).</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Shift End Time</label>
+                                <input class="form-input" type="time" name="shift_end_time" value="<?= htmlspecialchars($shopShiftCfg['end_time']) ?>" required style="margin-bottom: 0;">
+                                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Closing time (next day if earlier than start, e.g. 04:00 for 4:00 AM, 05:00 for 5:00 AM).</small>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
                         <div class="form-group">
                             <label class="form-label">Custom Inventory Units (Comma Separated)</label>
@@ -2066,10 +2127,10 @@
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--card-border);">
                     <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
                     <button type="button" class="btn-shift-preset active" id="btn-preset-current" onclick="setAdminShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid rgba(99,102,241,0.3); background: rgba(99,102,241,0.15); color: #818cf8; cursor: pointer;">
-                        🌙 Shift (3:00 PM - 4:00 AM)
+                        🌙 Shift (<?= htmlspecialchars($shopShiftCfg['start_label'] . ' - ' . $shopShiftCfg['end_label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset" id="btn-preset-yesterday-shift" onclick="setAdminShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
-                        🌙 Yesterday Shift (3 PM - 4 AM)
+                        🌙 Yesterday Shift (<?= htmlspecialchars($shopShiftCfg['label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset" id="btn-preset-today" onclick="setAdminShiftPreset('today')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
                         ☀️ Today Full Day (00:00 - 23:59)
@@ -2087,7 +2148,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
-                        <input type="time" id="admin-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
+                        <input type="time" id="admin-tc-from-time" class="form-input" value="<?= htmlspecialchars($shopShiftCfg['start_time']) ?>" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
@@ -2095,7 +2156,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
-                        <input type="time" id="admin-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
+                        <input type="time" id="admin-tc-to-time" class="form-input" value="<?= htmlspecialchars($shopShiftCfg['end_time']) ?>" style="padding: 8px 10px; font-size: 13px; width: 136px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">Cashier / Staff</label>
@@ -2385,16 +2446,15 @@
 
         <!-- Waiter Performance Tab -->
         <?php
-            $waiterHourNow = (int)date('G');
-            $waiterDefaultStartDate = $waiterHourNow >= 15 ? date('Y-m-d') : date('Y-m-d', strtotime('-1 day'));
-            $waiterDefaultEndDate = $waiterHourNow >= 15 ? date('Y-m-d', strtotime('+1 day')) : date('Y-m-d');
+            $waiterDefaultStartDate = $shopShiftWin['start_date'];
+            $waiterDefaultEndDate = $shopShiftWin['end_date'];
         ?>
         <div id="waiter_report" class="tab-content">
             <div class="panel-card">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
                     <div>
                         <h2 class="panel-title" style="margin-bottom:4px;">🤵 Waiter Performance Report</h2>
-                        <p style="font-size:12px; color:var(--text-muted); margin:0;">Filter by shift date &amp; time (e.g. 3:00 PM to next day 4:00 AM) and sort by order timestamps to separate evening and early-morning shifts.</p>
+                        <p style="font-size:12px; color:var(--text-muted); margin:0;">Filter by shift date &amp; time (configured: <?= htmlspecialchars($shopShiftCfg['start_label'] . ' to ' . $shopShiftCfg['end_label']) ?>) and sort by order timestamps.</p>
                     </div>
                     <button onclick="exportWaiterPerformanceToExcel()" class="btn-checkout" style="padding: 9px 18px; font-size: 13px; background: var(--accent-green); border: none; color: white; font-weight: 700; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                         📥 Export to Excel (CSV)
@@ -2404,8 +2464,8 @@
                 <!-- Quick Shift Presets -->
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; padding:10px 12px; background:rgba(15,23,42,0.03); border:1px solid rgba(148,163,184,0.2); border-radius:10px;">
                     <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">⚡ Quick Shifts:</span>
-                    <button type="button" class="waiter-shift-btn active" data-preset="current" onclick="setWaiterShiftPreset('current', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #6366f1; background:#6366f1; color:#fff; cursor:pointer;">🌙 Current Shift (3:00 PM - 4:00 AM)</button>
-                    <button type="button" class="waiter-shift-btn" data-preset="yesterday_shift" onclick="setWaiterShiftPreset('yesterday_shift', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">🌙 Yesterday Shift (3 PM - 4 AM)</button>
+                    <button type="button" class="waiter-shift-btn active" data-preset="current" onclick="setWaiterShiftPreset('current', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid #6366f1; background:#6366f1; color:#fff; cursor:pointer;">🌙 Current Shift (<?= htmlspecialchars($shopShiftCfg['start_label'] . ' - ' . $shopShiftCfg['end_label']) ?>)</button>
+                    <button type="button" class="waiter-shift-btn" data-preset="yesterday_shift" onclick="setWaiterShiftPreset('yesterday_shift', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">🌙 Yesterday Shift (<?= htmlspecialchars($shopShiftCfg['label']) ?>)</button>
                     <button type="button" class="waiter-shift-btn" data-preset="today" onclick="setWaiterShiftPreset('today', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">☀️ Today Full Day (00:00 - 23:59)</button>
                     <button type="button" class="waiter-shift-btn" data-preset="yesterday" onclick="setWaiterShiftPreset('yesterday', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">📅 Yesterday Full Day</button>
                     <button type="button" class="waiter-shift-btn" data-preset="last30" onclick="setWaiterShiftPreset('last30', this)" style="padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:inherit; cursor:pointer;">📆 Last 30 Days</button>
@@ -2420,7 +2480,7 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">From Time</label>
-                            <input type="time" id="waiter-start-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="15:00">
+                            <input type="time" id="waiter-start-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="<?= htmlspecialchars($shopShiftCfg['start_time']) ?>">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">To Date</label>
@@ -2428,7 +2488,7 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">To Time</label>
-                            <input type="time" id="waiter-end-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="04:00">
+                            <input type="time" id="waiter-end-time" class="form-input" style="padding: 8px 10px; font-size: 13px; width: 118px; margin-bottom: 0;" value="<?= htmlspecialchars($shopShiftCfg['end_time']) ?>">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">Sort By</label>
@@ -2446,7 +2506,7 @@
                         </button>
                     </div>
                     <div id="waiter-period-badge" style="font-size:12px; font-weight:600; color:var(--text-muted); padding:7px 12px; border-radius:8px; border:1px dashed rgba(148,163,184,0.35);">
-                        📅 <?= $waiterDefaultStartDate ?> 15:00:00 → <?= $waiterDefaultEndDate ?> 04:00:59
+                        📅 <?= $waiterDefaultStartDate ?> <?= htmlspecialchars($shopShiftCfg['start_time']) ?>:00 → <?= $waiterDefaultEndDate ?> <?= htmlspecialchars($shopShiftCfg['end_time']) ?>:59
                     </div>
                 </div>
 
@@ -4838,43 +4898,15 @@
 
             let fromDateStr = '';
             let toDateStr = '';
-            let fromTimeStr = '15:00';
-            let toTimeStr = '04:00';
+            let fromTimeStr = (window.SHOP_SHIFT && window.SHOP_SHIFT.start_time) || '15:00';
+            let toTimeStr = (window.SHOP_SHIFT && window.SHOP_SHIFT.end_time) || '04:00';
 
-            const curHour = now.getHours();
-
-            if (preset === 'current') {
-                if (curHour < 4) {
-                    const y = new Date(now);
-                    y.setDate(y.getDate() - 1);
-                    fromDateStr = formatDate(y);
-                    toDateStr = formatDate(now);
-                } else if (curHour >= 15) {
-                    const t = new Date(now);
-                    t.setDate(t.getDate() + 1);
-                    fromDateStr = formatDate(now);
-                    toDateStr = formatDate(t);
-                } else {
-                    const y = new Date(now);
-                    y.setDate(y.getDate() - 1);
-                    fromDateStr = formatDate(y);
-                    toDateStr = formatDate(now);
-                }
-                fromTimeStr = '15:00';
-                toTimeStr = '04:00';
-            } else if (preset === 'yesterday_shift') {
-                const y1 = new Date(now);
-                const y2 = new Date(now);
-                if (curHour >= 15) {
-                    y1.setDate(y1.getDate() - 1);
-                } else {
-                    y1.setDate(y1.getDate() - 2);
-                    y2.setDate(y2.getDate() - 1);
-                }
-                fromDateStr = formatDate(y1);
-                toDateStr = formatDate(y2);
-                fromTimeStr = '15:00';
-                toTimeStr = '04:00';
+            if (preset === 'current' || preset === 'yesterday_shift') {
+                const win = window.getShopShiftWindow(preset === 'yesterday_shift' ? 'yesterday_shift' : 'today');
+                fromDateStr = win.startDate;
+                toDateStr = win.endDate;
+                fromTimeStr = win.startTime;
+                toTimeStr = win.endTime;
             } else if (preset === 'today') {
                 fromDateStr = formatDate(now);
                 toDateStr = formatDate(now);
@@ -5874,31 +5906,12 @@
                 btnEl.style.borderColor = '#6366f1';
             }
 
-            if (preset === 'current') {
-                const startD = new Date(now);
-                const endD = new Date(now);
-                if (now.getHours() >= 15) {
-                    endD.setDate(endD.getDate() + 1);
-                } else {
-                    startD.setDate(startD.getDate() - 1);
-                }
-                startInput.value = formatWaiterLocalYmd(startD);
-                startTimeInput.value = '15:00';
-                endInput.value = formatWaiterLocalYmd(endD);
-                endTimeInput.value = '04:00';
-            } else if (preset === 'yesterday_shift') {
-                const startD = new Date(now);
-                const endD = new Date(now);
-                if (now.getHours() >= 15) {
-                    startD.setDate(startD.getDate() - 1);
-                } else {
-                    startD.setDate(startD.getDate() - 2);
-                    endD.setDate(endD.getDate() - 1);
-                }
-                startInput.value = formatWaiterLocalYmd(startD);
-                startTimeInput.value = '15:00';
-                endInput.value = formatWaiterLocalYmd(endD);
-                endTimeInput.value = '04:00';
+            if (preset === 'current' || preset === 'yesterday_shift') {
+                const win = window.getShopShiftWindow(preset === 'yesterday_shift' ? 'yesterday_shift' : 'today');
+                startInput.value = win.startDate;
+                startTimeInput.value = win.startTime;
+                endInput.value = win.endDate;
+                endTimeInput.value = win.endTime;
             } else if (preset === 'today') {
                 const todayStr = formatWaiterLocalYmd(now);
                 startInput.value = todayStr;
@@ -5965,9 +5978,9 @@
 
         function loadWaiterPerformanceReport() {
             const startDate = document.getElementById('waiter-start-date').value;
-            const startTime = document.getElementById('waiter-start-time').value || '15:00';
+            const startTime = document.getElementById('waiter-start-time').value || (window.SHOP_SHIFT?.start_time || '15:00');
             const endDate = document.getElementById('waiter-end-date').value;
-            const endTime = document.getElementById('waiter-end-time').value || '04:00';
+            const endTime = document.getElementById('waiter-end-time').value || (window.SHOP_SHIFT?.end_time || '04:00');
             const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
 
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
@@ -6066,9 +6079,9 @@
             modal.style.display = 'flex';
 
             const startDate = document.getElementById('waiter-start-date').value;
-            const startTime = document.getElementById('waiter-start-time').value || '15:00';
+            const startTime = document.getElementById('waiter-start-time').value || (window.SHOP_SHIFT?.start_time || '15:00');
             const endDate = document.getElementById('waiter-end-date').value;
-            const endTime = document.getElementById('waiter-end-time').value || '04:00';
+            const endTime = document.getElementById('waiter-end-time').value || (window.SHOP_SHIFT?.end_time || '04:00');
             const cur = '<?= htmlspecialchars($settings['currency_code']) ?>';
             const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
             const query = `start_date=${encodeURIComponent(startDate)}&start_time=${encodeURIComponent(startTime)}&end_date=${encodeURIComponent(endDate)}&end_time=${encodeURIComponent(endTime)}&waiter_id=${encodeURIComponent(waiterId)}&sort=${encodeURIComponent(waiterOrdersModalState.sortDir)}`;

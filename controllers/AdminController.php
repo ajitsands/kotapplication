@@ -362,16 +362,11 @@ class AdminController extends Controller {
         $endTime = trim((string)($_GET['end_time'] ?? ''));
 
         if ($startDate === '' && $endDate === '') {
-            $hour = (int)date('G');
-            if ($hour >= 15) {
-                $startDate = date('Y-m-d');
-                $endDate = date('Y-m-d', strtotime('+1 day'));
-            } else {
-                $startDate = date('Y-m-d', strtotime('-1 day'));
-                $endDate = date('Y-m-d');
-            }
-            $startTime = $startTime !== '' ? $startTime : '15:00';
-            $endTime = $endTime !== '' ? $endTime : '04:00';
+            $shiftWin = getShopShiftWindow('today');
+            $startDate = $shiftWin['start_date'];
+            $endDate = $shiftWin['end_date'];
+            $startTime = $startTime !== '' ? $startTime : $shiftWin['start_time'];
+            $endTime = $endTime !== '' ? $endTime : $shiftWin['end_time'];
         } else {
             if ($startDate === '') $startDate = date('Y-m-d', strtotime('-30 days'));
             if ($endDate === '') $endDate = date('Y-m-d');

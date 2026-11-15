@@ -705,13 +705,11 @@ class CounterController extends Controller {
         $preset    = trim((string)($_GET['preset'] ?? ''));
 
         if ($startDate === '' || $endDate === '') {
-            $curHour = (int)date('G');
-            $defaultStartDate = ($curHour < 15) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
-            $defaultEndDate   = ($curHour < 15) ? date('Y-m-d') : date('Y-m-d', strtotime('+1 day'));
-            if ($startDate === '') $startDate = $defaultStartDate;
-            if ($endDate === '') $endDate = $defaultEndDate;
-            if ($startTime === '') $startTime = '15:00';
-            if ($endTime === '') $endTime = '04:00';
+            $shiftWin = getShopShiftWindow('today');
+            if ($startDate === '') $startDate = $shiftWin['start_date'];
+            if ($endDate === '') $endDate = $shiftWin['end_date'];
+            if ($startTime === '') $startTime = $shiftWin['start_time'];
+            if ($endTime === '') $endTime = $shiftWin['end_time'];
         }
 
         $startDateTime = $startTime !== '' ? ($startDate . ' ' . (strlen($startTime) === 5 ? $startTime . ':00' : $startTime)) : ($startDate . ' 00:00:00');

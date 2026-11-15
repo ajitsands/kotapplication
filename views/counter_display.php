@@ -1068,15 +1068,17 @@
 
 
     <?php
-        $counterCurHour = (int)date('G');
-        // Active or most recent 3:00 PM - 4:00 AM shift window
-        $counterShiftStartDate = $counterCurHour < 15 ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
-        $counterShiftEndDate = $counterCurHour < 15 ? date('Y-m-d') : date('Y-m-d', strtotime('+1 day'));
-        // Business day for date-only tabs rolls over at 4:00 AM instead of midnight
-        $counterBizDate = $counterCurHour < 4 ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+        $counterShiftCfg = getShopShiftConfig($settings);
+        $counterShiftWin = getShopShiftWindow('today', $settings);
+        $counterShiftStartDate = $counterShiftWin['start_date'];
+        $counterShiftEndDate = $counterShiftWin['end_date'];
+        $counterBizDate = getShopBusinessDate($settings);
         $counterTodayDate = date('Y-m-d');
         $counterSummaryStartDefault = (($_SESSION['user_role'] ?? '') === 'admin') ? $counterBizDate : $counterTodayDate;
     ?>
+    <script>
+        window.SHOP_SHIFT = <?= json_encode($counterShiftCfg) ?>;
+    </script>
     <div class="container">
         <?php if ($pendingApproval): ?>
             <!-- Beautiful Glassmorphic Pending Approval Card -->
@@ -1112,7 +1114,7 @@
                         <span id="summary-user-badge" class="table-badge" style="background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); font-size:12px; padding: 3px 10px;">Loading...</span>
                     </h2>
                     <div id="summary-period-badge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
-                        📅 <?= $counterShiftStartDate ?> 15:00:00 → <?= $counterShiftEndDate ?> 04:00:59
+                        📅 <?= $counterShiftStartDate ?> <?= htmlspecialchars($counterShiftCfg['start_time']) ?>:00 → <?= $counterShiftEndDate ?> <?= htmlspecialchars($counterShiftCfg['end_time']) ?>:59
                     </div>
                 </div>
 
@@ -1120,10 +1122,10 @@
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; background: rgba(255,255,255,0.02); padding: 9px 12px; border-radius: 12px; border: 1px solid var(--card-border);">
                     <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
                     <button type="button" class="btn-shift-preset-summary active" id="btn-preset-summary-current" onclick="setSummaryShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #6366f1; background: rgba(99,102,241,0.16); color: #6366f1; cursor: pointer;">
-                        🌙 Shift (3:00 PM - 4:00 AM)
+                        🌙 Shift (<?= htmlspecialchars($counterShiftCfg['label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset-summary" id="btn-preset-summary-yesterday-shift" onclick="setSummaryShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
-                        🌙 Yesterday Shift (3 PM - 4 AM)
+                        🌙 Yesterday Shift (<?= htmlspecialchars($counterShiftCfg['label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset-summary" id="btn-preset-summary-today" onclick="setSummaryShiftPreset('today')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
                         ☀️ Today Full Day
@@ -1141,7 +1143,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
-                        <input type="time" id="summary-start-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="15:00" onchange="setSummaryShiftPreset('custom')">
+                        <input type="time" id="summary-start-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="<?= htmlspecialchars($counterShiftCfg['start_time']) ?>" onchange="setSummaryShiftPreset('custom')">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
@@ -1149,7 +1151,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
-                        <input type="time" id="summary-end-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="04:00" onchange="setSummaryShiftPreset('custom')">
+                        <input type="time" id="summary-end-time" class="form-input" style="width: 136px; min-width: 130px; padding: 8px 10px; font-size: 13px; margin-bottom: 0;" value="<?= htmlspecialchars($counterShiftCfg['end_time']) ?>" onchange="setSummaryShiftPreset('custom')">
                     </div>
                     <button type="button" onclick="setSummaryShiftPreset('custom')" class="btn-primary" style="padding: 9px 20px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: 0 4px 12px rgba(99,102,241,0.28);">
                         🔍 Filter Shift
@@ -1595,7 +1597,7 @@
                         </div>
                         <div>
                             <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">From Time</label>
-                            <input type="time" id="counter-trans-start-time" class="discount-input" style="width: 136px; min-width: 132px;" value="15:00">
+                            <input type="time" id="counter-trans-start-time" class="discount-input" style="width: 136px; min-width: 132px;" value="<?= htmlspecialchars($counterShiftCfg['start_time']) ?>">
                         </div>
                         <div>
                             <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">To Date</label>
@@ -1603,7 +1605,7 @@
                         </div>
                         <div>
                             <label class="form-label" style="font-size: 11px; margin-bottom: 3px;">To Time</label>
-                            <input type="time" id="counter-trans-end-time" class="discount-input" style="width: 136px; min-width: 132px;" value="04:00">
+                            <input type="time" id="counter-trans-end-time" class="discount-input" style="width: 136px; min-width: 132px;" value="<?= htmlspecialchars($counterShiftCfg['end_time']) ?>">
                         </div>
                         <button onclick="loadCounterTransactionsReport()" class="btn-pay" style="padding: 9px 18px; border-radius: 8px; font-size: 13px; width: auto; margin: 0; background: var(--primary-grad); color: white; border: none; font-weight: 700; cursor: pointer;">🔍 Filter</button>
                         <button type="button" onclick="resetCounterTransToShift()" class="btn-secondary" style="padding: 9px 12px; border-radius: 8px; font-size: 12px;">🌙 Current Shift</button>
@@ -1679,10 +1681,10 @@
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--card-border);">
                     <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">⚡ Quick Shifts:</span>
                     <button type="button" class="btn-shift-preset-counter active" id="btn-preset-counter-current" onclick="setCounterShiftPreset('current')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #6366f1; background: rgba(99,102,241,0.16); color: #6366f1; cursor: pointer;">
-                        🌙 Shift (3:00 PM - 4:00 AM)
+                        🌙 Shift (<?= htmlspecialchars($counterShiftCfg['label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset-counter" id="btn-preset-counter-yesterday-shift" onclick="setCounterShiftPreset('yesterday_shift')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
-                        🌙 Yesterday Shift (3 PM - 4 AM)
+                        🌙 Yesterday Shift (<?= htmlspecialchars($counterShiftCfg['label']) ?>)
                     </button>
                     <button type="button" class="btn-shift-preset-counter" id="btn-preset-counter-today" onclick="setCounterShiftPreset('today')" style="padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-muted); cursor: pointer;">
                         ☀️ Today Full Day (00:00 - 23:59)
@@ -1700,7 +1702,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">From Time</label>
-                        <input type="time" id="counter-tc-from-time" class="form-input" value="15:00" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
+                        <input type="time" id="counter-tc-from-time" class="form-input" value="<?= htmlspecialchars($counterShiftCfg['start_time']) ?>" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Date</label>
@@ -1708,7 +1710,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="font-size: 11px; margin-bottom: 4px; display: block;">To Time</label>
-                        <input type="time" id="counter-tc-to-time" class="form-input" value="04:00" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
+                        <input type="time" id="counter-tc-to-time" class="form-input" value="<?= htmlspecialchars($counterShiftCfg['end_time']) ?>" style="padding: 8px 10px; font-size: 13px; width: 138px; min-width: 132px; margin-bottom: 0;">
                     </div>
                     <button type="button" onclick="loadCounterTotalCollectionReport()" class="btn-primary" style="padding: 9px 22px; font-size: 13px; margin-bottom: 0; font-weight: 700; box-shadow: 0 4px 12px rgba(99,102,241,0.28);">
                         🔍 Filter Shift
@@ -3251,36 +3253,30 @@
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
             const formatDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const cfg = window.SHOP_SHIFT || { start_time: '15:00', end_time: '04:00', start_minutes: 900, end_minutes: 240, is_overnight: true };
 
             let fromDateStr = '';
             let toDateStr = '';
-            let fromTimeStr = '15:00';
-            let toTimeStr = '04:00';
-            const curHour = now.getHours();
+            let fromTimeStr = cfg.start_time || '15:00';
+            let toTimeStr = cfg.end_time || '04:00';
+            const curMin = now.getHours() * 60 + now.getMinutes();
 
-            if (preset === 'current') {
-                if (curHour >= 15) {
-                    const t = new Date(now);
-                    t.setDate(t.getDate() + 1);
-                    fromDateStr = formatDate(now);
-                    toDateStr = formatDate(t);
-                } else {
-                    const y = new Date(now);
-                    y.setDate(y.getDate() - 1);
-                    fromDateStr = formatDate(y);
-                    toDateStr = formatDate(now);
+            if (preset === 'current' || preset === 'yesterday_shift') {
+                const startD = new Date(now);
+                const endD = new Date(now);
+                if (cfg.is_overnight) {
+                    if (curMin >= cfg.start_minutes) {
+                        endD.setDate(endD.getDate() + 1);
+                    } else {
+                        startD.setDate(startD.getDate() - 1);
+                    }
                 }
-            } else if (preset === 'yesterday_shift') {
-                const y1 = new Date(now);
-                const y2 = new Date(now);
-                if (curHour >= 15) {
-                    y1.setDate(y1.getDate() - 1);
-                } else {
-                    y1.setDate(y1.getDate() - 2);
-                    y2.setDate(y2.getDate() - 1);
+                if (preset === 'yesterday_shift') {
+                    startD.setDate(startD.getDate() - 1);
+                    endD.setDate(endD.getDate() - 1);
                 }
-                fromDateStr = formatDate(y1);
-                toDateStr = formatDate(y2);
+                fromDateStr = formatDate(startD);
+                toDateStr = formatDate(endD);
             } else if (preset === 'today') {
                 fromDateStr = formatDate(now);
                 toDateStr = formatDate(now);
@@ -3343,10 +3339,11 @@
             const endTimeEl = document.getElementById('summary-end-time');
             if (!startDateEl || !endDateEl) return;
 
+            const cfg = window.SHOP_SHIFT || { start_time: '15:00', end_time: '04:00' };
             const startDate = startDateEl.value;
             const endDate = endDateEl.value;
-            const startTime = startTimeEl ? (startTimeEl.value || '15:00') : '';
-            const endTime = endTimeEl ? (endTimeEl.value || '04:00') : '';
+            const startTime = startTimeEl ? (startTimeEl.value || cfg.start_time || '15:00') : '';
+            const endTime = endTimeEl ? (endTimeEl.value || cfg.end_time || '04:00') : '';
 
             const qs = new URLSearchParams({
                 start_date: startDate,
@@ -5543,21 +5540,11 @@ Thank you!`;
         let lastCounterTransJson = '';
 
         function resetCounterTransToShift() {
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-            const curHour = now.getHours();
-            const startD = new Date(now);
-            const endD = new Date(now);
-            if (curHour >= 15) {
-                endD.setDate(endD.getDate() + 1);
-            } else {
-                startD.setDate(startD.getDate() - 1);
-            }
-            document.getElementById('counter-trans-start-date').value = fmt(startD);
-            document.getElementById('counter-trans-start-time').value = '15:00';
-            document.getElementById('counter-trans-end-date').value = fmt(endD);
-            document.getElementById('counter-trans-end-time').value = '04:00';
+            const win = computeCounterShiftWindow('current');
+            document.getElementById('counter-trans-start-date').value = win.fromDateStr;
+            document.getElementById('counter-trans-start-time').value = win.fromTimeStr;
+            document.getElementById('counter-trans-end-date').value = win.toDateStr;
+            document.getElementById('counter-trans-end-time').value = win.toTimeStr;
             loadCounterTransactionsReport(false);
         }
 
