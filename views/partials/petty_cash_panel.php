@@ -14,9 +14,30 @@ $pcNowLocal = date('Y-m-d\TH:i');
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: start;">
-    <!-- Booking Form -->
-    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px;">
+<style>
+    .ipc-grid {
+        display: grid;
+        grid-template-columns: minmax(300px, 4fr) minmax(0, 8fr);
+        gap: 20px;
+        align-items: start;
+    }
+    @media (max-width: 960px) {
+        .ipc-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .ipc-form-card .form-input,
+    .ipc-form-card select.form-input {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        display: block;
+    }
+</style>
+
+<div class="ipc-grid">
+    <!-- Booking Form (4 cols) -->
+    <div class="ipc-form-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px;">
         <h3 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0;">📝 Book Petty Cash Entry</h3>
         <form id="inline-petty-cash-form" onsubmit="submitInlinePettyCash(event)">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
@@ -40,7 +61,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                <div>
+                <div style="min-width: 0;">
                     <label class="form-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Category</label>
                     <select id="ipc-category" class="form-input" style="margin-bottom: 0;">
                         <option value="Supplies">Supplies / Groceries</option>
@@ -53,7 +74,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                         <option value="General">General</option>
                     </select>
                 </div>
-                <div>
+                <div style="min-width: 0;">
                     <label class="form-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Amount (<?= htmlspecialchars($pcCurCode) ?>) *</label>
                     <input type="number" id="ipc-amount" class="form-input" style="margin-bottom: 0;" step="<?= $pcStepVal ?>" min="<?= $pcStepVal ?>" placeholder="0.000" required>
                 </div>
