@@ -34,6 +34,11 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 <input type="text" id="ipc-title" class="form-input" style="margin-bottom: 0;" placeholder="e.g. Milk &amp; Tea, Ice, Opening Float..." required>
             </div>
 
+            <div style="margin-bottom: 12px;">
+                <label class="form-label" id="ipc-party-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Paid To (Whom Paid)</label>
+                <input type="text" id="ipc-party" class="form-input" style="margin-bottom: 0;" placeholder="e.g. Supplier, Driver, Staff Name...">
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                 <div>
                     <label class="form-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Category</label>
@@ -120,6 +125,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--card-border);">
                         <th style="padding: 10px; text-align: left;">Type</th>
                         <th style="padding: 10px; text-align: left;">Particulars</th>
+                        <th style="padding: 10px; text-align: left;">Paid To / Received From</th>
                         <th style="padding: 10px; text-align: left;">Category</th>
                         <th style="padding: 10px; text-align: left;">Date &amp; Time</th>
                         <th style="padding: 10px; text-align: left;">By</th>
@@ -129,7 +135,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     </tr>
                 </thead>
                 <tbody id="ipc-table-body">
-                    <tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading petty cash entries...</td></tr>
+                    <tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading petty cash entries...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -152,17 +158,23 @@ $pcNowLocal = date('Y-m-d\TH:i');
             const btnInc = document.getElementById('ipc-btn-income');
             const subBtn = document.getElementById('ipc-submit-btn');
             const catSel = document.getElementById('ipc-category');
+            const partyLbl = document.getElementById('ipc-party-label');
+            const partyInp = document.getElementById('ipc-party');
             if (type === 'income') {
                 btnExp.style.borderColor = 'var(--card-border)'; btnExp.style.background = 'transparent'; btnExp.style.color = 'var(--text-muted)';
                 btnInc.style.borderColor = '#10b981'; btnInc.style.background = 'rgba(16,185,129,0.14)'; btnInc.style.color = '#10b981';
                 subBtn.textContent = '📥 Book Petty Cash Income';
                 subBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                if (partyLbl) partyLbl.textContent = 'Received From (Whom Received)';
+                if (partyInp) partyInp.placeholder = 'e.g. Owner, Manager, Customer...';
                 if (catSel.value === 'Supplies') catSel.value = 'Float / Cash In';
             } else {
                 btnExp.style.borderColor = '#ef4444'; btnExp.style.background = 'rgba(239,68,68,0.14)'; btnExp.style.color = '#ef4444';
                 btnInc.style.borderColor = 'var(--card-border)'; btnInc.style.background = 'transparent'; btnInc.style.color = 'var(--text-muted)';
                 subBtn.textContent = '📤 Book Petty Cash Expense';
                 subBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                if (partyLbl) partyLbl.textContent = 'Paid To (Whom Paid)';
+                if (partyInp) partyInp.placeholder = 'e.g. Supplier, Driver, Staff Name...';
                 if (catSel.value === 'Float / Cash In' || catSel.value === 'Other Income') catSel.value = 'Supplies';
             }
         };
@@ -228,7 +240,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
 
                     const tbody = document.getElementById('ipc-table-body');
                     if (!d.items || d.items.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-muted);">No petty cash entries in this shift window.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--text-muted);">No petty cash entries in this shift window.</td></tr>';
                         return;
                     }
                     tbody.innerHTML = d.items.map(it => {
@@ -237,6 +249,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
                                 <td style="padding: 10px;"><span style="padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; ${isInc ? 'background: rgba(16,185,129,0.15); color: #10b981;' : 'background: rgba(239,68,68,0.15); color: #ef4444;'}">${isInc ? 'INCOME' : 'EXPENSE'}</span></td>
                                 <td style="padding: 10px; font-weight: 700;">${escHtml(it.title)}</td>
+                                <td style="padding: 10px; font-weight: 600;">${escHtml(it.party_name || '-')}</td>
                                 <td style="padding: 10px; color: var(--text-muted);">${escHtml(it.category)}</td>
                                 <td style="padding: 10px; color: var(--text-muted); font-size: 12px;">${escHtml(it.entry_datetime_formatted)}</td>
                                 <td style="padding: 10px; color: var(--text-muted); font-size: 12px;">${escHtml(it.user_name)}</td>
@@ -257,6 +270,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
             const payload = {
                 entry_type: document.getElementById('ipc-type').value,
                 title: document.getElementById('ipc-title').value.trim(),
+                party_name: document.getElementById('ipc-party').value.trim(),
                 category: document.getElementById('ipc-category').value,
                 amount: parseFloat(document.getElementById('ipc-amount').value || 0),
                 entry_datetime: document.getElementById('ipc-datetime').value,
@@ -271,6 +285,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
             .then(res => {
                 if (res.success) {
                     document.getElementById('ipc-title').value = '';
+                    document.getElementById('ipc-party').value = '';
                     document.getElementById('ipc-amount').value = '';
                     document.getElementById('ipc-notes').value = '';
                     loadInlinePettyCash();

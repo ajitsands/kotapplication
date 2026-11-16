@@ -5482,6 +5482,7 @@
                                 </span>
                             </td>
                             <td style="padding: 10px 12px; font-weight: 700;">${escapeHtml(it.title)}</td>
+                            <td style="padding: 10px 12px; font-weight: 600;">${escapeHtml(it.party_name || '-')}</td>
                             <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.category)}</td>
                             <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.entry_datetime_formatted)}</td>
                             <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.user_name)}</td>
@@ -5533,6 +5534,7 @@
                                     <th style="padding: 10px 12px; width: 40px; text-align: left;">#</th>
                                     <th style="padding: 10px 12px; text-align: left;">Type</th>
                                     <th style="padding: 10px 12px; text-align: left;">Particulars</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Paid To / Received From</th>
                                     <th style="padding: 10px 12px; text-align: left;">Category</th>
                                     <th style="padding: 10px 12px; text-align: left;">Date &amp; Time</th>
                                     <th style="padding: 10px 12px; text-align: left;">Booked By</th>
@@ -5543,7 +5545,7 @@
                             <tbody>${pcRowsHtml}</tbody>
                             <tfoot>
                                 <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid rgba(20,184,166,0.4); font-weight: 800;">
-                                    <td colspan="6" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">NET PETTY CASH:</td>
+                                    <td colspan="7" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">NET PETTY CASH:</td>
                                     <td style="padding: 12px; text-align: right; font-size: 15px; color: ${pcNet >= 0 ? '#10b981' : '#ef4444'};">${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} ${_cur}</td>
                                     <td style="padding: 12px; color: var(--text-muted); font-size: 12px;">${pc.count || 0} entries</td>
                                 </tr>
@@ -5699,11 +5701,12 @@
                     // Petty Cash Transactions
                     const pcExp = data.categories.petty_cash || { items: [], income_total: 0, expense_total: 0, net_total: 0, count: 0 };
                     wsData.push(['--- PETTY CASH TRANSACTIONS (Income: +' + parseFloat(pcExp.income_total || 0).toFixed(dec) + ' ' + _cur + ', Expense: -' + parseFloat(pcExp.expense_total || 0).toFixed(dec) + ' ' + _cur + ', Net: ' + parseFloat(pcExp.net_total || 0).toFixed(dec) + ' ' + _cur + ') ---']);
-                    wsData.push(['Type', 'Particulars', 'Category', 'Date & Time', 'Booked By', 'Amount (' + _cur + ')', 'Notes']);
+                    wsData.push(['Type', 'Particulars', 'Paid To / Received From', 'Category', 'Date & Time', 'Booked By', 'Amount (' + _cur + ')', 'Notes']);
                     (pcExp.items || []).forEach(it => {
                         wsData.push([
                             (it.entry_type || '').toUpperCase(),
                             it.title,
+                            it.party_name || '-',
                             it.category,
                             it.entry_datetime_formatted,
                             it.user_name,
@@ -5711,7 +5714,7 @@
                             it.notes || ''
                         ]);
                     });
-                    wsData.push(['NET PETTY CASH', '', '', '', '', parseFloat(pcExp.net_total || 0).toFixed(dec), (pcExp.count || 0) + ' entries']);
+                    wsData.push(['NET PETTY CASH', '', '', '', '', '', parseFloat(pcExp.net_total || 0).toFixed(dec), (pcExp.count || 0) + ' entries']);
                     wsData.push([]);
 
                     const wb = XLSX.utils.book_new();

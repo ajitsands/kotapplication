@@ -57,6 +57,7 @@ class PettyCashController extends Controller {
 
         $title = trim((string)($input['title'] ?? ''));
         $category = trim((string)($input['category'] ?? 'General'));
+        $partyName = trim((string)($input['party_name'] ?? ''));
         $amount = (float)($input['amount'] ?? 0);
         $notes = trim((string)($input['notes'] ?? ''));
         $entryDtRaw = trim((string)($input['entry_datetime'] ?? ''));
@@ -81,6 +82,7 @@ class PettyCashController extends Controller {
             'entry_type' => $entryType,
             'title' => $title,
             'category' => $category !== '' ? $category : 'General',
+            'party_name' => $partyName !== '' ? $partyName : null,
             'amount' => round($amount, 3),
             'notes' => $notes !== '' ? $notes : null,
             'user_id' => $_SESSION['user_id'] ?? null,
