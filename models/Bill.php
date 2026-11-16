@@ -1124,6 +1124,10 @@ class Bill extends Model {
             $onlineTotalAll += (float)$p['total'];
         }
 
+        require_once __DIR__ . '/PettyCash.php';
+        $pettyCashModel = new PettyCash();
+        $pettyCash = $pettyCashModel->getRange($startDateTime, $endDateTime, $cashierId);
+
         return [
             'period' => [
                 'start' => $startDateTime,
@@ -1132,19 +1136,24 @@ class Bill extends Model {
                 'end_formatted'   => date('d M Y, h:i A', strtotime($endDateTime))
             ],
             'summary' => [
-                'grand_total'  => round($grandTotal, 3),
-                'cash_total'   => round($cash['total'], 3),
-                'card_total'   => round($card['total'], 3),
-                'qr_total'     => round($qr['total'], 3),
-                'online_total' => round($onlineTotalAll, 3),
-                'total_bills'  => $totalBillsCount,
+                'grand_total'        => round($grandTotal, 3),
+                'cash_total'         => round($cash['total'], 3),
+                'card_total'         => round($card['total'], 3),
+                'qr_total'           => round($qr['total'], 3),
+                'online_total'       => round($onlineTotalAll, 3),
+                'total_bills'        => $totalBillsCount,
+                'petty_cash_income'  => $pettyCash['income_total'],
+                'petty_cash_expense' => $pettyCash['expense_total'],
+                'petty_cash_net'     => $pettyCash['net_total'],
+                'petty_cash_count'   => $pettyCash['count'],
             ],
             'categories' => [
                 'cash'             => $cash,
                 'card'             => $card,
                 'qr'               => $qr,
                 'online_providers' => array_values($onlineProviders),
-                'splits'           => $splits
+                'splits'           => $splits,
+                'petty_cash'       => $pettyCash
             ]
         ];
     }

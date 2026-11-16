@@ -969,6 +969,7 @@
                 <button onclick="openCloseCounterModal()" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--accent-red); padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; margin-right: 10px; transition: all 0.3s;">🔒 Close Counter</button>
             <?php endif; ?>
             <a href="counter/pos" class="nav-link" style="background: var(--primary-grad); color: white !important; font-weight: 700; border-radius: 10px; padding: 7px 15px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35); display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">🛒 New Order (POS)</a>
+            <button type="button" onclick="openPettyCashWindow()" class="nav-link" style="background: rgba(16,185,129,0.14); color: #10b981 !important; border: 1px solid rgba(16,185,129,0.35); border-radius: 10px; padding: 7px 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">💵 Petty Cash</button>
             <a href="counter" class="nav-link active">💳 Billing Counter</a>
             
             <!-- QR & Other Sub Menu -->
@@ -6373,7 +6374,103 @@ Thank you!`;
                 `;
             }
 
+            // 6. Petty Cash Transactions Area
+            const pc = cats.petty_cash || { items: [], income_total: 0, expense_total: 0, net_total: 0, count: 0 };
+            const pcIncome = parseFloat(pc.income_total || 0);
+            const pcExpense = parseFloat(pc.expense_total || 0);
+            const pcNet = parseFloat(pc.net_total || 0);
+            let pcRowsHtml = '';
+            if (Array.isArray(pc.items) && pc.items.length > 0) {
+                pc.items.forEach((it, idx) => {
+                    const isInc = it.entry_type === 'income';
+                    pcRowsHtml += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <td style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
+                            <td style="padding: 10px 12px;">
+                                <span style="padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 800; ${isInc ? 'background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);' : 'background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);'}">
+                                    ${isInc ? 'INCOME' : 'EXPENSE'}
+                                </span>
+                            </td>
+                            <td style="padding: 10px 12px; font-weight: 700;">${escapeHtml(it.title)}</td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.category)}</td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.entry_datetime_formatted)}</td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.user_name)}</td>
+                            <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: ${isInc ? '#10b981' : '#ef4444'};">
+                                ${isInc ? '+' : '-'}${parseFloat(it.amount || 0).toFixed(dec)}
+                            </td>
+                            <td style="padding: 10px 12px; color: var(--text-muted); font-size: 12px;">${escapeHtml(it.notes || '-')}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            html += `
+                <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(20,184,166,0.35); border-radius: 14px; background: rgba(255,255,255,0.015);">
+                    <div style="padding: 16px 20px; background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--card-border);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 24px;">💵</span>
+                            <div>
+                                <div style="font-size: 16px; font-weight: 800; color: var(--text-color);">Petty Cash Transactions</div>
+                                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500;">Petty cash income &amp; expenses booked in this shift window</div>
+                            </div>
+                            <span style="margin-left: 6px; background: rgba(20,184,166,0.15); color: #14b8a6; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(20,184,166,0.3);">
+                                ${pc.count || 0} Entries
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Net Petty Cash</div>
+                                <div style="font-size: 20px; font-weight: 900; color: ${pcNet >= 0 ? '#10b981' : '#ef4444'};">${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${currencyCode}</span></div>
+                            </div>
+                            <button type="button" onclick="openPettyCashWindow()" style="background: rgba(16,185,129,0.16); border: 1px solid rgba(16,185,129,0.35); color: #10b981; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                + Book Petty Cash
+                            </button>
+                            <button type="button" onclick="toggleCounterTotalCollectionCard('petty_cash')" id="btn-toggle-counter-petty_cash" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                ▼ Toggle Child Table
+                            </button>
+                        </div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.15); padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
+                        <div><strong style="color:#10b981;">Income (+):</strong> +${pcIncome.toFixed(dec)} ${currencyCode}</div>
+                        <div><strong style="color:#ef4444;">Expense (-):</strong> -${pcExpense.toFixed(dec)} ${currencyCode}</div>
+                        <div><strong style="color:${pcNet >= 0 ? '#10b981' : '#ef4444'};">Net (=):</strong> ${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} ${currencyCode}</div>
+                    </div>
+                    <div id="content-counter-petty_cash" style="overflow-x: auto; display: block;">
+                        ${pcRowsHtml ? `
+                        <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: rgba(255,255,255,0.01); border-bottom: 1px solid var(--card-border);">
+                                    <th style="padding: 10px 12px; width: 40px; text-align: left;">#</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Type</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Particulars</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Category</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Date &amp; Time</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Booked By</th>
+                                    <th style="padding: 10px 12px; text-align: right;">Amount</th>
+                                    <th style="padding: 10px 12px; text-align: left;">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>${pcRowsHtml}</tbody>
+                            <tfoot>
+                                <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid rgba(20,184,166,0.4); font-weight: 800;">
+                                    <td colspan="6" style="padding: 12px; text-align: right; color: var(--text-color); font-size: 13px;">NET PETTY CASH:</td>
+                                    <td style="padding: 12px; text-align: right; font-size: 15px; color: ${pcNet >= 0 ? '#10b981' : '#ef4444'};">${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} ${currencyCode}</td>
+                                    <td style="padding: 12px; color: var(--text-muted); font-size: 12px;">${pc.count || 0} entries</td>
+                                </tr>
+                            </tfoot>
+                        </table>` : `<div style="padding: 25px; text-align: center; color: var(--text-muted); font-size: 13px;">No petty cash entries recorded in this shift window.</div>`}
+                    </div>
+                </div>
+            `;
+
             container.innerHTML = html;
+        }
+
+        function openPettyCashWindow() {
+            const rootPath = basePath.replace(/\/counter$/, '');
+            const url = rootPath + '/petty-cash';
+            const win = window.open(url, 'PettyCashWindow', 'width=1180,height=780,resizable=yes,scrollbars=yes');
+            if (!win) window.open(url, '_blank');
         }
 
         function toggleCounterTotalCollectionCard(catKey) {
@@ -6422,6 +6519,12 @@ Thank you!`;
                         });
                     }
                     wsData.push(['GRAND TOTAL COLLECTION', (data.summary.grand_total || 0).toFixed(dec), data.summary.total_bills || 0]);
+                    if (data.categories.petty_cash) {
+                        const pc = data.categories.petty_cash;
+                        wsData.push(['Petty Cash Income (+)', parseFloat(pc.income_total || 0).toFixed(dec), '']);
+                        wsData.push(['Petty Cash Expense (-)', parseFloat(pc.expense_total || 0).toFixed(dec), '']);
+                        wsData.push(['Petty Cash Net (=)', parseFloat(pc.net_total || 0).toFixed(dec), pc.count || 0]);
+                    }
                     wsData.push([]);
 
                     function appendCatToSheet(catTitle, catObj) {
@@ -6499,6 +6602,24 @@ Thank you!`;
                         });
                         wsData.push([]);
                     }
+
+                    // Petty Cash Transactions
+                    const pcExp = data.categories.petty_cash || { items: [], income_total: 0, expense_total: 0, net_total: 0, count: 0 };
+                    wsData.push(['--- PETTY CASH TRANSACTIONS (Income: +' + parseFloat(pcExp.income_total || 0).toFixed(dec) + ' ' + currencyCode + ', Expense: -' + parseFloat(pcExp.expense_total || 0).toFixed(dec) + ' ' + currencyCode + ', Net: ' + parseFloat(pcExp.net_total || 0).toFixed(dec) + ' ' + currencyCode + ') ---']);
+                    wsData.push(['Type', 'Particulars', 'Category', 'Date & Time', 'Booked By', 'Amount (' + currencyCode + ')', 'Notes']);
+                    (pcExp.items || []).forEach(it => {
+                        wsData.push([
+                            (it.entry_type || '').toUpperCase(),
+                            it.title,
+                            it.category,
+                            it.entry_datetime_formatted,
+                            it.user_name,
+                            (it.entry_type === 'income' ? '+' : '-') + parseFloat(it.amount || 0).toFixed(dec),
+                            it.notes || ''
+                        ]);
+                    });
+                    wsData.push(['NET PETTY CASH', '', '', '', '', parseFloat(pcExp.net_total || 0).toFixed(dec), (pcExp.count || 0) + ' entries']);
+                    wsData.push([]);
 
                     const wb = XLSX.utils.book_new();
                     const ws = XLSX.utils.aoa_to_sheet(wsData);

@@ -459,6 +459,12 @@ class ReportsController extends Controller {
             fputcsv($out, ['Online - ' . $p['name'], number_format($p['total'], 3), $p['count']]);
         }
         fputcsv($out, ['GRAND TOTAL COLLECTION', number_format($data['summary']['grand_total'], 3), $data['summary']['total_bills']]);
+        if (!empty($data['categories']['petty_cash'])) {
+            $pc = $data['categories']['petty_cash'];
+            fputcsv($out, ['Petty Cash Income (+)', number_format($pc['income_total'], 3), '']);
+            fputcsv($out, ['Petty Cash Expense (-)', number_format($pc['expense_total'], 3), '']);
+            fputcsv($out, ['Petty Cash Net (=)', number_format($pc['net_total'], 3), $pc['count']]);
+        }
         fputcsv($out, []);
 
         // Cash Table
@@ -567,6 +573,24 @@ class ReportsController extends Controller {
             }
             fputcsv($out, []);
         }
+
+        // Petty Cash Transactions
+        $pc = $data['categories']['petty_cash'] ?? ['items' => [], 'income_total' => 0, 'expense_total' => 0, 'net_total' => 0, 'count' => 0];
+        fputcsv($out, ['--- PETTY CASH TRANSACTIONS (Income: +' . number_format($pc['income_total'], 3) . ' BHD, Expense: -' . number_format($pc['expense_total'], 3) . ' BHD, Net: ' . number_format($pc['net_total'], 3) . ' BHD) ---']);
+        fputcsv($out, ['Type', 'Particulars / Title', 'Category', 'Date & Time', 'Booked By', 'Amount (BHD)', 'Notes']);
+        foreach ($pc['items'] as $it) {
+            fputcsv($out, [
+                strtoupper($it['entry_type']),
+                $it['title'],
+                $it['category'],
+                $it['entry_datetime_formatted'],
+                $it['user_name'],
+                ($it['entry_type'] === 'income' ? '+' : '-') . number_format($it['amount'], 3),
+                $it['notes'] ?: ''
+            ]);
+        }
+        fputcsv($out, ['NET PETTY CASH', '', '', '', '', number_format($pc['net_total'], 3), $pc['count'] . ' entries']);
+        fputcsv($out, []);
 
         fclose($out);
         exit;

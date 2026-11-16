@@ -162,6 +162,14 @@ $router->add('GET', '/admin/reports/total-collection', 'ReportsController@totalC
 $router->add('GET', '/counter/reports/total-collection', 'ReportsController@totalCollectionJson');
 $router->add('GET', '/reports/total-collection', 'ReportsController@totalCollectionJson');
 $router->add('GET', '/reports/total-collection/export', 'ReportsController@totalCollectionExport');
+
+// Petty Cash Routes (Admin & Counter only)
+$router->add('GET', '/petty-cash', 'PettyCashController@index');
+$router->add('GET', '/admin/petty-cash', 'PettyCashController@index');
+$router->add('GET', '/counter/petty-cash', 'PettyCashController@index');
+$router->add('GET', '/petty-cash/list', 'PettyCashController@listJson');
+$router->add('POST', '/petty-cash/store', 'PettyCashController@store');
+$router->add('POST', '/petty-cash/delete/:id', 'PettyCashController@delete');
 $router->add('GET', '/admin/order/:id', 'CounterController@orderDetails');
 $router->add('GET', '/api/order/:id', 'CounterController@orderDetails');
 $router->add('GET', '/print/order/:id', 'CounterController@printOrder');
