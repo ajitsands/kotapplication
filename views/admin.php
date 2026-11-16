@@ -930,6 +930,7 @@
             else if (id === 'item_insights' && typeof loadItemInsights === 'function') loadItemInsights();
             else if (id === 'transactions' && typeof loadTransactionsReport === 'function') loadTransactionsReport();
             else if (id === 'total_collection' && typeof loadTotalCollectionReport === 'function') loadTotalCollectionReport();
+            else if (id === 'petty_cash' && typeof loadInlinePettyCash === 'function') loadInlinePettyCash();
             else if (id === 'waiter_report' && typeof loadWaiterPerformanceReport === 'function') loadWaiterPerformanceReport();
             else if (id === 'inventory' && typeof loadInventory === 'function') loadInventory();
             else if (id === 'suppliers' && typeof loadSuppliers === 'function') loadSuppliers();
@@ -957,6 +958,7 @@
             inventory:     { icon: '📦', label: 'Inventory Stock' },
             suppliers:     { icon: '🚚', label: 'Suppliers Mgmt' },
             platforms:     { icon: '🌐', label: 'Online Platforms' },
+            petty_cash:    { icon: '💵', label: 'Petty Cash Book' },
             total_collection: { icon: '💰', label: 'Total Collection Report' },
             transactions:  { icon: '🗂️', label: 'All Transactions' },
             tax_reports:   { icon: '🧾', label: 'VAT/Tax Reports' },
@@ -1023,7 +1025,7 @@
                     <button class="nav-dropdown-item" id="item-platforms" onclick="selectSection('platforms','🌐','Online Platforms')">
                         <span class="item-icon">🌐</span> Online Platforms
                     </button>
-                    <button class="nav-dropdown-item" onclick="openPettyCashWindow()">
+                    <button class="nav-dropdown-item" id="item-petty_cash" onclick="selectSection('petty_cash','💵','Petty Cash Book')">
                         <span class="item-icon">💵</span> Petty Cash Book
                     </button>
 
@@ -1058,7 +1060,7 @@
         </div>
 
         <div class="header-nav">
-            <button type="button" onclick="openPettyCashWindow()" class="nav-link" style="background: rgba(16,185,129,0.14); color: #10b981 !important; border: 1px solid rgba(16,185,129,0.35); padding: 6px 12px; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">💵 Petty Cash</button>
+            <button type="button" onclick="selectSection('petty_cash','💵','Petty Cash Book')" class="nav-link" style="background: rgba(16,185,129,0.14); color: #10b981 !important; border: 1px solid rgba(16,185,129,0.35); padding: 6px 12px; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">💵 Petty Cash</button>
             <a href="/admin-app" class="nav-link" style="background: var(--primary-grad); color: white !important; padding: 6px 14px; border-radius: 8px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: 5px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">👑 Admin App</a>
             <a href="kot" class="nav-link">KOT Monitor</a>
             <a href="counter" class="nav-link">Billing Counter</a>
@@ -2055,6 +2057,13 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- Petty Cash Book Tab -->
+        <div id="petty_cash" class="tab-content">
+            <div class="panel-card">
+                <?php include __DIR__ . '/partials/petty_cash_panel.php'; ?>
             </div>
         </div>
 
@@ -5548,11 +5557,7 @@
         }
 
         function openPettyCashWindow() {
-            const basePath = window.location.pathname.endsWith('/') ? window.location.pathname.slice(0, -1) : window.location.pathname;
-            const rootPath = basePath.replace(/\/admin$/, '');
-            const url = rootPath + '/petty-cash';
-            const win = window.open(url, 'PettyCashWindow', 'width=1180,height=780,resizable=yes,scrollbars=yes');
-            if (!win) window.open(url, '_blank');
+            selectSection('petty_cash', '💵', 'Petty Cash Book');
         }
 
         function toggleTotalCollectionCard(catKey) {

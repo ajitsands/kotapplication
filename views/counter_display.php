@@ -1343,6 +1343,9 @@
                 <button id="tab-btn-total-collection" onclick="switchTakeawayTab('total-collection')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
                     💰 Total Collection
                 </button>
+                <button id="tab-btn-petty-cash" onclick="switchTakeawayTab('petty-cash')" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; padding: 10px 20px; border-radius: 12px; transition: all 0.3s; position: relative;">
+                    💵 Petty Cash
+                </button>
             </div>
 
             <style>
@@ -1356,7 +1359,7 @@
 
             <script>
                 function switchTakeawayTab(tab) {
-                    ['live', 'online-active', 'completed', 'refunds', 'refunded-list', 'transactions', 'delivery-requests', 'total-collection'].forEach(t => {
+                    ['live', 'online-active', 'completed', 'refunds', 'refunded-list', 'transactions', 'delivery-requests', 'total-collection', 'petty-cash'].forEach(t => {
                         const btn = document.getElementById('tab-btn-' + t);
                         if (btn) {
                             btn.classList.remove('active-tab');
@@ -1374,6 +1377,8 @@
                     if (delivReqSec) delivReqSec.style.display = 'none';
                     const totalCollSec = document.getElementById('takeaway-total-collection-section');
                     if (totalCollSec) totalCollSec.style.display = 'none';
+                    const pettyCashSec = document.getElementById('takeaway-petty-cash-section');
+                    if (pettyCashSec) pettyCashSec.style.display = 'none';
 
                     const activeBtn = document.getElementById('tab-btn-' + tab);
                     if (activeBtn) {
@@ -1405,6 +1410,9 @@
                     } else if (tab === 'total-collection') {
                         if (totalCollSec) totalCollSec.style.display = 'block';
                         loadCounterTotalCollectionReport();
+                    } else if (tab === 'petty-cash') {
+                        if (pettyCashSec) pettyCashSec.style.display = 'block';
+                        if (typeof loadInlinePettyCash === 'function') loadInlinePettyCash();
                     }
                 }
             </script>
@@ -1656,6 +1664,11 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- Petty Cash Book Section -->
+            <div id="takeaway-petty-cash-section" class="panel-card" style="margin-bottom: 25px; display: none;">
+                <?php include __DIR__ . '/partials/petty_cash_panel.php'; ?>
             </div>
 
             <!-- Total Collection Report Section -->
@@ -6467,10 +6480,9 @@ Thank you!`;
         }
 
         function openPettyCashWindow() {
-            const rootPath = basePath.replace(/\/counter$/, '');
-            const url = rootPath + '/petty-cash';
-            const win = window.open(url, 'PettyCashWindow', 'width=1180,height=780,resizable=yes,scrollbars=yes');
-            if (!win) window.open(url, '_blank');
+            switchTakeawayTab('petty-cash');
+            const sec = document.getElementById('takeaway-petty-cash-section');
+            if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function toggleCounterTotalCollectionCard(catKey) {
