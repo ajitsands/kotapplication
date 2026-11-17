@@ -6004,7 +6004,10 @@ Thank you!`;
 
             // Update KPI Cards
             document.getElementById('counter-tc-cash-total').textContent = (sum.cash_total || 0).toFixed(dec);
-            document.getElementById('counter-tc-cash-count').textContent = `${cats.cash ? cats.cash.count : 0} transactions`;
+            const counterCashDeduction = parseFloat(sum.cash_to_petty_cash || 0);
+            document.getElementById('counter-tc-cash-count').textContent = counterCashDeduction > 0
+                ? `${cats.cash ? cats.cash.count : 0} txns (Gross: ${(sum.cash_gross_total || 0).toFixed(dec)} − Petty Cash: ${counterCashDeduction.toFixed(dec)})`
+                : `${cats.cash ? cats.cash.count : 0} transactions`;
 
             document.getElementById('counter-tc-card-total').textContent = (sum.card_total || 0).toFixed(dec);
             document.getElementById('counter-tc-card-count').textContent = `${cats.card ? cats.card.count : 0} transactions`;
@@ -6103,6 +6106,12 @@ Thank you!`;
                             </div>
                         </div>
 
+                        ${catKey === 'cash' && parseFloat(catObj?.petty_cash_deduction || 0) > 0 ? `
+                        <div style="background: rgba(245,158,11,0.08); padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
+                            <div><strong style="color:var(--text-color);">Gross Cash Sales:</strong> ${parseFloat(catObj.gross_total || 0).toFixed(dec)} ${currencyCode}</div>
+                            <div><strong style="color:#f59e0b;">Less Transferred to Petty Cash (-):</strong> -${parseFloat(catObj.petty_cash_deduction || 0).toFixed(dec)} ${currencyCode}</div>
+                            <div><strong style="color:#10b981;">Net Cash in Drawer (=):</strong> ${total} ${currencyCode}</div>
+                        </div>` : ''}
                         <div id="content-counter-${catKey}" style="overflow-x: auto; display: block;">
                             <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                 <thead>
@@ -6221,7 +6230,13 @@ Thank you!`;
                                 <div><strong style="color:#10b981;">Net Collection (=):</strong> ${total} ${currencyCode}</div>
                             </div>
 
-                            <div id="content-counter-${catKey}" style="overflow-x: auto; display: block;">
+                            ${catKey === 'cash' && parseFloat(catObj?.petty_cash_deduction || 0) > 0 ? `
+                        <div style="background: rgba(245,158,11,0.08); padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
+                            <div><strong style="color:var(--text-color);">Gross Cash Sales:</strong> ${parseFloat(catObj.gross_total || 0).toFixed(dec)} ${currencyCode}</div>
+                            <div><strong style="color:#f59e0b;">Less Transferred to Petty Cash (-):</strong> -${parseFloat(catObj.petty_cash_deduction || 0).toFixed(dec)} ${currencyCode}</div>
+                            <div><strong style="color:#10b981;">Net Cash in Drawer (=):</strong> ${total} ${currencyCode}</div>
+                        </div>` : ''}
+                        <div id="content-counter-${catKey}" style="overflow-x: auto; display: block;">
                                 <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                     <thead>
                                         <tr style="background: rgba(255,255,255,0.01); border-bottom: 1px solid var(--card-border);">
@@ -6396,12 +6411,17 @@ Thank you!`;
             if (Array.isArray(pc.items) && pc.items.length > 0) {
                 pc.items.forEach((it, idx) => {
                     const isInc = it.entry_type === 'income';
+                    const isFromCash = it.source === 'cash_collection';
+                    const badgeLbl = isFromCash ? 'FROM CASH' : (isInc ? 'INCOME' : 'EXPENSE');
+                    const badgeCss = isFromCash
+                        ? 'background: rgba(245,158,11,0.16); color: #f59e0b; border: 1px solid rgba(245,158,11,0.35);'
+                        : (isInc ? 'background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);' : 'background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);');
                     pcRowsHtml += `
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
                             <td style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">${idx + 1}</td>
                             <td style="padding: 10px 12px;">
-                                <span style="padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 800; ${isInc ? 'background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);' : 'background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);'}">
-                                    ${isInc ? 'INCOME' : 'EXPENSE'}
+                                <span style="padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 800; ${badgeCss}">
+                                    ${badgeLbl}
                                 </span>
                             </td>
                             <td style="padding: 10px 12px; font-weight: 700;">${escapeHtml(it.title)}</td>
@@ -6524,7 +6544,11 @@ Thank you!`;
                     wsData.push([]);
 
                     wsData.push(['STREAM / PROVIDER', 'AMOUNT (' + currencyCode + ')', 'TRANSACTIONS']);
-                    wsData.push(['Cash Collection', (data.summary.cash_total || 0).toFixed(dec), data.categories.cash ? data.categories.cash.count : 0]);
+                    wsData.push(['Cash Collection (Net in Drawer)', (data.summary.cash_total || 0).toFixed(dec), data.categories.cash ? data.categories.cash.count : 0]);
+                    if (parseFloat(data.summary.cash_to_petty_cash || 0) > 0) {
+                        wsData.push(['  Gross Cash Sales', (data.summary.cash_gross_total || 0).toFixed(dec), '']);
+                        wsData.push(['  Less: Transferred to Petty Cash', '-' + (data.summary.cash_to_petty_cash || 0).toFixed(dec), '']);
+                    }
                     wsData.push(['Card Payment Collection', (data.summary.card_total || 0).toFixed(dec), data.categories.card ? data.categories.card.count : 0]);
                     wsData.push(['QR / BenefitPay Collection', (data.summary.qr_total || 0).toFixed(dec), data.categories.qr ? data.categories.qr.count : 0]);
                     if (Array.isArray(data.categories.online_providers)) {

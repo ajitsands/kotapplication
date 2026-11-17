@@ -430,7 +430,16 @@ class Bill extends Model {
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetch();
+        $res = $stmt->fetch();
+        if ($res) {
+            require_once __DIR__ . '/PettyCash.php';
+            $pcModel = new PettyCash();
+            $cashTransfer = $pcModel->getCashTransferTotal($startBound, $endBound, $userId);
+            $res['cash_gross_total'] = round((float)$res['cash_total'], 3);
+            $res['cash_to_petty_cash'] = $cashTransfer;
+            $res['cash_total'] = round((float)$res['cash_total'] - $cashTransfer, 3);
+        }
+        return $res;
     }
 
     public function getRefundTotal($startDate, $endDate = null) {
@@ -1128,6 +1137,13 @@ class Bill extends Model {
         $pettyCashModel = new PettyCash();
         $pettyCash = $pettyCashModel->getRange($startDateTime, $endDateTime, $cashierId);
 
+        $cashGrossTotal = round((float)$cash['total'], 3);
+        $cashTransferTotal = round((float)($pettyCash['cash_transfer_total'] ?? 0), 3);
+        $cashNetTotal = round($cashGrossTotal - $cashTransferTotal, 3);
+        $cash['gross_total'] = $cashGrossTotal;
+        $cash['petty_cash_deduction'] = $cashTransferTotal;
+        $cash['total'] = $cashNetTotal;
+
         return [
             'period' => [
                 'start' => $startDateTime,
@@ -1137,7 +1153,10 @@ class Bill extends Model {
             ],
             'summary' => [
                 'grand_total'        => round($grandTotal, 3),
-                'cash_total'         => round($cash['total'], 3),
+                'net_grand_total'    => round($grandTotal - $cashTransferTotal, 3),
+                'cash_gross_total'   => $cashGrossTotal,
+                'cash_to_petty_cash' => $cashTransferTotal,
+                'cash_total'         => $cashNetTotal,
                 'card_total'         => round($card['total'], 3),
                 'qr_total'           => round($qr['total'], 3),
                 'online_total'       => round($onlineTotalAll, 3),

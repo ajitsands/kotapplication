@@ -452,7 +452,11 @@ class ReportsController extends Controller {
         // Summary
         fputcsv($out, ['COLLECTION SUMMARY']);
         fputcsv($out, ['Stream / Provider', 'Total Amount (BHD)', 'Transactions Count']);
-        fputcsv($out, ['Cash Collection', number_format($data['summary']['cash_total'], 3), $data['categories']['cash']['count']]);
+        fputcsv($out, ['Cash Collection (Net in Drawer)', number_format($data['summary']['cash_total'], 3), $data['categories']['cash']['count']]);
+        if (!empty($data['summary']['cash_to_petty_cash']) && $data['summary']['cash_to_petty_cash'] > 0) {
+            fputcsv($out, ['  Gross Cash Sales', number_format($data['summary']['cash_gross_total'], 3), '']);
+            fputcsv($out, ['  Less: Transferred to Petty Cash', '-' . number_format($data['summary']['cash_to_petty_cash'], 3), '']);
+        }
         fputcsv($out, ['Card Payment Collection', number_format($data['summary']['card_total'], 3), $data['categories']['card']['count']]);
         fputcsv($out, ['QR / BenefitPay Collection', number_format($data['summary']['qr_total'], 3), $data['categories']['qr']['count']]);
         foreach ($data['categories']['online_providers'] as $p) {

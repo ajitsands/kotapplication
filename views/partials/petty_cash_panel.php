@@ -38,14 +38,21 @@ $pcNowLocal = date('Y-m-d\TH:i');
 <div class="ipc-grid">
     <!-- Booking Form (4 cols) -->
     <div class="ipc-form-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px;">
-        <h3 style="font-size: 15px; font-weight: 800; margin: 0 0 14px 0;">📝 Book Petty Cash Entry</h3>
+        <h3 style="font-size: 15px; font-weight: 800; margin: 0 0 10px 0;">📝 Book Petty Cash Entry</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); margin-bottom: 12px; font-size: 12px;">
+            <span style="color: var(--text-muted); font-weight: 700;">💵 Cash Collection Available:</span>
+            <strong style="color: #f59e0b; font-size: 13px;" id="ipc-avail-cash">0.000 <?= htmlspecialchars($pcCurCode) ?></strong>
+        </div>
         <form id="inline-petty-cash-form" onsubmit="submitInlinePettyCash(event)">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-                <button type="button" id="ipc-btn-expense" onclick="setInlinePcType('expense')" style="padding: 11px; border-radius: 10px; border: 2px solid #ef4444; background: rgba(239,68,68,0.14); color: #ef4444; font-weight: 800; font-size: 13px; cursor: pointer;">
-                    📤 Expense (Out)
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px;">
+                <button type="button" id="ipc-btn-expense" onclick="setInlinePcType('expense')" style="padding: 9px 6px; border-radius: 10px; border: 2px solid #ef4444; background: rgba(239,68,68,0.14); color: #ef4444; font-weight: 800; font-size: 12px; cursor: pointer;">
+                    📤 Expense
                 </button>
-                <button type="button" id="ipc-btn-income" onclick="setInlinePcType('income')" style="padding: 11px; border-radius: 10px; border: 2px solid var(--card-border); background: transparent; color: var(--text-muted); font-weight: 800; font-size: 13px; cursor: pointer;">
-                    📥 Income (In)
+                <button type="button" id="ipc-btn-income" onclick="setInlinePcType('income')" style="padding: 9px 6px; border-radius: 10px; border: 2px solid var(--card-border); background: transparent; color: var(--text-muted); font-weight: 800; font-size: 12px; cursor: pointer;">
+                    📥 Income
+                </button>
+                <button type="button" id="ipc-btn-cash_transfer" onclick="setInlinePcType('cash_transfer')" style="padding: 9px 6px; border-radius: 10px; border: 2px solid var(--card-border); background: transparent; color: var(--text-muted); font-weight: 800; font-size: 12px; cursor: pointer;">
+                    💵 From Cash
                 </button>
             </div>
             <input type="hidden" id="ipc-type" value="expense">
@@ -85,9 +92,16 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 <input type="datetime-local" id="ipc-datetime" class="form-input" style="margin-bottom: 0;" value="<?= $pcNowLocal ?>">
             </div>
 
-            <div style="margin-bottom: 14px;">
+            <div style="margin-bottom: 12px;">
                 <label class="form-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Notes / Remarks</label>
                 <input type="text" id="ipc-notes" class="form-input" style="margin-bottom: 0;" placeholder="Optional bill ref, paid to, etc.">
+            </div>
+
+            <div id="ipc-deduct-cash-wrap" style="margin-bottom: 14px; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.06);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-color);">
+                    <input type="checkbox" id="ipc-deduct-cash" style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;">
+                    <span>Deduct directly from Cash Collection (1-step)</span>
+                </label>
             </div>
 
             <button type="submit" id="ipc-submit-btn" style="width: 100%; padding: 11px 16px; border-radius: 10px; border: none; font-size: 14px; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(135deg, #ef4444, #dc2626);">
@@ -177,25 +191,50 @@ $pcNowLocal = date('Y-m-d\TH:i');
             document.getElementById('ipc-type').value = type;
             const btnExp = document.getElementById('ipc-btn-expense');
             const btnInc = document.getElementById('ipc-btn-income');
+            const btnCash = document.getElementById('ipc-btn-cash_transfer');
             const subBtn = document.getElementById('ipc-submit-btn');
             const catSel = document.getElementById('ipc-category');
             const partyLbl = document.getElementById('ipc-party-label');
             const partyInp = document.getElementById('ipc-party');
+            const titleInp = document.getElementById('ipc-title');
+            const deductWrap = document.getElementById('ipc-deduct-cash-wrap');
+            const deductChk = document.getElementById('ipc-deduct-cash');
+
+            [btnExp, btnInc, btnCash].forEach(b => {
+                if (!b) return;
+                b.style.borderColor = 'var(--card-border)';
+                b.style.background = 'transparent';
+                b.style.color = 'var(--text-muted)';
+            });
+
             if (type === 'income') {
-                btnExp.style.borderColor = 'var(--card-border)'; btnExp.style.background = 'transparent'; btnExp.style.color = 'var(--text-muted)';
                 btnInc.style.borderColor = '#10b981'; btnInc.style.background = 'rgba(16,185,129,0.14)'; btnInc.style.color = '#10b981';
                 subBtn.textContent = '📥 Book Petty Cash Income';
                 subBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                 if (partyLbl) partyLbl.textContent = 'Received From (Whom Received)';
                 if (partyInp) partyInp.placeholder = 'e.g. Owner, Manager, Customer...';
+                if (titleInp) titleInp.placeholder = 'e.g. Opening Float, Cash Added...';
+                if (deductWrap) deductWrap.style.display = 'none';
+                if (deductChk) deductChk.checked = false;
                 if (catSel.value === 'Supplies') catSel.value = 'Float / Cash In';
+            } else if (type === 'cash_transfer') {
+                btnCash.style.borderColor = '#f59e0b'; btnCash.style.background = 'rgba(245,158,11,0.14)'; btnCash.style.color = '#f59e0b';
+                subBtn.textContent = '💵 Transfer from Cash Collection';
+                subBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                if (partyLbl) partyLbl.textContent = 'Source';
+                if (partyInp) { partyInp.placeholder = 'Cash Drawer'; }
+                if (titleInp) titleInp.placeholder = 'e.g. Petty Cash Float from Cash Collection';
+                if (deductWrap) deductWrap.style.display = 'none';
+                if (deductChk) deductChk.checked = false;
+                catSel.value = 'Float / Cash In';
             } else {
                 btnExp.style.borderColor = '#ef4444'; btnExp.style.background = 'rgba(239,68,68,0.14)'; btnExp.style.color = '#ef4444';
-                btnInc.style.borderColor = 'var(--card-border)'; btnInc.style.background = 'transparent'; btnInc.style.color = 'var(--text-muted)';
                 subBtn.textContent = '📤 Book Petty Cash Expense';
                 subBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 if (partyLbl) partyLbl.textContent = 'Paid To (Whom Paid)';
                 if (partyInp) partyInp.placeholder = 'e.g. Supplier, Driver, Staff Name...';
+                if (titleInp) titleInp.placeholder = 'e.g. Milk & Tea, Ice, Water Company...';
+                if (deductWrap) deductWrap.style.display = 'block';
                 if (catSel.value === 'Float / Cash In' || catSel.value === 'Other Income') catSel.value = 'Supplies';
             }
         };
@@ -252,6 +291,11 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 .then(res => {
                     if (res.status !== 'success') return;
                     const d = res.data;
+                    const cs = res.cash_summary || {};
+                    const availEl = document.getElementById('ipc-avail-cash');
+                    if (availEl) {
+                        availEl.textContent = `${parseFloat(cs.available_cash || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;
+                    }
                     document.getElementById('ipc-kpi-income').textContent = `+${parseFloat(d.income_total || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;
                     document.getElementById('ipc-kpi-expense').textContent = `-${parseFloat(d.expense_total || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;
                     const net = parseFloat(d.net_total || 0);
@@ -266,9 +310,14 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     }
                     tbody.innerHTML = d.items.map(it => {
                         const isInc = it.entry_type === 'income';
+                        const isFromCash = it.source === 'cash_collection';
+                        const badgeText = isFromCash ? 'FROM CASH' : (isInc ? 'INCOME' : 'EXPENSE');
+                        const badgeStyle = isFromCash
+                            ? 'background: rgba(245,158,11,0.16); color: #f59e0b;'
+                            : (isInc ? 'background: rgba(16,185,129,0.15); color: #10b981;' : 'background: rgba(239,68,68,0.15); color: #ef4444;');
                         return `
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
-                                <td style="padding: 10px;"><span style="padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; ${isInc ? 'background: rgba(16,185,129,0.15); color: #10b981;' : 'background: rgba(239,68,68,0.15); color: #ef4444;'}">${isInc ? 'INCOME' : 'EXPENSE'}</span></td>
+                                <td style="padding: 10px;"><span style="padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; ${badgeStyle}">${badgeText}</span></td>
                                 <td style="padding: 10px; font-weight: 700;">${escHtml(it.title)}</td>
                                 <td style="padding: 10px; font-weight: 600;">${escHtml(it.party_name || '-')}</td>
                                 <td style="padding: 10px; color: var(--text-muted);">${escHtml(it.category)}</td>
@@ -295,7 +344,8 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 category: document.getElementById('ipc-category').value,
                 amount: parseFloat(document.getElementById('ipc-amount').value || 0),
                 entry_datetime: document.getElementById('ipc-datetime').value,
-                notes: document.getElementById('ipc-notes').value.trim()
+                notes: document.getElementById('ipc-notes').value.trim(),
+                deduct_from_cash: !!document.getElementById('ipc-deduct-cash')?.checked
             };
             fetch(`${getRootPath()}/petty-cash/store`, {
                 method: 'POST',
@@ -309,6 +359,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     document.getElementById('ipc-party').value = '';
                     document.getElementById('ipc-amount').value = '';
                     document.getElementById('ipc-notes').value = '';
+                    if (document.getElementById('ipc-deduct-cash')) document.getElementById('ipc-deduct-cash').checked = false;
                     loadInlinePettyCash();
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: res.message, showConfirmButton: false, timer: 2000 });

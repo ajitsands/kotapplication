@@ -28,6 +28,7 @@ class PettyCashController extends Controller {
 
         $model = new PettyCash();
         $data = $model->getRange($startDateTime, $endDateTime, $userId);
+        $cashSummary = $model->getAvailableCashCollection($startDateTime, $endDateTime, $userId);
         $this->json([
             'status' => 'success',
             'period' => [
@@ -36,12 +37,13 @@ class PettyCashController extends Controller {
                 'start_formatted' => date('d M Y, h:i A', strtotime($startDateTime)),
                 'end_formatted' => date('d M Y, h:i A', strtotime($endDateTime))
             ],
-            'data' => $data
+            'data' => $data,
+            'cash_summary' => $cashSummary
         ]);
     }
 
     /**
-     * Book a Petty Cash Expense or Income entry (Admin & Counter only).
+     * Book a Petty Cash Expense, Income, or Cash Collection Transfer (Admin & Counter only).
      */
     public function store() {
         $this->requireAuth('counter');
@@ -51,17 +53,21 @@ class PettyCashController extends Controller {
         }
 
         $entryType = strtolower(trim((string)($input['entry_type'] ?? 'expense')));
-        if (!in_array($entryType, ['expense', 'income'], true)) {
-            $this->json(['success' => false, 'error' => 'Invalid entry type. Must be expense or income.'], 400);
+        if (!in_array($entryType, ['expense', 'income', 'cash_transfer'], true)) {
+            $this->json(['success' => false, 'error' => 'Invalid entry type. Must be expense, income, or cash_transfer.'], 400);
         }
 
         $title = trim((string)($input['title'] ?? ''));
         $category = trim((string)($input['category'] ?? 'General'));
         $partyName = trim((string)($input['party_name'] ?? ''));
-        $amount = (float)($input['amount'] ?? 0);
+        $amount = round((float)($input['amount'] ?? 0), 3);
         $notes = trim((string)($input['notes'] ?? ''));
         $entryDtRaw = trim((string)($input['entry_datetime'] ?? ''));
+        $deductFromCash = !empty($input['deduct_from_cash']);
 
+        if ($entryType === 'cash_transfer' && $title === '') {
+            $title = 'Transfer from Cash Collection';
+        }
         if ($title === '') {
             $this->json(['success' => false, 'error' => 'Please enter a title / particulars.'], 400);
         }
@@ -78,15 +84,61 @@ class PettyCashController extends Controller {
         }
 
         $model = new PettyCash();
+        $userId = $_SESSION['user_id'] ?? null;
+        $userName = $_SESSION['name'] ?? ($_SESSION['username'] ?? 'Staff');
+
+        if ($entryType === 'cash_transfer' || ($entryType === 'expense' && $deductFromCash)) {
+            $shiftWin = getShopShiftWindow('today', null, strtotime($entryDateTime));
+            $avail = $model->getAvailableCashCollection($shiftWin['start_datetime'], $shiftWin['end_datetime']);
+            if ($amount > ($avail['available_cash'] + 0.0001)) {
+                $this->json([
+                    'success' => false,
+                    'error' => 'Insufficient Cash Collection available (' . number_format($avail['available_cash'], 3) . ' available in this shift).'
+                ], 400);
+            }
+        }
+
+        if ($entryType === 'cash_transfer') {
+            $id = $model->create([
+                'entry_type' => 'income',
+                'source' => 'cash_collection',
+                'title' => $title,
+                'category' => 'From Cash Collection',
+                'party_name' => $partyName !== '' ? $partyName : 'Cash Drawer',
+                'amount' => $amount,
+                'notes' => $notes !== '' ? $notes : null,
+                'user_id' => $userId,
+                'user_name' => $userName,
+                'entry_datetime' => $entryDateTime
+            ]);
+            $this->json(['success' => true, 'id' => $id, 'message' => 'Amount transferred from Cash Collection to Petty Cash.']);
+        }
+
+        if ($entryType === 'expense' && $deductFromCash) {
+            $model->create([
+                'entry_type' => 'income',
+                'source' => 'cash_collection',
+                'title' => 'Cash -> Petty Cash: ' . $title,
+                'category' => 'From Cash Collection',
+                'party_name' => 'Cash Drawer',
+                'amount' => $amount,
+                'notes' => $notes !== '' ? $notes : null,
+                'user_id' => $userId,
+                'user_name' => $userName,
+                'entry_datetime' => $entryDateTime
+            ]);
+        }
+
         $id = $model->create([
             'entry_type' => $entryType,
+            'source' => 'manual',
             'title' => $title,
             'category' => $category !== '' ? $category : 'General',
             'party_name' => $partyName !== '' ? $partyName : null,
-            'amount' => round($amount, 3),
+            'amount' => $amount,
             'notes' => $notes !== '' ? $notes : null,
-            'user_id' => $_SESSION['user_id'] ?? null,
-            'user_name' => $_SESSION['name'] ?? ($_SESSION['username'] ?? 'Staff'),
+            'user_id' => $userId,
+            'user_name' => $userName,
             'entry_datetime' => $entryDateTime
         ]);
 

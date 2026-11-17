@@ -159,6 +159,13 @@ class CounterSession extends Model {
         $stmt->execute([$session['cashier_id'], $start, $end]);
         $totals = $stmt->fetch();
 
+        require_once __DIR__ . '/PettyCash.php';
+        $pcModel = new PettyCash();
+        $cashTransfer = $pcModel->getCashTransferTotal($start, $end, $session['cashier_id']);
+        if ($totals) {
+            $totals['cash_total'] = round((float)$totals['cash_total'] - $cashTransfer, 3);
+        }
+
         if ($persistWindow) {
             $upd = $this->db->prepare(
                 "UPDATE counter_sessions SET cash_total=?, card_total=?, qr_total=?, online_total=?, system_total=?, opened_at=?, close_requested_at=? WHERE id=?"
