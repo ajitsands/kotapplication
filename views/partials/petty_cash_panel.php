@@ -43,7 +43,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
             <span style="color: var(--text-muted); font-weight: 700;">💵 Cash Collection Available:</span>
             <strong style="color: #f59e0b; font-size: 13px;" id="ipc-avail-cash">0.000 <?= htmlspecialchars($pcCurCode) ?></strong>
         </div>
-        <form id="inline-petty-cash-form" onsubmit="submitInlinePettyCash(event)">
+        <form id="inline-petty-cash-form" novalidate onsubmit="submitInlinePettyCash(event)">
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px;">
                 <button type="button" id="ipc-btn-expense" onclick="setInlinePcType('expense')" style="padding: 9px 6px; border-radius: 10px; border: 2px solid #ef4444; background: rgba(239,68,68,0.14); color: #ef4444; font-weight: 800; font-size: 12px; cursor: pointer;">
                     📤 Expense
@@ -83,7 +83,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 </div>
                 <div style="min-width: 0;">
                     <label class="form-label" style="font-size: 11px; display: block; margin-bottom: 4px;">Amount (<?= htmlspecialchars($pcCurCode) ?>) *</label>
-                    <input type="number" id="ipc-amount" class="form-input" style="margin-bottom: 0;" step="<?= $pcStepVal ?>" min="<?= $pcStepVal ?>" placeholder="0.000" required>
+                    <input type="number" id="ipc-amount" class="form-input" style="margin-bottom: 0;" step="any" min="0" placeholder="0.000">
                 </div>
             </div>
 
@@ -104,7 +104,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 </label>
             </div>
 
-            <button type="submit" id="ipc-submit-btn" style="width: 100%; padding: 11px 16px; border-radius: 10px; border: none; font-size: 14px; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(135deg, #ef4444, #dc2626);">
+            <button type="button" id="ipc-submit-btn" onclick="submitInlinePettyCash(event)" style="width: 100%; padding: 11px 16px; border-radius: 10px; border: none; font-size: 14px; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(135deg, #ef4444, #dc2626);">
                 📤 Book Petty Cash Expense
             </button>
         </form>
@@ -336,39 +336,72 @@ $pcNowLocal = date('Y-m-d\TH:i');
         };
 
         window.submitInlinePettyCash = function(e) {
-            e.preventDefault();
+            if (e && e.preventDefault) e.preventDefault();
+            const entryType = document.getElementById('ipc-type').value || 'expense';
+            const titleEl = document.getElementById('ipc-title');
+            const amtEl = document.getElementById('ipc-amount');
+            const title = (titleEl ? titleEl.value : '').trim();
+            const amount = parseFloat(amtEl ? amtEl.value : '0') || 0;
+
+            const showErr = (msg) => {
+                if (typeof Swal !== 'undefined') Swal.fire('Notice', msg, 'warning');
+                else alert(msg);
+            };
+
+            if (entryType !== 'cash_transfer' && !title) {
+                showErr('Please enter Particulars / Title.');
+                if (titleEl) titleEl.focus();
+                return;
+            }
+            if (amount <= 0) {
+                showErr('Please enter a valid Amount greater than 0.');
+                if (amtEl) amtEl.focus();
+                return;
+            }
+
             const payload = {
-                entry_type: document.getElementById('ipc-type').value,
-                title: document.getElementById('ipc-title').value.trim(),
-                party_name: document.getElementById('ipc-party').value.trim(),
-                category: document.getElementById('ipc-category').value,
-                amount: parseFloat(document.getElementById('ipc-amount').value || 0),
-                entry_datetime: document.getElementById('ipc-datetime').value,
-                notes: document.getElementById('ipc-notes').value.trim(),
+                entry_type: entryType,
+                title: title,
+                party_name: (document.getElementById('ipc-party')?.value || '').trim(),
+                category: document.getElementById('ipc-category')?.value || 'General',
+                amount: amount,
+                entry_datetime: document.getElementById('ipc-datetime')?.value || '',
+                notes: (document.getElementById('ipc-notes')?.value || '').trim(),
                 deduct_from_cash: !!document.getElementById('ipc-deduct-cash')?.checked
             };
+
+            const subBtn = document.getElementById('ipc-submit-btn');
+            const origText = subBtn ? subBtn.textContent : '';
+            if (subBtn) { subBtn.disabled = true; subBtn.textContent = 'Saving...'; }
+
             fetch(`${getRootPath()}/petty-cash/store`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(r => r.json())
+            .then(async r => {
+                const txt = await r.text();
+                try { return JSON.parse(txt); } catch (_) { return { success: false, error: txt || ('HTTP ' + r.status) }; }
+            })
             .then(res => {
-                if (res.success) {
-                    document.getElementById('ipc-title').value = '';
-                    document.getElementById('ipc-party').value = '';
-                    document.getElementById('ipc-amount').value = '';
-                    document.getElementById('ipc-notes').value = '';
+                if (res && res.success) {
+                    if (titleEl) titleEl.value = '';
+                    if (document.getElementById('ipc-party')) document.getElementById('ipc-party').value = '';
+                    if (amtEl) amtEl.value = '';
+                    if (document.getElementById('ipc-notes')) document.getElementById('ipc-notes').value = '';
                     if (document.getElementById('ipc-deduct-cash')) document.getElementById('ipc-deduct-cash').checked = false;
                     loadInlinePettyCash();
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: res.message, showConfirmButton: false, timer: 2000 });
                     }
-                } else if (typeof Swal !== 'undefined') {
-                    Swal.fire('Error', res.error || 'Failed to save entry', 'error');
+                } else {
+                    showErr((res && res.error) ? res.error : 'Failed to save entry');
                 }
             })
-            .catch(() => { if (typeof Swal !== 'undefined') Swal.fire('Error', 'Network error', 'error'); });
+            .catch(err => showErr('Network error: ' + (err && err.message ? err.message : 'Please try again')))
+            .finally(() => {
+                if (subBtn) { subBtn.disabled = false; subBtn.textContent = origText; }
+            });
         };
 
         window.deleteInlinePettyCash = function(id) {
