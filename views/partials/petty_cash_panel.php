@@ -292,9 +292,14 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     if (res.status !== 'success') return;
                     const d = res.data;
                     const cs = res.cash_summary || {};
+                    const cumCs = res.cumulative_cash_summary || cs;
                     const availEl = document.getElementById('ipc-avail-cash');
                     if (availEl) {
-                        availEl.textContent = `${parseFloat(cs.available_cash || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;
+                        const cumAvail = parseFloat(cumCs.available_cash || 0).toFixed(IPC_DEC);
+                        const rangeAvail = parseFloat(cs.available_cash || 0).toFixed(IPC_DEC);
+                        availEl.innerHTML = cumAvail !== rangeAvail
+                            ? `${cumAvail} ${IPC_CUR} <span style="font-size:11px;font-weight:600;color:var(--text-muted);">(Filter: ${rangeAvail})</span>`
+                            : `${cumAvail} ${IPC_CUR}`;
                     }
                     document.getElementById('ipc-kpi-income').textContent = `+${parseFloat(d.income_total || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;
                     document.getElementById('ipc-kpi-expense').textContent = `-${parseFloat(d.expense_total || 0).toFixed(IPC_DEC)} ${IPC_CUR}`;

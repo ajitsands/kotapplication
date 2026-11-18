@@ -29,6 +29,7 @@ class PettyCashController extends Controller {
         $model = new PettyCash();
         $data = $model->getRange($startDateTime, $endDateTime, $userId);
         $cashSummary = $model->getAvailableCashCollection($startDateTime, $endDateTime, $userId);
+        $cumulativeCashSummary = $model->getAvailableCashCollection(null, null);
         $this->json([
             'status' => 'success',
             'period' => [
@@ -38,7 +39,8 @@ class PettyCashController extends Controller {
                 'end_formatted' => date('d M Y, h:i A', strtotime($endDateTime))
             ],
             'data' => $data,
-            'cash_summary' => $cashSummary
+            'cash_summary' => $cashSummary,
+            'cumulative_cash_summary' => $cumulativeCashSummary
         ]);
     }
 
@@ -88,12 +90,11 @@ class PettyCashController extends Controller {
         $userName = $_SESSION['name'] ?? ($_SESSION['username'] ?? 'Staff');
 
         if ($entryType === 'cash_transfer' || ($entryType === 'expense' && $deductFromCash)) {
-            $shiftWin = getShopShiftWindow('today', null, strtotime($entryDateTime));
-            $avail = $model->getAvailableCashCollection($shiftWin['start_datetime'], $shiftWin['end_datetime']);
+            $avail = $model->getAvailableCashCollection(null, null);
             if ($amount > ($avail['available_cash'] + 0.0001)) {
                 $this->json([
                     'success' => false,
-                    'error' => 'Insufficient Cash Collection available (' . number_format($avail['available_cash'], 3) . ' available in this shift).'
+                    'error' => 'Insufficient Cumulative Cash Collection available (' . number_format($avail['available_cash'], 3) . ' total available).'
                 ], 400);
             }
         }

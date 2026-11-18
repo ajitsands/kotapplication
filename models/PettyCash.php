@@ -65,15 +65,19 @@ class PettyCash {
         return $stmt->rowCount() > 0;
     }
 
-    public function getCashTransferTotal($startDateTime, $endDateTime, $userId = null) {
+    public function getCashTransferTotal($startDateTime = null, $endDateTime = null, $userId = null) {
         $sql = "SELECT COALESCE(SUM(amount), 0)
                 FROM petty_cash_transactions
-                WHERE entry_type = 'income' AND source = 'cash_collection'
-                  AND entry_datetime BETWEEN :start AND :end";
-        $params = [
-            'start' => $startDateTime,
-            'end'   => $endDateTime
-        ];
+                WHERE entry_type = 'income' AND source = 'cash_collection'";
+        $params = [];
+        if ($startDateTime !== null && $endDateTime !== null) {
+            $sql .= " AND entry_datetime BETWEEN :start AND :end";
+            $params['start'] = $startDateTime;
+            $params['end'] = $endDateTime;
+        } elseif ($endDateTime !== null) {
+            $sql .= " AND entry_datetime <= :end";
+            $params['end'] = $endDateTime;
+        }
         if ($userId !== null && $userId !== '' && $userId !== 'all') {
             $sql .= " AND user_id = :user_id";
             $params['user_id'] = (int)$userId;
@@ -83,14 +87,19 @@ class PettyCash {
         return round((float)$stmt->fetchColumn(), 3);
     }
 
-    public function getAvailableCashCollection($startDateTime, $endDateTime, $userId = null) {
+    public function getAvailableCashCollection($startDateTime = null, $endDateTime = null, $userId = null) {
         $sql = "SELECT COALESCE(SUM(CASE WHEN payment_method = 'split' THEN cash_amount WHEN payment_method = 'cash' THEN grand_total ELSE 0 END), 0)
                 FROM bills
-                WHERE status = 'paid' AND created_at BETWEEN :start AND :end";
-        $params = [
-            'start' => $startDateTime,
-            'end'   => $endDateTime
-        ];
+                WHERE status = 'paid'";
+        $params = [];
+        if ($startDateTime !== null && $endDateTime !== null) {
+            $sql .= " AND created_at BETWEEN :start AND :end";
+            $params['start'] = $startDateTime;
+            $params['end'] = $endDateTime;
+        } elseif ($endDateTime !== null) {
+            $sql .= " AND created_at <= :end";
+            $params['end'] = $endDateTime;
+        }
         if ($userId !== null && $userId !== '' && $userId !== 'all') {
             $sql .= " AND cashier_id = :user_id";
             $params['user_id'] = (int)$userId;
