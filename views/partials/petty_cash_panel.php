@@ -112,7 +112,7 @@ $pcNowLocal = date('Y-m-d\TH:i');
 
     <!-- Summary & Entries Table -->
     <div style="min-width: 0;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 14px;">
             <div style="padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.06);">
                 <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Income (+)</div>
                 <div style="font-size: 18px; font-weight: 900; color: #10b981;" id="ipc-kpi-income">0.000 <?= htmlspecialchars($pcCurCode) ?></div>
@@ -122,8 +122,12 @@ $pcNowLocal = date('Y-m-d\TH:i');
                 <div style="font-size: 18px; font-weight: 900; color: #ef4444;" id="ipc-kpi-expense">0.000 <?= htmlspecialchars($pcCurCode) ?></div>
             </div>
             <div style="padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.35); background: rgba(99,102,241,0.06);">
-                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Net Petty Cash (=)</div>
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Shift Net (=)</div>
                 <div style="font-size: 18px; font-weight: 900; color: #818cf8;" id="ipc-kpi-net">0.000 <?= htmlspecialchars($pcCurCode) ?></div>
+            </div>
+            <div style="padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(20,184,166,0.4); background: rgba(20,184,166,0.08);">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Actual Petty Cash (All Shifts)</div>
+                <div style="font-size: 18px; font-weight: 900; color: #14b8a6;" id="ipc-kpi-all-balance">0.000 <?= htmlspecialchars($pcCurCode) ?></div>
             </div>
         </div>
 
@@ -307,6 +311,14 @@ $pcNowLocal = date('Y-m-d\TH:i');
                     const netEl = document.getElementById('ipc-kpi-net');
                     netEl.textContent = `${net >= 0 ? '+' : ''}${net.toFixed(IPC_DEC)} ${IPC_CUR}`;
                     netEl.style.color = net >= 0 ? '#10b981' : '#ef4444';
+
+                    const cumPc = res.cumulative_petty_cash || d;
+                    const allBal = parseFloat(cumPc.net_total || 0);
+                    const allBalEl = document.getElementById('ipc-kpi-all-balance');
+                    if (allBalEl) {
+                        allBalEl.textContent = `${allBal >= 0 ? '+' : ''}${allBal.toFixed(IPC_DEC)} ${IPC_CUR}`;
+                        allBalEl.style.color = allBal >= 0 ? '#14b8a6' : '#ef4444';
+                    }
 
                     const tbody = document.getElementById('ipc-table-body');
                     if (!d.items || d.items.length === 0) {

@@ -30,6 +30,7 @@ class PettyCashController extends Controller {
         $data = $model->getRange($startDateTime, $endDateTime, $userId);
         $cashSummary = $model->getAvailableCashCollection($startDateTime, $endDateTime, $userId);
         $cumulativeCashSummary = $model->getAvailableCashCollection(null, null);
+        $cumulativePettyCash = $model->getCumulativeSummary(null);
         $this->json([
             'status' => 'success',
             'period' => [
@@ -40,7 +41,8 @@ class PettyCashController extends Controller {
             ],
             'data' => $data,
             'cash_summary' => $cashSummary,
-            'cumulative_cash_summary' => $cumulativeCashSummary
+            'cumulative_cash_summary' => $cumulativeCashSummary,
+            'cumulative_petty_cash' => $cumulativePettyCash
         ]);
     }
 

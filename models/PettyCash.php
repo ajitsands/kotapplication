@@ -115,6 +115,30 @@ class PettyCash {
         ];
     }
 
+    public function getCumulativeSummary($userId = null) {
+        $sql = "SELECT
+                    COALESCE(SUM(CASE WHEN entry_type = 'income' THEN amount ELSE 0 END), 0) AS income_total,
+                    COALESCE(SUM(CASE WHEN entry_type = 'expense' THEN amount ELSE 0 END), 0) AS expense_total,
+                    COUNT(*) AS cnt
+                FROM petty_cash_transactions";
+        $params = [];
+        if ($userId !== null && $userId !== '' && $userId !== 'all') {
+            $sql .= " WHERE user_id = :user_id";
+            $params['user_id'] = (int)$userId;
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['income_total' => 0, 'expense_total' => 0, 'cnt' => 0];
+        $inc = round((float)$row['income_total'], 3);
+        $exp = round((float)$row['expense_total'], 3);
+        return [
+            'income_total' => $inc,
+            'expense_total' => $exp,
+            'net_total' => round($inc - $exp, 3),
+            'count' => (int)$row['cnt']
+        ];
+    }
+
     public function getRange($startDateTime, $endDateTime, $userId = null) {
         $sql = "SELECT id, entry_type, source, title, category, party_name, amount, notes, user_id, user_name, entry_datetime, created_at
                 FROM petty_cash_transactions
