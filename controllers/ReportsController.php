@@ -467,7 +467,8 @@ class ReportsController extends Controller {
             $pc = $data['categories']['petty_cash'];
             fputcsv($out, ['Petty Cash Income (+)', number_format($pc['income_total'], 3), '']);
             fputcsv($out, ['Petty Cash Expense (-)', number_format($pc['expense_total'], 3), '']);
-            fputcsv($out, ['Petty Cash Net (=)', number_format($pc['net_total'], 3), $pc['count']]);
+            fputcsv($out, ['Petty Cash Net (Shift)', number_format($pc['net_total'], 3), $pc['count']]);
+            fputcsv($out, ['Actual Petty Cash (All Shifts)', number_format($pc['all_shifts_balance'] ?? $pc['net_total'], 3), '']);
         }
         fputcsv($out, []);
 

@@ -1136,6 +1136,8 @@ class Bill extends Model {
         require_once __DIR__ . '/PettyCash.php';
         $pettyCashModel = new PettyCash();
         $pettyCash = $pettyCashModel->getRange($startDateTime, $endDateTime, $cashierId);
+        $cumPettyCash = $pettyCashModel->getCumulativeSummary($cashierId);
+        $pettyCash['all_shifts_balance'] = $cumPettyCash['net_total'];
 
         $cashGrossTotal = round((float)$cash['total'], 3);
         $cashTransferTotal = round((float)($pettyCash['cash_transfer_total'] ?? 0), 3);
@@ -1164,6 +1166,7 @@ class Bill extends Model {
                 'petty_cash_income'  => $pettyCash['income_total'],
                 'petty_cash_expense' => $pettyCash['expense_total'],
                 'petty_cash_net'     => $pettyCash['net_total'],
+                'petty_cash_all_shifts_balance' => $cumPettyCash['net_total'],
                 'petty_cash_count'   => $pettyCash['count'],
             ],
             'categories' => [

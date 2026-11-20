@@ -5474,10 +5474,11 @@
             }
 
             // 6. Petty Cash Transactions Area
-            const pc = cats.petty_cash || { items: [], income_total: 0, expense_total: 0, net_total: 0, count: 0 };
+            const pc = cats.petty_cash || { items: [], income_total: 0, expense_total: 0, net_total: 0, all_shifts_balance: 0, count: 0 };
             const pcIncome = parseFloat(pc.income_total || 0);
             const pcExpense = parseFloat(pc.expense_total || 0);
             const pcNet = parseFloat(pc.net_total || 0);
+            const pcAllBal = parseFloat(pc.all_shifts_balance !== undefined ? pc.all_shifts_balance : pcNet);
             let pcRowsHtml = '';
             if (Array.isArray(pc.items) && pc.items.length > 0) {
                 pc.items.forEach((it, idx) => {
@@ -5523,9 +5524,13 @@
                             </span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <div style="text-align: right; padding-right: 12px; border-right: 1px solid var(--card-border);">
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Shift Net</div>
+                                <div style="font-size: 18px; font-weight: 900; color: ${pcNet >= 0 ? '#10b981' : '#ef4444'};">${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
+                            </div>
                             <div style="text-align: right;">
-                                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Net Petty Cash</div>
-                                <div style="font-size: 20px; font-weight: 900; color: ${pcNet >= 0 ? '#10b981' : '#ef4444'};">${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
+                                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Actual Petty Cash (All Shifts)</div>
+                                <div style="font-size: 20px; font-weight: 900; color: ${pcAllBal >= 0 ? '#14b8a6' : '#ef4444'};">${pcAllBal >= 0 ? '+' : ''}${pcAllBal.toFixed(dec)} <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">${_cur}</span></div>
                             </div>
                             <button type="button" onclick="openPettyCashWindow()" style="background: rgba(16,185,129,0.16); border: 1px solid rgba(16,185,129,0.35); color: #10b981; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
                                 + Book Petty Cash
@@ -5538,7 +5543,8 @@
                     <div style="background: rgba(0,0,0,0.15); padding: 8px 20px; font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); color: var(--text-muted);">
                         <div><strong style="color:#10b981;">Income (+):</strong> +${pcIncome.toFixed(dec)} ${_cur}</div>
                         <div><strong style="color:#ef4444;">Expense (-):</strong> -${pcExpense.toFixed(dec)} ${_cur}</div>
-                        <div><strong style="color:${pcNet >= 0 ? '#10b981' : '#ef4444'};">Net (=):</strong> ${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} ${_cur}</div>
+                        <div><strong style="color:${pcNet >= 0 ? '#10b981' : '#ef4444'};">Shift Net (=):</strong> ${pcNet >= 0 ? '+' : ''}${pcNet.toFixed(dec)} ${_cur}</div>
+                        <div><strong style="color:${pcAllBal >= 0 ? '#14b8a6' : '#ef4444'};">Actual Petty Cash (All Shifts):</strong> ${pcAllBal >= 0 ? '+' : ''}${pcAllBal.toFixed(dec)} ${_cur}</div>
                     </div>
                     <div id="content-petty_cash" style="overflow-x: auto; display: block;">
                         ${pcRowsHtml ? `
@@ -5633,7 +5639,8 @@
                         const pc = data.categories.petty_cash;
                         wsData.push(['Petty Cash Income (+)', parseFloat(pc.income_total || 0).toFixed(dec), '']);
                         wsData.push(['Petty Cash Expense (-)', parseFloat(pc.expense_total || 0).toFixed(dec), '']);
-                        wsData.push(['Petty Cash Net (=)', parseFloat(pc.net_total || 0).toFixed(dec), pc.count || 0]);
+                        wsData.push(['Petty Cash Net (Shift)', parseFloat(pc.net_total || 0).toFixed(dec), pc.count || 0]);
+                        wsData.push(['Actual Petty Cash (All Shifts)', parseFloat(pc.all_shifts_balance !== undefined ? pc.all_shifts_balance : (pc.net_total || 0)).toFixed(dec), '']);
                     }
                     wsData.push([]);
 
